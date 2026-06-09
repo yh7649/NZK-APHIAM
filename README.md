@@ -4,7 +4,7 @@
     <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
 </a>
 
-Integrated Assessment IModel for Air Pollution and Health Impact of Korea's National Decarbonization
+Integrated Assessment Model for Air Pollution and Health Impact of Korea's National Decarbonization
 
 ## Project Organization
 
