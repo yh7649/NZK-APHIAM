@@ -12,7 +12,7 @@ Optional:
 
     python -m nzk_aphiam.data.clean.cleansys_tms_long \
         --raw-dir data/raw/data_go_kr/cleansys_tms \
-        --out-path data/processed/cleansys_tms/cleansys_tms_long.csv
+        --out-path data/interim/cleansys_tms/cleansys_tms_long.csv
 """
 
 from __future__ import annotations
@@ -199,7 +199,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--out-path",
         type=Path,
-        default=Path("data/processed/cleansys_tms/cleansys_tms_long.csv"),
+        default=Path("data/interim/cleansys_tms/cleansys_tms_long.csv"),
     )
 
     parser.add_argument(
