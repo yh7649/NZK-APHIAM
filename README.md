@@ -54,6 +54,26 @@ PYTHONPATH=src python -m nzk_aphiam.data.scrape.thermal.southern_power generatio
 Raw source responses, CSV extracts, and redacted request metadata are saved under
 `data/power_generation/thermal/raw/southern_power/`.
 
+## South-East Power Data
+
+South-East Power publishes its daily air-pollutant data through a signed CSV
+export form on its website rather than a data.go.kr API:
+
+```bash
+PYTHONPATH=src python -m nzk_aphiam.data.scrape.thermal.southeast_power
+```
+
+The command downloads calendar-year chunks, preserves each original CP949
+response, writes one combined UTF-8 CSV for analysis, and saves request metadata under
+`data/power_generation/thermal/raw/southeast_power/`.
+
+Resume an interrupted run from preserved yearly source files with
+`--reuse-existing-source`.
+
+Although data.go.kr advertises history from 2015, the provider's daily export
+currently begins on July 16, 2020. The requested and actual coverage dates are
+both recorded in metadata.
+
 ## Project Organization
 
 ```
