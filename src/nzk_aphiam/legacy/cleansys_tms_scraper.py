@@ -3,17 +3,17 @@ Scrape CleanSYS TMS real-time measurement data from data.go.kr.
 
 Run from the project root:
 
-    python -m nzk_aphiam.data.scrape.data_go_kr.cleansys_tms
+    python -m nzk_aphiam.legacy.cleansys_tms_scraper
 
 Optional filters:
 
-    python -m nzk_aphiam.data.scrape.data_go_kr.cleansys_tms \
+    python -m nzk_aphiam.legacy.cleansys_tms_scraper \
         --area-nm 충남 \
         --fact-manage-nm 태안
 
 Output:
 
-    data/raw/data_go_kr/cleansys_tms/
+    data/legacy/raw/cleansys_tms/
 """
 
 from __future__ import annotations
@@ -28,6 +28,8 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import requests
 from dotenv import load_dotenv
+
+from nzk_aphiam.config.paths import CLEANSYS_DIR
 
 
 BASE_URL = "http://apis.data.go.kr/B552584/cleansys/rltmMesureResult"
@@ -48,6 +50,7 @@ def redact_service_key(url: str) -> str:
             redacted_pairs.append((key, value))
 
     redacted_query = urlencode(redacted_pairs, doseq=True)
+
     return urlunsplit(
         (
             parts.scheme,
@@ -102,7 +105,10 @@ def build_params(
     return params
 
 
-def fetch_cleansys_tms(params: dict[str, str], timeout: int = 30) -> dict[str, Any]:
+def fetch_cleansys_tms(
+    params: dict[str, str],
+    timeout: int = 30,
+) -> dict[str, Any]:
     """
     Fetch one CleanSYS TMS response.
 
@@ -217,7 +223,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--out-dir",
         type=Path,
-        default=Path("data/raw/data_go_kr/cleansys_tms"),
+        default=CLEANSYS_DIR,
         help="Directory where raw API responses should be saved.",
     )
 
@@ -248,7 +254,9 @@ def main() -> None:
     save_json(data, output_path)
 
     params_without_key = {
-        key: value for key, value in params.items() if key.lower() != "servicekey"
+        key: value
+        for key, value in params.items()
+        if key.lower() != "servicekey"
     }
 
     redacted_url = redact_service_key(

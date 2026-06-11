@@ -186,6 +186,17 @@ cython_debug/
 # Ruff stuff:
 .ruff_cache/
 
+# R / RStudio
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+renv/library/
+renv/staging/
+rsconnect/
+*.Rproj.user
+*.nb.html
+
 # PyPI configuration file
 .pypirc.env
 .env.*

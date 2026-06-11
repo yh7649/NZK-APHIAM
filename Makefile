@@ -47,6 +47,18 @@ test:
 	python -m pytest tests
 
 
+## Install R packages used by analysis notebooks
+.PHONY: r-requirements
+r-requirements:
+	Rscript analysis/setup.R
+
+
+## Render the Western Power R Markdown notebook
+.PHONY: r-western-power
+r-western-power:
+	Rscript analysis/render.R
+
+
 ## Set up Python interpreter environment
 .PHONY: create_environment
 create_environment:

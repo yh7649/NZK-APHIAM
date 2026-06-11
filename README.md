@@ -6,6 +6,34 @@
 
 Integrated Assessment Model for Air Pollution and Health Impact of Korea's National Decarbonization
 
+## RStudio Analysis
+
+Open `NZK-APHIAM.Rproj` in RStudio to work from the project root.
+
+R analysis files are organized as:
+
+```text
+analysis/
+├── R/            <- Shared R helper functions
+└── setup.R       <- Installs packages required by the notebooks
+
+notebooks/r/      <- R Markdown analysis notebooks
+```
+
+Install the notebook dependencies with:
+
+```bash
+make r-requirements
+```
+
+The first notebook checks the locally scraped Western Power dataset:
+
+```text
+notebooks/r/01-western-power-raw-check.Rmd
+```
+
+Data remains local under `data/` and is ignored by Git.
+
 ## Project Organization
 
 ```
@@ -58,4 +86,3 @@ Integrated Assessment Model for Air Pollution and Health Impact of Korea's Natio
 ```
 
 --------
-

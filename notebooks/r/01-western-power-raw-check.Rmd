@@ -1,0 +1,59 @@
+---
+title: "Western Power Raw Data Check"
+output:
+  html_notebook:
+    toc: true
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE
+)
+
+paths_file <- file.path("..", "..", "analysis", "R", "paths.R")
+
+if (!file.exists(paths_file)) {
+  paths_file <- file.path("analysis", "R", "paths.R")
+}
+
+source(paths_file)
+```
+
+```{r load-data}
+western_power_csv <- thermal_raw_path(
+  "western_power",
+  "western_power_air_pollutants_generation.csv"
+)
+
+if (!file.exists(western_power_csv)) {
+  stop(
+    "Western Power raw CSV not found. Run ",
+    "`python -m nzk_aphiam.data.scrape.thermal.western_power` first.",
+    call. = FALSE
+  )
+}
+
+western_power <- read.csv(
+  western_power_csv,
+  fileEncoding = "UTF-8-BOM",
+  check.names = FALSE
+)
+```
+
+```{r overview}
+str(western_power)
+head(western_power)
+summary(western_power)
+```
+
+```{r records-by-plant}
+table(western_power$발전소, useNA = "ifany")
+```
+
+```{r records-by-year}
+western_power$year <- substr(western_power$날짜, 1, 4)
+table(western_power$year, useNA = "ifany")
+```

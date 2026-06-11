@@ -6,13 +6,13 @@ Unit of observation:
 
 Run from project root:
 
-    python -m nzk_aphiam.data.clean.cleansys_tms_wide
+    python -m nzk_aphiam.legacy.cleansys_tms_wide
 
 Optional:
 
-    python -m nzk_aphiam.data.clean.cleansys_tms_wide \
-        --raw-dir data/raw/data_go_kr/cleansys_tms \
-        --out-path data/interim/cleansys_tms/cleansys_tms_wide.csv
+    python -m nzk_aphiam.legacy.cleansys_tms_wide \
+        --raw-dir data/legacy/raw/cleansys_tms \
+        --out-path data/legacy/interim/cleansys_tms/cleansys_tms_wide.csv
 """
 
 from __future__ import annotations
@@ -23,6 +23,8 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+
+from nzk_aphiam.config.paths import CLEANSYS_DIR, LEGACY_INTERIM_DIR
 
 
 POLLUTANTS = ["nox", "sox", "tsp", "co", "nh3", "hf", "hcl"]
@@ -189,13 +191,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--raw-dir",
         type=Path,
-        default=Path("data/raw/data_go_kr/cleansys_tms"),
+        default=CLEANSYS_DIR,
+        help="Directory containing raw CleanSYS TMS JSON files.",
     )
 
     parser.add_argument(
         "--out-path",
         type=Path,
-        default=Path("data/interim/cleansys_tms/cleansys_tms_wide.csv"),
+        default=LEGACY_INTERIM_DIR / "cleansys_tms" / "cleansys_tms_wide.csv",
+        help="Path where cleaned wide-format CSV will be written.",
     )
 
     return parser.parse_args()

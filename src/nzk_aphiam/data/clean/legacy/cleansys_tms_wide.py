@@ -1,18 +1,20 @@
+# This cleaning script is obsolete because it works with a dataset that is not useful.
+
 """
-Clean raw CleanSYS TMS JSON files into a long/tidy CSV.
+Clean raw CleanSYS TMS JSON files into a wide CSV.
 
 Unit of observation:
-    facility/stack/time/pollutant
+    facility/stack at a measurement time
 
 Run from project root:
 
-    python -m nzk_aphiam.legacy.cleansys_tms_long
+    python -m nzk_aphiam.data.clean.cleansys_tms_wide
 
 Optional:
 
-    python -m nzk_aphiam.legacy.cleansys_tms_long \
-        --raw-dir data/legacy/raw/cleansys_tms \
-        --out-path data/legacy/interim/cleansys_tms/cleansys_tms_long.csv
+    python -m nzk_aphiam.data.clean.cleansys_tms_wide \
+        --raw-dir data/raw/data_go_kr/cleansys_tms \
+        --out-path data/interim/cleansys_tms/cleansys_tms_wide.csv
 """
 
 from __future__ import annotations
@@ -23,8 +25,6 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-
-from nzk_aphiam.config.paths import CLEANSYS_DIR, LEGACY_INTERIM_DIR
 
 
 POLLUTANTS = ["nox", "sox", "tsp", "co", "nh3", "hf", "hcl"]
@@ -63,6 +63,10 @@ def extract_items(data: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def to_numeric_or_none(raw_value: Any) -> float | None:
+    """
+    Convert numeric-looking API values to floats.
+    Return None for missing values or nonnumeric status strings.
+    """
     if raw_value is None:
         return None
 
@@ -80,6 +84,12 @@ def to_numeric_or_none(raw_value: Any) -> float | None:
 
 
 def normalize_status(raw_value: Any) -> str | None:
+    """
+    Convert nonnumeric measurement strings into simple status labels.
+
+    Example:
+        측정자료확인중(가동중지) -> shutdown
+    """
     if raw_value is None:
         return None
 
@@ -102,11 +112,11 @@ def normalize_status(raw_value: Any) -> str | None:
     return raw_str
 
 
-def records_to_long_df(records: list[dict[str, Any]], source_file: str) -> pd.DataFrame:
+def records_to_wide_df(records: list[dict[str, Any]], source_file: str) -> pd.DataFrame:
     rows: list[dict[str, Any]] = []
 
     for record in records:
-        base = {
+        row = {
             "mesure_dt": record.get("mesure_dt"),
             "area_nm": record.get("area_nm"),
             "fact_manage_nm": record.get("fact_manage_nm"),
@@ -121,17 +131,14 @@ def records_to_long_df(records: list[dict[str, Any]], source_file: str) -> pd.Da
             raw_measure = record.get(measure_key)
             raw_limit = record.get(limit_key)
 
-            row = {
-                **base,
-                "pollutant": pollutant,
-                "measure_value_raw": raw_measure,
-                "measure_value": to_numeric_or_none(raw_measure),
-                "measure_status": normalize_status(raw_measure),
-                "limit_raw": raw_limit,
-                "limit": to_numeric_or_none(raw_limit),
-            }
+            row[f"{pollutant}_value_raw"] = raw_measure
+            row[f"{pollutant}_value"] = to_numeric_or_none(raw_measure)
+            row[f"{pollutant}_status"] = normalize_status(raw_measure)
 
-            rows.append(row)
+            row[f"{pollutant}_limit_raw"] = raw_limit
+            row[f"{pollutant}_limit"] = to_numeric_or_none(raw_limit)
+
+        rows.append(row)
 
     df = pd.DataFrame(rows)
 
@@ -162,7 +169,7 @@ def read_raw_files(raw_dir: Path) -> pd.DataFrame:
             print(f"Warning: no records found in {path}")
             continue
 
-        frames.append(records_to_long_df(records, source_file=path.name))
+        frames.append(records_to_wide_df(records, source_file=path.name))
 
     if not frames:
         raise ValueError("No records extracted from raw JSON files.")
@@ -170,46 +177,27 @@ def read_raw_files(raw_dir: Path) -> pd.DataFrame:
     return pd.concat(frames, ignore_index=True)
 
 
-def drop_empty_pollutant_rows(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Drop pollutant rows that have no measurement, no status, and no limit.
-    """
-    return df[
-        df["measure_value"].notna()
-        | df["measure_status"].notna()
-        | df["limit"].notna()
-    ].copy()
-
-
 def save_csv(df: pd.DataFrame, out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out_path, index=False, encoding="utf-8-sig")
-    print(f"Saved long cleaned CSV to {out_path}")
+    print(f"Saved wide cleaned CSV to {out_path}")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Clean raw CleanSYS TMS JSON files into long CSV."
+        description="Clean raw CleanSYS TMS JSON files into wide CSV."
     )
 
     parser.add_argument(
         "--raw-dir",
         type=Path,
-        default=CLEANSYS_DIR,
-        help="Directory containing raw CleanSYS TMS JSON files.",
+        default=Path("data/raw/data_go_kr/cleansys_tms"),
     )
 
     parser.add_argument(
         "--out-path",
         type=Path,
-        default=LEGACY_INTERIM_DIR / "cleansys_tms" / "cleansys_tms_long.csv",
-        help="Path where cleaned long-format CSV will be written.",
-    )
-
-    parser.add_argument(
-        "--keep-empty-pollutants",
-        action="store_true",
-        help="Keep pollutant rows with no measurement, status, or limit.",
+        default=Path("data/interim/cleansys_tms/cleansys_tms_wide.csv"),
     )
 
     return parser.parse_args()
@@ -220,11 +208,8 @@ def main() -> None:
 
     df = read_raw_files(args.raw_dir)
 
-    if not args.keep_empty_pollutants:
-        df = drop_empty_pollutant_rows(df)
-
     print("\nPreview:")
-    print(df.head(20))
+    print(df.head())
 
     print("\nShape:")
     print(df.shape)
