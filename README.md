@@ -34,6 +34,26 @@ notebooks/r/01-western-power-raw-check.Rmd
 
 Data remains local under `data/` and is ignored by Git.
 
+## Southern Power Data
+
+Add your data.go.kr API key to `.env`:
+
+```dotenv
+DATA_GO_KR_API_KEY=...
+SOUTHERN_POWER_EMISSIONS_API_URL=https://api.odcloud.kr/api/15099713/v1/uddi:e7ea7bfd-d0c4-4cb6-afea-95fa7821cb51
+SOUTHERN_POWER_GENERATION_API_URL=http://apis.data.go.kr/B552520/GenInfo/getDataService
+```
+
+Download the complete emissions or daily generation datasets:
+
+```bash
+PYTHONPATH=src python -m nzk_aphiam.data.scrape.thermal.southern_power emissions
+PYTHONPATH=src python -m nzk_aphiam.data.scrape.thermal.southern_power generation
+```
+
+Raw source responses, CSV extracts, and redacted request metadata are saved under
+`data/power_generation/thermal/raw/southern_power/`.
+
 ## Project Organization
 
 ```
