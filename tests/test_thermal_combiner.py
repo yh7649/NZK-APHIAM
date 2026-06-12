@@ -95,4 +95,8 @@ def test_variable_metadata_matches_combined_schema_and_labels_units() -> None:
     assert "(kg)" in labels["nox"]
     assert "(kg)" in labels["sox"]
     assert "(kg)" in labels["dust_tsp"]
-    assert "(degrees Celsius)" in labels["temperature_celsius"]
+    assert "oxygen" not in labels
+    assert "oxygen_unit" not in labels
+    assert "flue_gas_flow" not in labels
+    assert "flue_gas_flow_unit" not in labels
+    assert "temperature_celsius" not in labels

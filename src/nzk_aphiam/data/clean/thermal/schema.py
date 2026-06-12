@@ -30,8 +30,20 @@ THERMAL_OUTPUT_COLUMNS = [
     "original_korean_note",
 ]
 
+COMBINED_THERMAL_EXCLUDED_COLUMNS = {
+    "oxygen",
+    "oxygen_unit",
+    "flue_gas_flow",
+    "flue_gas_flow_unit",
+    "temperature_celsius",
+}
+
 COMBINED_THERMAL_OUTPUT_COLUMNS = [
     "source_dataset",
     "observation_frequency",
-    *THERMAL_OUTPUT_COLUMNS,
+    *[
+        column
+        for column in THERMAL_OUTPUT_COLUMNS
+        if column not in COMBINED_THERMAL_EXCLUDED_COLUMNS
+    ],
 ]

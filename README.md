@@ -159,6 +159,10 @@ capacity remains in MW, and NOx, SOx, and dust mass are standardized to
 kilograms. East-West and Western values are converted from metric tonnes by
 multiplying by 1,000; Southern values are already kilograms.
 
+The processed monthly mass dataset omits oxygen, flue-gas flow, and temperature
+fields because they are empty across all three included sources. Those fields
+remain available in source-specific interim datasets where they are reported.
+
 The same command writes
 `thermal_power_generation_emissions_metadata.csv` beside the data. It contains
 ordered `varname` and `label` fields for every column, with units included in
