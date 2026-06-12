@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+type: software
+title: "NZK-APHIAM: Net-Zero Korea Air Pollution and Health Integrated Assessment Model"
+abstract: >-
+  Reproducible data collection, cleaning, harmonization, and analysis tools for
+  studying power generation, air pollution, and health impacts in Korea's
+  national decarbonization pathways.
+authors:
+  - family-names: "Hong"
+    given-names: "Yehyun"
+    affiliation: "Princeton University"
+version: 0.0.1
+license: MIT
+repository-code: "https://github.com/yh7649/NZK-APHIAM"
+url: "https://github.com/yh7649/NZK-APHIAM"
+keywords:
+  - air pollution
+  - decarbonization
+  - emissions
+  - integrated assessment model
+  - Korea
+  - power generation

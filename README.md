@@ -6,6 +6,22 @@
 
 Integrated Assessment Model for Air Pollution and Health Impact of Korea's National Decarbonization
 
+## Authorship and Citation
+
+Yehyun Hong is the project creator, primary author, and maintainer. Yehyun is a
+Princeton University Operations Research and Financial Engineering student in
+the Class of 2028 and a research assistant for Net Zero Korea, a joint
+Princeton University-KAIST collaboration. OpenAI Codex was used for coding and
+documentation assistance under human direction and review; responsibility for
+the research and released work remains with the human author.
+
+If you use this repository, cite it using [`CITATION.cff`](CITATION.cff).
+GitHub will expose this through its **Cite this repository** interface. See
+[`AUTHORS.md`](AUTHORS.md) for contribution credit,
+[`DATA_PROVENANCE.md`](DATA_PROVENANCE.md) for source-data and licensing
+guidance, and [`RELEASING.md`](RELEASING.md) for tagged releases and Zenodo DOI
+archiving.
+
 ## New Team Member Setup
 
 These instructions assume macOS and Homebrew. Clone the repository, open a
@@ -305,47 +321,20 @@ The emissions API returns no records for December 2019, December 2020, or July
 ## Project Organization
 
 ```
-├── LICENSE            <- Open-source license if one is chosen
-├── Makefile           <- Makefile with convenience commands like `make data` or `make train`
-├── README.md          <- The top-level README for developers using this project.
-├── data
-│   ├── external       <- Data from third party sources.
-│   ├── interim        <- Intermediate data that has been transformed.
-│   ├── processed      <- The final, canonical data sets for modeling.
-│   └── raw            <- The original, immutable data dump.
-│
-├── pyproject.toml     <- Project configuration file with package metadata for 
-│                         net_zero_korea:_air_pollution_and_health_iam and configuration for tools like black
-│
-├── references         <- Data dictionaries, manuals, and all other explanatory materials.
-│
-├── results            <- Generated outputs from analysis and modeling
+├── CITATION.cff       <- Machine-readable software citation
+├── AUTHORS.md         <- Human authorship and AI-assistance disclosure
+├── DATA_PROVENANCE.md <- Source-data, licensing, and reproducibility guidance
+├── RELEASING.md       <- Versioning, GitHub release, and Zenodo instructions
+├── LICENSE            <- MIT license for repository software and documentation
+├── Makefile           <- Reproducible scrape, clean, combine, test, and analysis commands
+├── analysis           <- Main R analysis workspace and shared R helpers
+├── data               <- Local raw, interim, and processed data; ignored by Git
+├── references         <- Documented mappings, evidence, and source references
+├── results
 │   ├── figures        <- Saved plots and graphics
 │   ├── tables         <- Saved analysis tables
 │   ├── objects        <- Serialized analysis objects
 │   └── models         <- Trained and serialized models
-│
-├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-│                         generated with `pip freeze > requirements.txt`
-│
-├── setup.cfg          <- Configuration file for flake8
-│
-└── net_zero_korea:_air_pollution_and_health_iam   <- Source code for use in this project.
-    │
-    ├── __init__.py             <- Makes net_zero_korea:_air_pollution_and_health_iam a Python module
-    │
-    ├── config.py               <- Store useful variables and configuration
-    │
-    ├── dataset.py              <- Scripts to download or generate data
-    │
-    ├── features.py             <- Code to create features for modeling
-    │
-    ├── modeling                
-    │   ├── __init__.py 
-    │   ├── predict.py          <- Code to run model inference with trained models          
-    │   └── train.py            <- Code to train models
-    │
-    └── plots.py                <- Code to create visualizations
+├── src/nzk_aphiam     <- Python package for scraping, cleaning, and processing
+└── tests              <- Python test suite
 ```
-
---------
