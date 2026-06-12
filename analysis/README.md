@@ -1,11 +1,17 @@
 # Analysis
 
-RStudio-facing analysis code lives here.
+`manual_analysis.R` is the main RStudio analysis workspace. It loads and
+validates the combined monthly dataset, applies variable labels, creates kg/MWh
+emission-factor columns, defines output paths, and provides helpers for saving
+tables, figures, R objects, and models under `results/`.
 
-- `R/`: Shared R helpers used by notebooks and analysis scripts.
-- `render.R`: Renders the current Western Power notebook from the command line.
-- `setup.R`: Installs the notebook dependencies.
-- `../notebooks/r/`: R Markdown notebooks for exploratory analysis.
+Shared path helpers live in `R/`. Dataset merging, schema validation, and unit
+standardization are handled in Python by `make combine-thermal`; R is reserved
+for analysis.
 
-Data files are intentionally not tracked by Git. Notebooks should read from `data/`
-when the relevant local scrape has been run.
+Open `NZK-APHIAM.Rproj` and work through `manual_analysis.R` interactively, or
+run the complete setup from the terminal with:
+
+```bash
+make r-analysis
+```

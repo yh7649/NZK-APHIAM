@@ -17,8 +17,8 @@ LEGACY_PROCESSED_DIR = LEGACY_DIR / "processed"
 # CleanSYS (archived project)
 CLEANSYS_DIR = LEGACY_RAW_DIR / "cleansys_tms"
 
-# Future KEPCO subsidiary project
-THERMAL_DIR = DATA_DIR / "thermal_subsidiaries"
+# KEPCO thermal subsidiary project
+THERMAL_DIR = DATA_DIR / "power_generation" / "thermal"
 
 THERMAL_RAW_DIR = THERMAL_DIR / "raw"
 THERMAL_INTERIM_DIR = THERMAL_DIR / "interim"

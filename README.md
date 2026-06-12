@@ -10,29 +10,18 @@ Integrated Assessment Model for Air Pollution and Health Impact of Korea's Natio
 
 Open `NZK-APHIAM.Rproj` in RStudio to work from the project root.
 
-R analysis files are organized as:
-
-```text
-analysis/
-├── R/            <- Shared R helper functions
-└── setup.R       <- Installs packages required by the notebooks
-
-notebooks/r/      <- R Markdown analysis notebooks
-```
-
-Install the notebook dependencies with:
+Python combines and standardizes the monthly East-West, Western, and Southern
+datasets. R only loads the resulting processed dataset for analysis:
 
 ```bash
-make r-requirements
+make combine-thermal
+make r-analysis
 ```
 
-The first notebook checks the locally scraped Western Power dataset:
-
-```text
-notebooks/r/01-western-power-raw-check.Rmd
-```
-
-Data remains local under `data/` and is ignored by Git.
+The R entry point is `analysis/manual_analysis.R`, with shared path helpers
+under `analysis/R/`. Generated figures, tables, analysis objects, and models are
+written under `results/`. Data remains local under `data/` and is ignored by
+Git.
 
 Run every thermal subsidiary scraper sequentially with:
 
@@ -154,6 +143,39 @@ Rebuild every cleaner currently implemented with:
 make clean-thermal
 ```
 
+## Combined Monthly Thermal Dataset
+
+Combine the three interim datasets that currently report monthly pollutant
+mass and generation:
+
+```bash
+make combine-thermal
+```
+
+This combines East-West, Western, and Southern Power into
+`data/power_generation/thermal/processed/thermal_power_generation_emissions.csv`.
+All input schemas are checked before concatenation. Generation remains in MWh,
+capacity remains in MW, and NOx, SOx, and dust mass are standardized to
+kilograms. East-West and Western values are converted from metric tonnes by
+multiplying by 1,000; Southern values are already kilograms.
+
+The same command writes
+`thermal_power_generation_emissions_metadata.csv` beside the data. It contains
+ordered `varname` and `label` fields for every column, with units included in
+quantitative variable labels. The R analysis loader checks that this dictionary
+matches the dataset and attaches the labels to the imported columns.
+
+South-East is intentionally excluded because it reports daily concentrations
+with undocumented concentration units rather than monthly pollutant mass.
+Midland is excluded until the requested monthly raw emissions data are
+available.
+
+Load the combined data and calculate pollutant emission factors in R with:
+
+```bash
+make r-analysis
+```
+
 ## South-East Power Data
 
 South-East Power publishes its daily air-pollutant data through a signed CSV
@@ -173,6 +195,22 @@ Resume an interrupted run from preserved yearly source files with
 Although data.go.kr advertises history from 2015, the provider's daily export
 currently begins on July 16, 2020. The requested and actual coverage dates are
 both recorded in metadata.
+
+Clean the downloaded daily measurements with:
+
+```bash
+make clean-southeast-power
+```
+
+The output is written to
+`data/power_generation/thermal/interim/southeast_power/southeast_power_daily_air_pollutant_measurements.csv`.
+It preserves every plant-unit-day row and retains the reported NOX, SOX, dust,
+oxygen, flue-gas flow, and temperature values. The export does not state the
+pollutant concentration units or flue-gas-flow unit, so those unit fields are
+marked `not_reported`. `emissions_mass_unit`, generation, capacity, and fuel
+type remain null. Concentrations are not converted to mass because the source
+does not document enough unit and operating-duration information for a
+defensible conversion.
 
 ## Midland Power Data
 
@@ -210,21 +248,16 @@ The emissions API returns no records for December 2019, December 2020, or July
 │   ├── processed      <- The final, canonical data sets for modeling.
 │   └── raw            <- The original, immutable data dump.
 │
-├── docs               <- A default mkdocs project; see www.mkdocs.org for details
-│
-├── models             <- Trained and serialized models, model predictions, or model summaries
-│
-├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-│                         the creator's initials, and a short `-` delimited description, e.g.
-│                         `1.0-jqp-initial-data-exploration`.
-│
 ├── pyproject.toml     <- Project configuration file with package metadata for 
 │                         net_zero_korea:_air_pollution_and_health_iam and configuration for tools like black
 │
 ├── references         <- Data dictionaries, manuals, and all other explanatory materials.
 │
-├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
-│   └── figures        <- Generated graphics and figures to be used in reporting
+├── results            <- Generated outputs from analysis and modeling
+│   ├── figures        <- Saved plots and graphics
+│   ├── tables         <- Saved analysis tables
+│   ├── objects        <- Serialized analysis objects
+│   └── models         <- Trained and serialized models
 │
 ├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
 │                         generated with `pip freeze > requirements.txt`

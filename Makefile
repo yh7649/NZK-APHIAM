@@ -102,12 +102,25 @@ clean-thermal:
 	$(MAKE) clean-western-power
 	$(MAKE) clean-eastwest-power
 	$(MAKE) clean-southern-power
+	$(MAKE) clean-southeast-power
+
+
+## Combine East-West, Western, and Southern monthly data with pollutant mass in kilograms
+.PHONY: combine-thermal
+combine-thermal:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.thermal
 
 
 ## Download fresh South-East Power raw data
 .PHONY: scrape-southeast-power
 scrape-southeast-power:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southeast_power
+
+
+## Clean South-East Power daily pollutant measurements
+.PHONY: clean-southeast-power
+clean-southeast-power:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.clean.thermal.southeast_power
 
 
 ## Download Midland Power emissions data
@@ -158,18 +171,13 @@ verify-offline:
 	$(MAKE) test
 	$(MAKE) check-scraper-cli
 	$(MAKE) clean-thermal
+	$(MAKE) combine-thermal
 
 
-## Install R packages used by analysis notebooks
-.PHONY: r-requirements
-r-requirements:
-	Rscript analysis/setup.R
-
-
-## Render the Western Power R Markdown notebook
-.PHONY: r-western-power
-r-western-power:
-	Rscript analysis/render.R
+## Run the main manual analysis workspace
+.PHONY: r-analysis
+r-analysis:
+	Rscript analysis/manual_analysis.R
 
 
 ## Set up Python interpreter environment

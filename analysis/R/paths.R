@@ -37,3 +37,15 @@ data_path <- function(...) {
 thermal_raw_path <- function(...) {
   data_path("power_generation", "thermal", "raw", ...)
 }
+
+thermal_interim_path <- function(...) {
+  data_path("power_generation", "thermal", "interim", ...)
+}
+
+thermal_processed_path <- function(...) {
+  data_path("power_generation", "thermal", "processed", ...)
+}
+
+results_path <- function(...) {
+  project_path("results", ...)
+}
