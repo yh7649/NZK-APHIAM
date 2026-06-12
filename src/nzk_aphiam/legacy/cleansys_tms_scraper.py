@@ -19,18 +19,17 @@ Output:
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timezone
 import json
 import os
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-import requests
 from dotenv import load_dotenv
+import requests
 
 from nzk_aphiam.config.paths import CLEANSYS_DIR
-
 
 BASE_URL = "http://apis.data.go.kr/B552584/cleansys/rltmMesureResult"
 
@@ -72,8 +71,7 @@ def get_service_key() -> str:
 
     if not service_key:
         raise ValueError(
-            "DATA_GO_KR_API_KEY is missing. "
-            "Add it to your .env file, but do not commit .env."
+            "DATA_GO_KR_API_KEY is missing. Add it to your .env file, but do not commit .env."
         )
 
     return service_key
@@ -254,9 +252,7 @@ def main() -> None:
     save_json(data, output_path)
 
     params_without_key = {
-        key: value
-        for key, value in params.items()
-        if key.lower() != "servicekey"
+        key: value for key, value in params.items() if key.lower() != "servicekey"
     }
 
     redacted_url = redact_service_key(

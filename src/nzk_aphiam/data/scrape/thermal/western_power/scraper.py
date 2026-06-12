@@ -22,16 +22,46 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from dotenv import load_dotenv
 import pandas as pd
 import requests
-from dotenv import load_dotenv
-
 
 DATASET_NAME = "한국서부발전(주)_대기오염물질 배출현황 및 발전량"
 DATASET_URL = "https://www.data.go.kr/data/15099592/fileData.do#tab-layer-openapi"
 API_KEY_ENV = "DATA_GO_KR_API_KEY"
 API_URL_ENV = "WESTERN_POWER_API_URL"
 DEFAULT_PER_PAGE = 1000
+FUEL_MAPPING_REFERENCE = "references/thermal/western_power_energy_type_mapping.csv"
+FUEL_MAPPING_SOURCES = [
+    {
+        "description": "Taean plant fuel table",
+        "url": "https://www.iwest.co.kr/iwest/559/subview.do",
+    },
+    {
+        "description": "Pyeongtaek historical plant and fuel description",
+        "url": "https://www.iwest.co.kr/iwest/800/subview.do",
+    },
+    {
+        "description": "Pyeongtaek operating history and full-LNG conversion date",
+        "url": "https://www.iwest.co.kr/iwest/925/subview.do",
+    },
+    {
+        "description": "Pyeongtaek current plant fuel table",
+        "url": "https://www.iwest.co.kr/iwest/560/subview.do",
+    },
+    {
+        "description": "Seoincheon plant fuel table",
+        "url": "https://www.iwest.co.kr/iwest/561/subview.do",
+    },
+    {
+        "description": "Gunsan plant fuel table",
+        "url": "https://www.iwest.co.kr/iwest/562/subview.do",
+    },
+    {
+        "description": "Gimpo plant fuel table",
+        "url": "https://www.iwest.co.kr/iwest/1052/subview.do",
+    },
+]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = (
@@ -49,9 +79,7 @@ def get_required_env(name: str) -> str:
     value = os.getenv(name)
 
     if not value:
-        raise ValueError(
-            f"{name} is missing. Add it to your .env file, but do not commit .env."
-        )
+        raise ValueError(f"{name} is missing. Add it to your .env file, but do not commit .env.")
 
     return value
 
@@ -351,12 +379,16 @@ def main() -> None:
         "source": "data.go.kr",
         "dataset": DATASET_NAME,
         "dataset_url": DATASET_URL,
+        "fuel_mapping_reference": FUEL_MAPPING_REFERENCE,
+        "fuel_mapping_sources": FUEL_MAPPING_SOURCES,
         "pages": pages,
     }
     metadata = {
         "source": "data.go.kr",
         "dataset": DATASET_NAME,
         "dataset_url": DATASET_URL,
+        "fuel_mapping_reference": FUEL_MAPPING_REFERENCE,
+        "fuel_mapping_sources": FUEL_MAPPING_SOURCES,
         "api_url_redacted": redact_url(api_url),
         "request_urls_redacted": request_urls,
         "row_count": len(rows),

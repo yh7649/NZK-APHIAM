@@ -26,6 +26,11 @@ from dotenv import load_dotenv
 import pandas as pd
 import requests
 
+from nzk_aphiam.data.scrape.thermal.southern_power.provenance import (
+    ENRICHMENT_SOURCES,
+    FUEL_MAPPING_REFERENCE,
+)
+
 DATASET_NAME = "한국남부발전(주)_대기오염물질 배출량 현황"
 DATASET_URL = "https://www.data.go.kr/data/15099713/fileData.do"
 API_KEY_ENV = "DATA_GO_KR_API_KEY"
@@ -266,6 +271,8 @@ def main(argv: Sequence[str] | None = None) -> None:
             "source": "data.go.kr",
             "dataset": DATASET_NAME,
             "dataset_url": DATASET_URL,
+            "fuel_mapping_reference": FUEL_MAPPING_REFERENCE,
+            "enrichment_sources": ENRICHMENT_SOURCES,
             "pages": pages,
         },
         raw_path,
@@ -276,6 +283,8 @@ def main(argv: Sequence[str] | None = None) -> None:
             "source": "data.go.kr",
             "dataset": DATASET_NAME,
             "dataset_url": DATASET_URL,
+            "fuel_mapping_reference": FUEL_MAPPING_REFERENCE,
+            "enrichment_sources": ENRICHMENT_SOURCES,
             "api_url_redacted": redact_url(api_url),
             "request_urls_redacted": request_urls,
             "row_count": len(rows),

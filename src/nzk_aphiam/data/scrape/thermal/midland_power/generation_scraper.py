@@ -1,17 +1,14 @@
 """
-Scrape Korea Southern Power daily generation records.
+Scrape Korea Midland Power monthly generation records.
 
 Source:
-    https://www.data.go.kr/data/15125305/openapi.do
+    https://www.data.go.kr/data/15084753/openapi.do
 
-The gateway currently serves this API over HTTP rather than HTTPS.
-
-Required .env values:
+Required .env value:
     DATA_GO_KR_API_KEY=...
-    SOUTHERN_POWER_GENERATION_API_URL=http://apis.data.go.kr/...
 
 Run from the project root:
-    python -m nzk_aphiam.data.scrape.thermal.southern_power.generation_scraper
+    python -m nzk_aphiam.data.scrape.thermal.midland_power generation
 """
 
 from __future__ import annotations
@@ -30,21 +27,17 @@ from dotenv import load_dotenv
 import pandas as pd
 import requests
 
-from nzk_aphiam.data.scrape.thermal.southern_power.provenance import (
-    ENRICHMENT_SOURCES,
-    FUEL_MAPPING_REFERENCE,
-)
-
-DATASET_NAME = "한국남부발전(주)_발전실적 조회_GW"
-DATASET_URL = "https://www.data.go.kr/data/15125305/openapi.do"
+DATASET_NAME = "한국중부발전(주)_발전실적조회 서비스"
+DATASET_URL = "https://www.data.go.kr/data/15084753/openapi.do"
 API_KEY_ENV = "DATA_GO_KR_API_KEY"
-API_URL_ENV = "SOUTHERN_POWER_GENERATION_API_URL"
-DEFAULT_START_DATE = "19000101"
-DEFAULT_PER_PAGE = 10000
+API_URL_ENV = "MIDLAND_POWER_GENERATION_API_URL"
+DEFAULT_API_URL = "https://apis.data.go.kr/B552521/resultPlant/getData"
+DEFAULT_START_MONTH = "201201"
+DEFAULT_PER_PAGE = 1000
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = (
-    PROJECT_ROOT / "data" / "power_generation" / "thermal" / "raw" / "southern_power"
+    PROJECT_ROOT / "data" / "power_generation" / "thermal" / "raw" / "midland_power"
 )
 
 SECRET_QUERY_KEYS = {"servicekey", "service_key", "apikey", "api_key", "key"}
@@ -54,21 +47,24 @@ def get_required_env(name: str) -> str:
     """Load a required environment variable from .env or the current shell."""
     load_dotenv()
     value = os.getenv(name)
-
     if not value:
         raise ValueError(f"{name} is missing. Add it to your .env file, but do not commit .env.")
-
     return value
+
+
+def get_api_url() -> str:
+    """Use an optional environment override or the documented endpoint."""
+    load_dotenv()
+    return os.getenv(API_URL_ENV, DEFAULT_API_URL)
 
 
 def redact_url(url: str) -> str:
     """Hide API keys in a URL before printing or writing metadata."""
     parts = urlsplit(url)
-    redacted_pairs = []
-
-    for key, value in parse_qsl(parts.query, keep_blank_values=True):
-        redacted_pairs.append((key, "REDACTED" if key.lower() in SECRET_QUERY_KEYS else value))
-
+    redacted_pairs = [
+        (key, "REDACTED" if key.lower() in SECRET_QUERY_KEYS else value)
+        for key, value in parse_qsl(parts.query, keep_blank_values=True)
+    ]
     return urlunsplit(
         (
             parts.scheme,
@@ -87,12 +83,12 @@ def split_url_params(url: str) -> tuple[str, dict[str, str]]:
     return base_url, dict(parse_qsl(parts.query, keep_blank_values=True))
 
 
-def validate_date(value: str) -> str:
-    """Validate an API date in YYYYMMDD form."""
+def validate_month(value: str) -> str:
+    """Validate an API month in YYYYMM form."""
     try:
-        datetime.strptime(value, "%Y%m%d")
+        datetime.strptime(value, "%Y%m")
     except ValueError as error:
-        raise argparse.ArgumentTypeError("Date must use YYYYMMDD format.") from error
+        raise argparse.ArgumentTypeError("Month must use YYYYMM format.") from error
     return value
 
 
@@ -101,25 +97,33 @@ def build_params(
     service_key: str,
     page: int,
     per_page: int,
-    start_date: str,
-    end_date: str,
+    start_month: str,
+    end_month: str,
+    plant_code: str | None = None,
+    unit_start: str | None = None,
+    unit_end: str | None = None,
 ) -> tuple[str, dict[str, str | int]]:
-    """Build an unfiltered generation request."""
+    """Build one monthly generation request."""
     base_url, params = split_url_params(api_url)
-
     for key in list(params):
         if key.lower() in SECRET_QUERY_KEYS:
             del params[key]
 
     params.update(
         {
-            "serviceKey": service_key,
+            "ServiceKey": service_key,
             "pageNo": page,
             "numOfRows": per_page,
-            "strSdate": start_date,
-            "strEdate": end_date,
+            "strDateS": start_month,
+            "strDateE": end_month,
         }
     )
+    optional = {
+        "strOrgNo": plant_code,
+        "strHokiS": unit_start,
+        "strHokiE": unit_end,
+    }
+    params.update({key: value for key, value in optional.items() if value is not None})
     return base_url, params
 
 
@@ -128,33 +132,28 @@ def parse_response(xml_content: str | bytes) -> ET.Element:
     try:
         root = ET.fromstring(xml_content)
     except ET.ParseError as error:
-        raise RuntimeError("Southern Power response was not valid XML.") from error
+        raise RuntimeError("Midland Power generation response was not valid XML.") from error
 
     result_code = root.findtext("./header/resultCode")
     result_message = root.findtext("./header/resultMsg")
-
-    if result_code != "800":
+    if result_code != "00":
         raise RuntimeError(
-            f"Southern Power API error {result_code or 'UNKNOWN'}: "
-            f"{result_message or 'No message'}"
+            f"Midland Power API error {result_code or 'UNKNOWN'}: {result_message or 'No message'}"
         )
-
     return root
 
 
-def element_to_record(item: ET.Element) -> dict[str, str]:
-    """Convert one source item to a flat record without changing values."""
-    return {child.tag: child.text or "" for child in item}
-
-
 def extract_rows(root: ET.Element) -> list[dict[str, str]]:
-    """Extract every item from one XML response."""
-    return [element_to_record(item) for item in root.findall("./body/items/item")]
+    """Extract source records without changing their values."""
+    return [
+        {child.tag: child.text or "" for child in item}
+        for item in root.findall("./body/items/item")
+    ]
 
 
 def get_total_count(root: ET.Element) -> int | None:
     """Read the source pagination total."""
-    value = root.findtext("./body/paginginfo/totalCnt")
+    value = root.findtext("./header/totalCount")
     try:
         return int(value) if value is not None else None
     except ValueError:
@@ -166,12 +165,25 @@ def request_page(
     service_key: str,
     page: int,
     per_page: int,
-    start_date: str,
-    end_date: str,
+    start_month: str,
+    end_month: str,
     timeout: int,
+    plant_code: str | None = None,
+    unit_start: str | None = None,
+    unit_end: str | None = None,
 ) -> tuple[ET.Element, str]:
-    """Request and parse one generation XML page."""
-    base_url, params = build_params(api_url, service_key, page, per_page, start_date, end_date)
+    """Request and parse one generation page."""
+    base_url, params = build_params(
+        api_url=api_url,
+        service_key=service_key,
+        page=page,
+        per_page=per_page,
+        start_month=start_month,
+        end_month=end_month,
+        plant_code=plant_code,
+        unit_start=unit_start,
+        unit_end=unit_end,
+    )
     prepared_url = requests.Request("GET", base_url, params=params).prepare().url
     redacted_request_url = redact_url(prepared_url)
 
@@ -184,31 +196,30 @@ def request_page(
 
     print(f"Request URL: {redacted_request_url}")
     print(f"Status code: {response.status_code}")
-
     try:
         response.raise_for_status()
     except requests.HTTPError as error:
-        print("Response preview:")
         print(response.text[:1000])
         raise RuntimeError(
             f"HTTP error for {redacted_request_url}: {response.status_code}"
         ) from error
 
-    # The gateway can advertise an incorrect character set. Parsing bytes lets
-    # the XML parser decode the UTF-8 Korean text correctly.
     return parse_response(response.content), redacted_request_url
 
 
 def fetch_all_pages(
     api_url: str,
     service_key: str,
-    start_date: str,
-    end_date: str,
+    start_month: str,
+    end_month: str,
     per_page: int = DEFAULT_PER_PAGE,
     max_pages: int | None = None,
     timeout: int = 60,
+    plant_code: str | None = None,
+    unit_start: str | None = None,
+    unit_end: str | None = None,
 ) -> tuple[list[dict[str, str]], list[ET.Element], list[str]]:
-    """Fetch all unfiltered daily generation records in the requested date range."""
+    """Fetch all generation pages in the requested month range."""
     rows: list[dict[str, str]] = []
     pages: list[ET.Element] = []
     request_urls: list[str] = []
@@ -216,24 +227,25 @@ def fetch_all_pages(
     total_count: int | None = None
 
     while True:
-        root, redacted_request_url = request_page(
+        root, request_url = request_page(
             api_url=api_url,
             service_key=service_key,
             page=page,
             per_page=per_page,
-            start_date=start_date,
-            end_date=end_date,
+            start_month=start_month,
+            end_month=end_month,
             timeout=timeout,
+            plant_code=plant_code,
+            unit_start=unit_start,
+            unit_end=unit_end,
         )
         page_rows = extract_rows(root)
-
         pages.append(root)
-        request_urls.append(redacted_request_url)
+        request_urls.append(request_url)
         rows.extend(page_rows)
 
         if total_count is None:
             total_count = get_total_count(root)
-
         print(f"Fetched page {page}: {len(page_rows)} rows")
 
         if not page_rows:
@@ -244,27 +256,24 @@ def fetch_all_pages(
             break
         if max_pages is not None and page >= max_pages:
             break
-
         page += 1
 
     return rows, pages, request_urls
 
 
-def save_xml_pages(pages: Iterable[ET.Element], path: Path) -> None:
-    """Save all source XML responses beneath a single document root."""
+def save_xml_responses(responses: Iterable[ET.Element], path: Path) -> None:
+    """Save all source responses beneath one XML document root."""
     path.parent.mkdir(parents=True, exist_ok=True)
     document_root = ET.Element("responses")
-
-    for page_number, page in enumerate(pages, start=1):
-        page.set("pageNumber", str(page_number))
-        document_root.append(page)
-
+    for response_number, response in enumerate(responses, start=1):
+        response.set("responseNumber", str(response_number))
+        document_root.append(response)
     ET.indent(document_root, space="  ")
     ET.ElementTree(document_root).write(path, encoding="utf-8", xml_declaration=True)
 
 
 def save_csv(rows: Iterable[dict[str, Any]], path: Path) -> None:
-    """Save source records to CSV without aggregation."""
+    """Save source records without aggregation or numeric conversion."""
     path.parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(rows).to_csv(path, index=False, encoding="utf-8-sig")
 
@@ -276,96 +285,95 @@ def save_json(data: dict[str, Any], path: Path) -> None:
         json.dump(data, file, ensure_ascii=False, indent=2)
 
 
+def ensure_outputs_available(paths: Iterable[Path], overwrite: bool) -> None:
+    """Protect previously downloaded raw files from accidental replacement."""
+    existing = [path for path in paths if path.exists()]
+    if existing and not overwrite:
+        joined = ", ".join(str(path) for path in existing)
+        raise FileExistsError(f"Output already exists: {joined}. Use --overwrite to replace it.")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Download raw Korea Southern Power daily generation records."
+        description="Download raw Korea Midland Power monthly generation records."
+    )
+    parser.add_argument("--api-url", default=None)
+    parser.add_argument(
+        "--start-month",
+        type=validate_month,
+        default=DEFAULT_START_MONTH,
+        help="Inclusive YYYYMM start.",
     )
     parser.add_argument(
-        "--api-url",
-        default=None,
-        help=f"API endpoint. Defaults to {API_URL_ENV} from .env.",
+        "--end-month",
+        type=validate_month,
+        default=date.today().strftime("%Y%m"),
+        help="Inclusive YYYYMM end. Defaults to the current month.",
     )
-    parser.add_argument(
-        "--start-date",
-        type=validate_date,
-        default=DEFAULT_START_DATE,
-        help="Inclusive YYYYMMDD start. Defaults to 19000101 to retain all history.",
-    )
-    parser.add_argument(
-        "--end-date",
-        type=validate_date,
-        default=date.today().strftime("%Y%m%d"),
-        help="Inclusive YYYYMMDD end. Defaults to today.",
-    )
-    parser.add_argument(
-        "--out-dir",
-        type=Path,
-        default=DEFAULT_OUTPUT_DIR,
-        help="Directory where raw XML, CSV, and metadata files are saved.",
-    )
-    parser.add_argument(
-        "--per-page",
-        type=int,
-        default=DEFAULT_PER_PAGE,
-        help="Rows per page for the data.go.kr API.",
-    )
-    parser.add_argument(
-        "--max-pages",
-        type=int,
-        default=None,
-        help="Optional page cap for smoke tests. The default downloads all pages.",
-    )
+    parser.add_argument("--plant-code", default=None)
+    parser.add_argument("--unit-start", default=None)
+    parser.add_argument("--unit-end", default=None)
+    parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--per-page", type=int, default=DEFAULT_PER_PAGE)
     parser.add_argument("--timeout", type=int, default=60)
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Explicitly allow replacement of existing Midland output files.",
+    )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
+    if args.start_month > args.end_month:
+        raise ValueError("--start-month must be on or before --end-month.")
+    if (args.unit_start is None) != (args.unit_end is None):
+        raise ValueError("--unit-start and --unit-end must be supplied together.")
 
-    if args.start_date > args.end_date:
-        raise ValueError("--start-date must be on or before --end-date.")
-
-    service_key = get_required_env(API_KEY_ENV)
-    api_url = args.api_url or get_required_env(API_URL_ENV)
-
-    rows, pages, request_urls = fetch_all_pages(
-        api_url=api_url,
-        service_key=service_key,
-        start_date=args.start_date,
-        end_date=args.end_date,
-        per_page=args.per_page,
-        max_pages=args.max_pages,
-        timeout=args.timeout,
-    )
-
-    args.out_dir.mkdir(parents=True, exist_ok=True)
-    output_stem = args.out_dir / "southern_power_daily_generation"
+    output_stem = args.out_dir / "midland_power_monthly_generation"
     raw_path = output_stem.with_suffix(".xml")
     csv_path = output_stem.with_suffix(".csv")
     metadata_path = output_stem.with_suffix(".metadata.json")
+    ensure_outputs_available((raw_path, csv_path, metadata_path), args.overwrite)
 
-    save_xml_pages(pages, raw_path)
+    rows, pages, request_urls = fetch_all_pages(
+        api_url=args.api_url or get_api_url(),
+        service_key=get_required_env(API_KEY_ENV),
+        start_month=args.start_month,
+        end_month=args.end_month,
+        per_page=args.per_page,
+        timeout=args.timeout,
+        plant_code=args.plant_code,
+        unit_start=args.unit_start,
+        unit_end=args.unit_end,
+    )
+    if not rows:
+        raise RuntimeError(
+            "Midland Power generation request returned no records; no files written."
+        )
+
+    save_xml_responses(pages, raw_path)
     save_csv(rows, csv_path)
     save_json(
         {
             "source": "data.go.kr",
             "dataset": DATASET_NAME,
             "dataset_url": DATASET_URL,
-            "fuel_mapping_reference": FUEL_MAPPING_REFERENCE,
-            "enrichment_sources": ENRICHMENT_SOURCES,
-            "api_url_redacted": redact_url(api_url),
+            "api_url_redacted": redact_url(args.api_url or get_api_url()),
             "request_urls_redacted": request_urls,
-            "start_date": args.start_date,
-            "end_date": args.end_date,
+            "start_month": args.start_month,
+            "end_month": args.end_month,
+            "plant_code": args.plant_code,
+            "unit_start": args.unit_start,
+            "unit_end": args.unit_end,
             "row_count": len(rows),
             "output_xml": str(raw_path),
             "output_csv": str(csv_path),
             "per_page": args.per_page,
-            "max_pages": args.max_pages,
         },
         metadata_path,
     )
-
     print(f"Saved raw responses to: {raw_path}")
     print(f"Saved CSV to: {csv_path}")
     print(f"Saved metadata to: {metadata_path}")

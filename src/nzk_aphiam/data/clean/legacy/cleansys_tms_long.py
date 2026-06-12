@@ -26,7 +26,6 @@ from typing import Any
 
 import pandas as pd
 
-
 POLLUTANTS = ["nox", "sox", "tsp", "co", "nh3", "hf", "hcl"]
 
 
@@ -142,9 +141,7 @@ def records_to_long_df(records: list[dict[str, Any]], source_file: str) -> pd.Da
 
 def read_raw_files(raw_dir: Path) -> pd.DataFrame:
     json_paths = sorted(
-        path
-        for path in raw_dir.glob("*.json")
-        if not path.name.endswith(".metadata.json")
+        path for path in raw_dir.glob("*.json") if not path.name.endswith(".metadata.json")
     )
 
     if not json_paths:
@@ -175,9 +172,7 @@ def drop_empty_pollutant_rows(df: pd.DataFrame) -> pd.DataFrame:
     Drop pollutant rows that have no measurement, no status, and no limit.
     """
     return df[
-        df["measure_value"].notna()
-        | df["measure_status"].notna()
-        | df["limit"].notna()
+        df["measure_value"].notna() | df["measure_status"].notna() | df["limit"].notna()
     ].copy()
 
 

@@ -26,7 +26,6 @@ import pandas as pd
 
 from nzk_aphiam.config.paths import CLEANSYS_DIR, LEGACY_INTERIM_DIR
 
-
 POLLUTANTS = ["nox", "sox", "tsp", "co", "nh3", "hf", "hcl"]
 
 
@@ -149,9 +148,7 @@ def records_to_wide_df(records: list[dict[str, Any]], source_file: str) -> pd.Da
 
 def read_raw_files(raw_dir: Path) -> pd.DataFrame:
     json_paths = sorted(
-        path
-        for path in raw_dir.glob("*.json")
-        if not path.name.endswith(".metadata.json")
+        path for path in raw_dir.glob("*.json") if not path.name.endswith(".metadata.json")
     )
 
     if not json_paths:

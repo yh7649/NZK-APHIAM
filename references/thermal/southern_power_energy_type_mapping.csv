@@ -1,0 +1,11 @@
+plant_name_korean,output_plant_name,output_granularity,energy_type,evidence,source_url,accessed_date
+한국남부발전㈜하동빛드림본부,Hadong,unit,coal,"Official plant page lists bituminous coal (유연탄).",https://www.kospo.co.kr/kospo/615/subview.do,2026-06-12
+한국남부발전㈜삼척빛드림본부,Samcheok,unit,coal,"Official plant page lists two 1,000 MW bituminous-coal units. A/B emissions rows are summed to their numbered generating unit.",https://www.kospo.co.kr/kospo/620/subview.do,2026-06-12
+한국남부발전㈜남제주빛드림본부(기력),Namjeju Steam,unit,bio_oil_and_diesel,"Official plant page lists bio-heavy-oil and diesel (바이오중유, 경유).",https://www.kospo.co.kr/kospo/618/subview.do,2026-06-12
+한국남부발전㈜남제주빛드림본부(복합),Namjeju Combined,plant,natural_gas,"Official plant page lists LNG. Emissions subunits are summed to plant level because the generation source has two gas turbines and one shared steam turbine.",https://www.kospo.co.kr/kospo/618/subview.do,2026-06-12
+한국남부발전㈜신인천빛드림본부,Shin-Incheon,gas_turbine,natural_gas,"Official plant page lists LNG. Emissions units 1-8 are matched to generation components CG1-CG8.",https://www.kospo.co.kr/kospo/616/subview.do,2026-06-12
+한국남부발전㈜부산빛드림본부,Busan,gas_turbine,natural_gas,"Official plant page lists LNG. Emissions units 1-8 are matched to generation components CG1-CG8.",https://www.kospo.co.kr/kospo/617/subview.do,2026-06-12
+한국남부발전㈜영월빛드림본부,Yeongwol,gas_turbine,natural_gas,"Official plant page lists LNG. Emissions units 1-3 are matched to generation components CG1-CG3.",https://www.kospo.co.kr/kospo/619/subview.do,2026-06-12
+한국남부발전㈜안동빛드림본부,Andong,plant,natural_gas,"Official plant page lists LNG. Generation components are summed to plant level to match the single emissions unit.",https://www.kospo.co.kr/kospo/621/subview.do,2026-06-12
+한국남부발전㈜남제주발전본부한림발전소,Hallim,plant,natural_gas,"Official plant page lists LNG. Emissions and generation components are summed to plant level because one steam turbine is shared by two gas turbines.",https://www.kospo.co.kr/kospo/618/subview.do,2026-06-12
+한국남부발전㈜신세종빛드림본부,Shinsejong,plant,natural_gas,"Official plant page lists LNG. Generation components are summed to plant level to match the single emissions unit.",https://www.kospo.co.kr/kospo/622/subview.do,2026-06-12

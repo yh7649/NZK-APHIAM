@@ -31,6 +31,17 @@ DATASET_URL = "https://www.data.go.kr/data/15099768/fileData.do#tab-layer-openap
 API_KEY_ENV = "DATA_GO_KR_API_KEY"
 API_URL_ENV = "EASTWEST_POWER_API_URL"
 DEFAULT_PER_PAGE = 1000
+FUEL_MAPPING_REFERENCE = "references/thermal/eastwest_power_energy_type_mapping.csv"
+ENRICHMENT_SOURCES = [
+    {
+        "description": "East-West Power 2011 sustainability report: unit fuels",
+        "url": "https://www.ewp.co.kr/kor/download/ewp_open/environ_2011.pdf",
+    },
+    {
+        "description": "East-West Power 2016 sustainability report: fuels and emissions units",
+        "url": "https://www.ewp.co.kr/kor/download/ewp_open/environ_2016.pdf",
+    },
+]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = (
@@ -48,9 +59,7 @@ def get_required_env(name: str) -> str:
     value = os.getenv(name)
 
     if not value:
-        raise ValueError(
-            f"{name} is missing. Add it to your .env file, but do not commit .env."
-        )
+        raise ValueError(f"{name} is missing. Add it to your .env file, but do not commit .env.")
 
     return value
 
@@ -350,12 +359,16 @@ def main() -> None:
         "source": "data.go.kr",
         "dataset": DATASET_NAME,
         "dataset_url": DATASET_URL,
+        "fuel_mapping_reference": FUEL_MAPPING_REFERENCE,
+        "enrichment_sources": ENRICHMENT_SOURCES,
         "pages": pages,
     }
     metadata = {
         "source": "data.go.kr",
         "dataset": DATASET_NAME,
         "dataset_url": DATASET_URL,
+        "fuel_mapping_reference": FUEL_MAPPING_REFERENCE,
+        "enrichment_sources": ENRICHMENT_SOURCES,
         "api_url_redacted": redact_url(api_url),
         "request_urls_redacted": request_urls,
         "row_count": len(rows),

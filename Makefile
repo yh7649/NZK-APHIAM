@@ -30,21 +30,134 @@ clean:
 ## Lint using ruff (use `make format` to do formatting)
 .PHONY: lint
 lint:
-	ruff format --check
-	ruff check
+	$(PYTHON_INTERPRETER) -m ruff format --check
+	$(PYTHON_INTERPRETER) -m ruff check
 
 ## Format source code with ruff
 .PHONY: format
 format:
-	ruff check --fix
-	ruff format
+	$(PYTHON_INTERPRETER) -m ruff check --fix
+	$(PYTHON_INTERPRETER) -m ruff format
 
 
 
 ## Run tests
 .PHONY: test
 test:
-	python -m pytest tests
+	$(PYTHON_INTERPRETER) -m pytest tests
+
+
+## Download East-West Power raw data
+.PHONY: scrape-eastwest-power
+scrape-eastwest-power:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.eastwest_power
+
+
+## Clean East-West Power monthly generation and emissions data
+.PHONY: clean-eastwest-power
+clean-eastwest-power:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.clean.thermal.eastwest_power
+
+
+## Download Western Power raw data
+.PHONY: scrape-western-power
+scrape-western-power:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.western_power
+
+
+## Clean Western Power monthly generation and emissions data
+.PHONY: clean-western-power
+clean-western-power:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.clean.thermal.western_power
+
+
+## Download Southern Power emissions data
+.PHONY: scrape-southern-power-emissions
+scrape-southern-power-emissions:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southern_power emissions
+
+
+## Download Southern Power generation data
+.PHONY: scrape-southern-power-generation
+scrape-southern-power-generation:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southern_power generation
+
+
+## Download Southern Power emissions and generation data
+.PHONY: scrape-southern-power
+scrape-southern-power:
+	$(MAKE) scrape-southern-power-emissions
+	$(MAKE) scrape-southern-power-generation
+
+
+## Clean Southern Power monthly generation and emissions data
+.PHONY: clean-southern-power
+clean-southern-power:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.clean.thermal.southern_power
+
+
+## Clean all implemented thermal subsidiary datasets
+.PHONY: clean-thermal
+clean-thermal:
+	$(MAKE) clean-western-power
+	$(MAKE) clean-eastwest-power
+	$(MAKE) clean-southern-power
+
+
+## Download fresh South-East Power raw data
+.PHONY: scrape-southeast-power
+scrape-southeast-power:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southeast_power
+
+
+## Download Midland Power emissions data
+.PHONY: scrape-midland-power-emissions
+scrape-midland-power-emissions:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power emissions --overwrite
+
+
+## Download Midland Power generation data
+.PHONY: scrape-midland-power-generation
+scrape-midland-power-generation:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power generation --overwrite
+
+
+## Download Midland Power emissions and generation data
+.PHONY: scrape-midland-power
+scrape-midland-power:
+	$(MAKE) scrape-midland-power-emissions
+	$(MAKE) scrape-midland-power-generation
+
+
+## Download raw thermal data for all five power subsidiaries
+.PHONY: scrape-thermal
+scrape-thermal:
+	$(MAKE) scrape-eastwest-power
+	$(MAKE) scrape-western-power
+	$(MAKE) scrape-southern-power
+	$(MAKE) scrape-southeast-power
+	$(MAKE) scrape-midland-power
+
+
+## Check every thermal scraper command without network access
+.PHONY: check-scraper-cli
+check-scraper-cli:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.eastwest_power --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.western_power --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southern_power emissions --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southern_power generation --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southeast_power --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power emissions --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power generation --help
+
+
+## Verify code and rebuild implemented interim datasets without network access
+.PHONY: verify-offline
+verify-offline:
+	$(MAKE) lint
+	$(MAKE) test
+	$(MAKE) check-scraper-cli
+	$(MAKE) clean-thermal
 
 
 ## Install R packages used by analysis notebooks
@@ -90,7 +203,7 @@ import re, sys; \
 lines = '\n'.join([line for line in sys.stdin]); \
 matches = re.findall(r'\n## (.*)\n[\s\S]+?\n([a-zA-Z_-]+):', lines); \
 print('Available rules:\n'); \
-print('\n'.join(['{:25}{}'.format(*reversed(match)) for match in matches]))
+print('\n'.join(['{:40}{}'.format(*reversed(match)) for match in matches]))
 endef
 export PRINT_HELP_PYSCRIPT
 
