@@ -24,16 +24,50 @@ archiving.
 
 ## New Team Member Setup
 
-These instructions assume macOS and Homebrew. Clone the repository, open a
-terminal in the project directory, and install Python if it is not already
-available:
+The project requires Python 3.11 or newer, Make, R, and optionally RStudio.
+Install the platform prerequisites first.
+
+### macOS
 
 ```bash
 brew install python
+brew install r
+brew install --cask rstudio
 ```
 
-Create a project-specific virtual environment and install the Python
-dependencies:
+### Ubuntu or Debian Linux
+
+```bash
+sudo apt update
+sudo apt install python3 python3-venv python3-pip make r-base
+```
+
+Install [RStudio Desktop](https://posit.co/download/rstudio-desktop/) separately
+from its official Linux installer if a GUI is desired. The R analysis can also
+be run from the terminal with `Rscript`.
+
+### Windows
+
+The Makefile uses Unix shell syntax. The recommended Windows setup is
+[Windows Subsystem for Linux (WSL2)](https://learn.microsoft.com/windows/wsl/install)
+with Ubuntu. Install WSL from an administrator PowerShell window:
+
+```powershell
+wsl --install
+```
+
+Restart if prompted, open the Ubuntu terminal, and follow the Ubuntu/Debian
+commands above. Run all `make` commands inside WSL.
+[RStudio Desktop](https://posit.co/download/rstudio-desktop/) may be installed
+on Windows for interactive analysis, or R can be run directly inside WSL.
+
+Native Windows PowerShell is not currently a supported Make workflow because
+commands such as `PYTHONPATH=src` and `.venv/bin/python` use POSIX conventions.
+
+### Shared Project Setup
+
+Clone the repository, open a terminal in its root directory, and create a
+project-specific virtual environment:
 
 ```bash
 python3 -m venv .venv
@@ -65,13 +99,6 @@ make clean-eastwest-power PYTHON_INTERPRETER=.venv/bin/python
 make clean-western-power PYTHON_INTERPRETER=.venv/bin/python
 make clean-southern-power PYTHON_INTERPRETER=.venv/bin/python
 make combine-thermal PYTHON_INTERPRETER=.venv/bin/python
-```
-
-Install R and RStudio if needed:
-
-```bash
-brew install r
-brew install --cask rstudio
 ```
 
 Open `NZK-APHIAM.Rproj` in RStudio and use
