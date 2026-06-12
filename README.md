@@ -6,6 +6,67 @@
 
 Integrated Assessment Model for Air Pollution and Health Impact of Korea's National Decarbonization
 
+## New Team Member Setup
+
+These instructions assume macOS and Homebrew. Clone the repository, open a
+terminal in the project directory, and install Python if it is not already
+available:
+
+```bash
+brew install python
+```
+
+Create a project-specific virtual environment and install the Python
+dependencies:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+make requirements PYTHON_INTERPRETER=.venv/bin/python
+```
+
+Create the local environment file:
+
+```bash
+cp .env.example .env
+```
+
+Add a valid data.go.kr API key to `DATA_GO_KR_API_KEY` in `.env`. Keep `.env`
+private; it is ignored by Git.
+
+Download the three monthly datasets currently used in the combined analysis:
+
+```bash
+make scrape-eastwest-power PYTHON_INTERPRETER=.venv/bin/python
+make scrape-western-power PYTHON_INTERPRETER=.venv/bin/python
+make scrape-southern-power PYTHON_INTERPRETER=.venv/bin/python
+```
+
+Clean and combine them:
+
+```bash
+make clean-eastwest-power PYTHON_INTERPRETER=.venv/bin/python
+make clean-western-power PYTHON_INTERPRETER=.venv/bin/python
+make clean-southern-power PYTHON_INTERPRETER=.venv/bin/python
+make combine-thermal PYTHON_INTERPRETER=.venv/bin/python
+```
+
+Install R and RStudio if needed:
+
+```bash
+brew install r
+brew install --cask rstudio
+```
+
+Open `NZK-APHIAM.Rproj` in RStudio and use
+`analysis/manual_analysis.R` as the main analysis workspace. The project file
+and R script are tracked in Git and do not need to be generated. From the
+terminal, the same analysis setup can be checked with:
+
+```bash
+make r-analysis PYTHON_INTERPRETER=.venv/bin/python
+```
+
 ## RStudio Analysis
 
 Open `NZK-APHIAM.Rproj` in RStudio to work from the project root.
@@ -14,14 +75,15 @@ Python combines and standardizes the monthly East-West, Western, and Southern
 datasets. R only loads the resulting processed dataset for analysis:
 
 ```bash
-make combine-thermal
 make r-analysis
 ```
 
 The R entry point is `analysis/manual_analysis.R`, with shared path helpers
 under `analysis/R/`. Generated figures, tables, analysis objects, and models are
 written under `results/`. Data remains local under `data/` and is ignored by
-Git.
+Git. The RStudio project and analysis scripts are tracked source files, so they
+are already present after cloning; `make r-analysis` rebuilds the combined
+processed data before running the script.
 
 Run every thermal subsidiary scraper sequentially with:
 

@@ -172,11 +172,12 @@ verify-offline:
 	$(MAKE) check-scraper-cli
 	$(MAKE) clean-thermal
 	$(MAKE) combine-thermal
+	$(MAKE) r-analysis
 
 
-## Run the main manual analysis workspace
+## Build the combined data and run the main manual R analysis workspace
 .PHONY: r-analysis
-r-analysis:
+r-analysis: combine-thermal
 	Rscript analysis/manual_analysis.R
 
 
