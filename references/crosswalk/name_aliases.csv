@@ -1,0 +1,91 @@
+alias_type,alias,canonical,evidence,source_url,accessed_date
+company,남동발전,한국남동발전,Provider short name and full legal name,https://www.koenergy.kr/,2026-06-15
+company,한국남동발전,한국남동발전,Canonical self mapping,https://www.koenergy.kr/,2026-06-15
+company,중부발전,한국중부발전,Provider short name and full legal name,https://www.komipo.co.kr/,2026-06-15
+company,한국중부발전,한국중부발전,Canonical self mapping,https://www.komipo.co.kr/,2026-06-15
+company,서부발전,한국서부발전,Provider short name and full legal name,https://www.iwest.co.kr/,2026-06-15
+company,한국서부발전,한국서부발전,Canonical self mapping,https://www.iwest.co.kr/,2026-06-15
+company,남부발전,한국남부발전,Provider short name and full legal name,https://www.kospo.co.kr/,2026-06-15
+company,한국남부발전,한국남부발전,Canonical self mapping,https://www.kospo.co.kr/,2026-06-15
+company,동서발전,한국동서발전,Provider short name and full legal name,https://www.ewp.co.kr/,2026-06-15
+company,한국동서발전,한국동서발전,Canonical self mapping,https://www.ewp.co.kr/,2026-06-15
+company,지역난방공사,한국지역난방공사,Provider short name and full legal name,https://www.kdhc.co.kr/,2026-06-15
+company,한국지역난방공사,한국지역난방공사,Canonical self mapping,https://www.kdhc.co.kr/,2026-06-15
+company,토지주택공사,한국토지주택공사,Provider short name and full legal name,https://www.lh.or.kr/,2026-06-15
+company,lh공사,한국토지주택공사,English abbreviation and full legal name,https://www.lh.or.kr/,2026-06-15
+company,한국토지주택공사,한국토지주택공사,Canonical self mapping,https://www.lh.or.kr/,2026-06-15
+company,gseps,지에스이피에스,English and Korean company names,https://www.gseps.com/,2026-06-15
+company,지에스이피에스,지에스이피에스,Canonical self mapping,https://www.gseps.com/,2026-06-15
+company,gs파워,지에스파워,English and Korean company names,https://www.gspower.co.kr/,2026-06-15
+company,지에스파워,지에스파워,Canonical self mapping,https://www.gspower.co.kr/,2026-06-15
+company,gs동해전력,지에스동해전력,English and Korean company names,https://www.gsdh.co.kr/,2026-06-15
+company,지에스동해전력,지에스동해전력,Canonical self mapping,https://www.gsdh.co.kr/,2026-06-15
+company,gs포천그린에너지,지에스포천그린에너지,English and Korean company names,https://www.gspge.com/,2026-06-15
+company,지에스포천그린에너지,지에스포천그린에너지,Canonical self mapping,https://www.gspge.com/,2026-06-15
+company,cgn율촌전력,씨지앤율촌전력,Historical spelling in EPSIS and disclosure records,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,씨지앤율촌,씨지앤율촌전력,Short and full company names,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,씨지앤율촌전력,씨지앤율촌전력,Canonical self mapping,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,엠피씨율촌,씨지앤율촌전력,Historical operator name in EPSIS,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15
+company,cgn대산전력,씨지앤대산전력,Historical spelling in EPSIS and disclosure records,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,씨지앤대산,씨지앤대산전력,Short and full company names,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,씨지앤대산전력,씨지앤대산전력,Canonical self mapping,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,메이야,씨지앤대산전력,Historical operator name in EPSIS,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15
+company,포스코에너지,포스코인터내셔널,Historical and current operator names in annual disclosure records,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,포스코,포스코인터내셔널,Short and current operator names in annual disclosure records,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,포스코인터내셔널,포스코인터내셔널,Canonical self mapping,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,군장에너지,에스지씨에너지,Historical and current operator names in annual records,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,에쓰지씨에너지,에스지씨에너지,Alternate Hangul transliteration,https://www.sgcenergy.co.kr/,2026-06-15
+company,에스지씨에너지,에스지씨에너지,Canonical self mapping,https://www.sgcenergy.co.kr/,2026-06-15
+company,stx에너지,지에스이앤알,Historical and current operator names in annual records,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,산단에너지,지에스이앤알,Historical and current operator names in annual records,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,gsenr,지에스이앤알,English and Korean company names,https://www.gsenr.com/,2026-06-15
+company,지에스이앤알,지에스이앤알,Canonical self mapping,https://www.gsenr.com/,2026-06-15
+company,평택에너지서비스,평택에너지앤파워,Historical and current operator names in annual records,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,평택에너지앤파워,평택에너지앤파워,Canonical self mapping,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,위례에너지서비스,나래에너지서비스,Historical and current operator names in annual records,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,나래에너지서비스,나래에너지서비스,Canonical self mapping,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,별내에너지,대륜발전,Historical operator and current disclosure entity,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,대륜발전,대륜발전,Canonical self mapping,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,미래엔인천에너지,위드인천에너지,Historical and current operator names in annual records,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,위드인천에너지,위드인천에너지,Canonical self mapping,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,dspower,디에스파워,English and Korean company names,https://www.dspower21.co.kr/,2026-06-15
+company,ds파워,디에스파워,English and Korean company names,https://www.dspower21.co.kr/,2026-06-15
+company,디에스파워,디에스파워,Canonical self mapping,https://www.dspower21.co.kr/,2026-06-15
+company,skens,에스케이이앤에스,English and Korean company names,https://www.skens.com/,2026-06-15
+company,에스케이이앤에스,에스케이이앤에스,Canonical self mapping,https://www.skens.com/,2026-06-15
+company,코스포,코스포영남파워,Short and full company names,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,영남파워,코스포영남파워,Short and full company names,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,코스포영남파워,코스포영남파워,Canonical self mapping,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,김천에너지,김천에너지서비스,Short and full company names,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,김천에너지서비스,김천에너지서비스,Canonical self mapping,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,나래에너지,나래에너지서비스,Short and full company names,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,부산정관,부산정관에너지,Short and full company names,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,부산정관에너지,부산정관에너지,Canonical self mapping,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,대구염색,대구염색산업단지관리공단,Short and full organization names,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,대구염색산업단지관리공단,대구염색산업단지관리공단,Canonical self mapping,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,인천공항,인천공항에너지,Short and full company names,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,인천공항에너지,인천공항에너지,Canonical self mapping,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+company,현대에너지,보임열병합발전,Historical operator name for the Yeosu cogeneration site,https://www.boimkorea.com/company/history.php,2026-06-15
+company,데이원에너지,보임열병합발전,Company history records the December 2023 name change,https://www.boimkorea.com/company/history.php,2026-06-15
+company,보임열병합발전,보임열병합발전,Canonical self mapping,https://www.boimkorea.com/company/history.php,2026-06-15
+company,서울시,서울에너지공사,Historical municipal operator and current corporation,https://www.i-se.co.kr/,2026-06-15
+company,서울도시개발공사,서울에너지공사,Historical municipal operator and current corporation,https://www.i-se.co.kr/,2026-06-15
+company,서울에너지공사,서울에너지공사,Canonical self mapping,https://www.i-se.co.kr/,2026-06-15
+plant,강릉안인,강릉,EPSIS and facility-name abbreviation,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15
+plant,북평,동해,EPSIS and facility-name abbreviation,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15
+plant,명품오산,오산,Facility brand and EPSIS plant name,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+plant,반원,반월,Source typographic variant,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15
+plant,삼척그린파워,삼척,Full and abbreviated plant names,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15
+plant,삼척그린,삼척,Full and abbreviated plant names,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15
+plant,세종천연가스,세종,Full and abbreviated plant names,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15
+plant,파주문산,파주,Full and abbreviated plant names,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15
+plant,포천천연,포천민자,EPSIS naming variants,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15
+plant,대산,대산,Canonical self mapping,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15
+plant,광양,광양,Canonical self mapping,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15
+plant,무림파워텍,무림,Company-branded facility and EPSIS plant name,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+plant,수완에너지,수완,Company-branded facility and EPSIS plant name,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+plant,안산도시개발,안산,Company-branded facility and EPSIS plant name,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+plant,sgc에너지,군장,Current company-branded facility and historical plant name,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+plant,군장에너지,군장,Historical company-branded facility and plant name,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+plant,익산에너지,전북집단에너지,Facility and EPSIS plant naming variants,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
+plant,데이원,여수,Historical company-branded facility and EPSIS location name,https://www.boimkorea.com/company/history.php,2026-06-15

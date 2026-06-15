@@ -30,6 +30,60 @@ Run the complete offline verification workflow using preserved raw files:
 make verify-offline PYTHON_INTERPRETER=.venv/bin/python
 ```
 
+Reproduce the annual facility-emission-factor inputs and plant crosswalk:
+
+```bash
+make reproduce-facility-crosswalk PYTHON_INTERPRETER=.venv/bin/python
+```
+
+This downloads EPSIS rosters and annual generation, CleanSYS emissions, and
+ENV-INFO disclosures for 2015-2024 before rebuilding the crosswalk. To prove
+that the normalized files can be regenerated without network access:
+
+```bash
+make verify-facility-crosswalk-offline PYTHON_INTERPRETER=.venv/bin/python
+```
+
+The offline command fails if any required raw response is absent. Override the
+common period with `FACILITY_START_YEAR` and `FACILITY_END_YEAR`.
+
+Build the final annual plant-level generation and emissions panel from the
+preserved inputs:
+
+```bash
+make reproduce-annual-plant-panel-offline PYTHON_INTERPRETER=.venv/bin/python
+```
+
+This classifies and assigns EPSIS annual-generation rows, reconciles direct
+subsidiary/CleanSYS/ENV-INFO emissions without adding overlapping sources, and
+writes the plant-year panel under `data/power_generation/annual_plant/`.
+Detailed rules and output definitions are in
+[`ANNUAL_PLANT_PANEL_METHODS.md`](../../../ANNUAL_PLANT_PANEL_METHODS.md).
+
+Download annual CleanSYS facility emissions:
+
+```bash
+make scrape-cleansys PYTHON_INTERPRETER=.venv/bin/python
+```
+
+The public annual series covers 2015 through the latest finalized reporting
+year. Raw JSON responses and normalized CSV files are written to:
+
+```text
+data/emissions/cleansys/raw/
+```
+
+Each facility row reports total, dust (TSP), SOx, NOx, HCl, HF, NH3, and CO
+emissions in kilograms per year, plus the CleanSYS facility code, business
+registration number, facility name, and address.
+
+These are workplace/facility totals for TMS-monitored stacks, not individual
+generator-unit totals. The business registration number groups sites belonging
+to the same legal entity, while the facility name often identifies the plant
+or operating division. Electricity-sector facilities can be linked to the
+separate EPSIS generator roster using names and addresses, but emissions should
+not be allocated to units without an additional documented stack-unit mapping.
+
 ## Shared Interim Schema
 
 The subsidiary cleaners use a shared thermal schema containing the observation
@@ -134,6 +188,111 @@ aggregates Samcheok A/B stack rows to generating units and combined-cycle
 components to plant level where a steam turbine is shared. Generation remains
 null where the generation API has no safely matching record; it is not
 fabricated or forward-filled.
+
+## EPSIS Generator Rosters
+
+KPX EPSIS provides two complementary generator-level sources:
+
+```bash
+make scrape-epsis-annual
+make scrape-epsis-generation
+make scrape-epsis-snapshots
+```
+
+Annual generator-detail rosters cover 2012 through 2024. The scraper preserves
+the raw EPSIS grid response and writes a faithful UTF-8 CSV under:
+
+```text
+data/plant_rosters/epsis/raw/annual/
+```
+
+The generator-change board contains irregular dated snapshots beginning on
+December 31, 2012. Each original ZIP contains provider-generated CSV and XLSX
+files. ZIPs are preserved without extraction under:
+
+```text
+data/plant_rosters/epsis/raw/snapshots/
+```
+
+The snapshot command writes a complete board manifest with source attachment
+URLs and local checksums. Use `snapshots --index-only` to refresh only the
+manifest, or `snapshots --limit N` to download the newest N archives while
+testing. Existing files are reused unless `--overwrite` is passed.
+
+EPSIS also publishes annual capacity and generation records from 2002 through
+2024 under:
+
+```text
+data/plant_rosters/epsis/raw/annual_generation/
+```
+
+These records include reported capacity, gross generation, station use, net
+generation, maximum and average output, load factor, utilization rate, fuel,
+and company. They are not uniformly generating-unit records. The source mixes
+individual unit labels, whole plants, multi-unit combined-cycle and hydro
+plants, company/technology totals, and portfolio aggregates. EPSIS's English
+table labels the identifying column `Plant`, despite the Korean menu being
+named `발전기별` ("by generator").
+
+EPSIS also notes that some small non-KEPCO and renewable facilities are
+omitted, and that reported capacity may not reflect facility improvements.
+Keep this separate from the rosters and preserve `source_record_name` without
+assuming plant or unit granularity.
+
+## Private Generator Emissions
+
+Download annual ENV-INFO disclosures for individual and representative
+power-sector sites:
+
+```bash
+make scrape-env-info
+```
+
+The scraper preserves compressed public detail pages and writes yearly CSVs
+plus a combined 2015-2024 panel under:
+
+```text
+data/emissions/env_info/raw/
+```
+
+The normalized fields include facility name and annual NOx, SOx, and TSP in
+metric tonnes. ENV-INFO's industry category also includes non-generating
+utilities, so match facilities to EPSIS before calculating emission factors.
+Each year contains a detail-page checksum manifest, and the combined panel has
+metadata linking it to the yearly metadata files.
+
+## Thermal Plant Crosswalk
+
+Build the EPSIS thermal plant dimension and link it to ENV-INFO and CleanSYS:
+
+```bash
+make build-thermal-crosswalk
+```
+
+Outputs under `data/crosswalks/thermal/` include:
+
+- `epsis_thermal_plants.csv`: normalized EPSIS plant entities.
+- `epsis_emissions_facility_crosswalk.csv`: preferred source matches.
+- `epsis_emissions_facility_links.csv`: accepted long-form links, including
+  historical source IDs after ownership changes.
+- `epsis_emissions_match_candidates.csv`: ranked alternatives for review.
+
+Use `manual`, `automatic`, and `probable` links for downstream joins.
+`review` and `unmatched` records are not accepted links. A matched name still
+does not prove that generation and emissions cover identical equipment, so
+retain the boundary and mixed-fuel flags when calculating emission factors.
+
+All aliases and human-reviewed links are data rather than hidden code:
+
+- [`references/crosswalk/name_aliases.csv`](../../../references/crosswalk/name_aliases.csv)
+  records each company/plant normalization, evidence, URL, and access date.
+- [`references/crosswalk/manual_facility_links.csv`](../../../references/crosswalk/manual_facility_links.csv)
+  records preferred and historical facility IDs with row-level evidence.
+- [`references/data_sources.csv`](../../../references/data_sources.csv)
+  is the project source inventory for the datasets used by these workflows.
+
+Crosswalk `metadata.json` records the SHA-256 checksum of every EPSIS annual
+input, both emissions panels, both reference tables, and the method version.
 
 ## Combined Monthly Dataset
 

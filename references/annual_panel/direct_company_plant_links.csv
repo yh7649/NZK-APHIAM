@@ -1,0 +1,21 @@
+source_dataset,source_plant_name,plant_id,evidence,source_url,accessed_date
+eastwest_power,Dangjin,epsis_c21285c806f7,Official subsidiary plant name and EPSIS roster identity,https://www.ewp.co.kr/,2026-06-15
+eastwest_power,Donghae,epsis_731473484f2d,Official subsidiary plant name and EPSIS roster identity,https://www.ewp.co.kr/,2026-06-15
+eastwest_power,Honam,epsis_cad4a02397a9,Official subsidiary plant name and EPSIS roster identity,https://www.ewp.co.kr/,2026-06-15
+eastwest_power,Ilsan,epsis_271ea2d1de13,Official subsidiary plant name and EPSIS roster identity,https://www.ewp.co.kr/,2026-06-15
+eastwest_power,Ulsan,epsis_49ac87cdbd5b,Official subsidiary plant name and EPSIS roster identity,https://www.ewp.co.kr/,2026-06-15
+western_power,Gimpo,epsis_2ce3e5b29cf2,Official subsidiary plant name and EPSIS roster identity,https://www.iwest.co.kr/,2026-06-15
+western_power,Gunsan,epsis_1f296ab19d59,Official subsidiary plant name and EPSIS roster identity,https://www.iwest.co.kr/,2026-06-15
+western_power,Pyeongtaek,epsis_074f27692e3a,Official subsidiary plant name and EPSIS roster identity,https://www.iwest.co.kr/,2026-06-15
+western_power,Seoincheon,epsis_26c73c169905,Official subsidiary plant name and EPSIS roster identity,https://www.iwest.co.kr/,2026-06-15
+western_power,Taean,epsis_fd745dacd228,Official subsidiary plant name and EPSIS roster identity,https://www.iwest.co.kr/,2026-06-15
+southern_power,Andong,epsis_794e381be171,Official subsidiary plant name and EPSIS roster identity,https://www.kospo.co.kr/,2026-06-15
+southern_power,Busan,epsis_80f2ca484235,Official subsidiary plant name and EPSIS roster identity,https://www.kospo.co.kr/,2026-06-15
+southern_power,Hadong,epsis_6168fff3abfd,Official subsidiary plant name and EPSIS roster identity,https://www.kospo.co.kr/,2026-06-15
+southern_power,Hallim,epsis_f0fdf441fb7e,Official subsidiary plant name and EPSIS roster identity,https://www.kospo.co.kr/,2026-06-15
+southern_power,Namjeju Combined,epsis_cc46733eb4ce,Combined-cycle and steam records share the canonical Namjeju plant boundary,https://www.kospo.co.kr/kospo/618/subview.do,2026-06-15
+southern_power,Namjeju Steam,epsis_cc46733eb4ce,Combined-cycle and steam records share the canonical Namjeju plant boundary,https://www.kospo.co.kr/kospo/618/subview.do,2026-06-15
+southern_power,Samcheok,epsis_953b098b68ef,Official subsidiary plant name and EPSIS roster identity,https://www.kospo.co.kr/,2026-06-15
+southern_power,Shin-Incheon,epsis_78ec107b57fe,Official subsidiary plant name and EPSIS roster identity,https://www.kospo.co.kr/,2026-06-15
+southern_power,Shinsejong,epsis_9578af9aabc6,Official subsidiary plant name and EPSIS roster identity,https://www.kospo.co.kr/,2026-06-15
+southern_power,Yeongwol,epsis_aaa84a89470b,Official subsidiary plant name and EPSIS roster identity,https://www.kospo.co.kr/,2026-06-15

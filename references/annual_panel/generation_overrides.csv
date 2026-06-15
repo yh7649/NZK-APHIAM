@@ -1,0 +1,14 @@
+year,source_label,company,plant_id,action,evidence,source_url,accessed_date,notes
+,포스코에너지C/C,기타사,epsis_9969a895943c,assign,Historical operator name and roster plant identity,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15,Assign the explicit combined-cycle plant total to the canonical POSCO plant
+,부산정관에너지,기타사,epsis_ea0792617f3b,assign,Generation label and roster plant name agree,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15,Explicit plant total
+,상공에너지열병합,기타사,epsis_1f5c8cbde7f2,assign,Generation label and roster plant name agree,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15,Explicit cogeneration plant total
+,당진C/C,기타사,epsis_1f51a03d6a3a,assign,EPSIS roster identifies the private GS EPS Dangjin combined-cycle plant,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15,Do not confuse with Korea East-West Power coal units
+,GS EPS 당진,기타사,epsis_1f51a03d6a3a,assign,Company and plant label uniquely identify GS EPS Dangjin,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15,Historical provider label
+,안산C/C,기타사,epsis_4f64e966b5a8,assign,EPSIS roster identifies the private S-Power Ansan combined-cycle plant,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15,Explicit combined-cycle total
+,안산복합,기타사,epsis_4f64e966b5a8,assign,EPSIS roster identifies the private S-Power Ansan combined-cycle plant,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15,Historical provider label
+,파주문산C/C,기타사,epsis_0a89ca030e43,assign,EPSIS roster identifies Paju Energy Service unit labels as Paju Munsan,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15,Explicit combined-cycle total
+,북평#1,기타사,epsis_74d76e7b83b8,assign,EPSIS roster identifies Bukpyeong units as GS Donghae Power,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15,Private coal unit
+,북평#2,기타사,epsis_74d76e7b83b8,assign,EPSIS roster identifies Bukpyeong units as GS Donghae Power,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15,Private coal unit
+,제주내연(중부),중부,epsis_90d3789a06ec,assign,Company and technology uniquely identify KOMIPO Jeju internal-combustion generation,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15,Explicit plant total
+,제주C/C,중부,epsis_13ff3d53a9e9,assign,Company and plant label identify KOMIPO Jeju combined-cycle generation,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15,Explicit plant total
+,보임열병합,기타사,epsis_52c8a91690ee,assign,Current company name and Yeosu cogeneration history identify the canonical plant,https://www.boimkorea.com/company/history.php,2026-06-15,Explicit cogeneration total

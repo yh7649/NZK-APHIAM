@@ -1,0 +1,29 @@
+epsis_operator_key,epsis_plant_key,source,facility_id,link_role,evidence,source_url,accessed_date
+디에스파워,오산,env_info,CM000000000000000745,preferred,ENV-INFO child-site name identifies the Osan power facility,https://www.env-info.kr/user/register/viewUserSearch2.do?YEAR=2024&COMP_ID=CM000000000000000745&OPEN_YN=Y,2026-06-15
+디에스파워,오산,cleansys,150630,preferred,CleanSYS facility name and address identify DS Power Osan,https://cleansys.or.kr/statAnnual.do,2026-06-15
+신평택발전,신평택,env_info,CT000000000000050971,preferred,ENV-INFO individual site identifies Shin-Pyeongtaek power,https://www.env-info.kr/user/register/viewUserSearch2.do?YEAR=2024&COMP_ID=CT000000000000050971&OPEN_YN=Y,2026-06-15
+신평택발전,신평택,cleansys,150809,preferred,CleanSYS facility name and address identify Shin-Pyeongtaek power,https://cleansys.or.kr/statAnnual.do,2026-06-15
+씨지앤대산전력,대산,cleansys,170867,preferred,CleanSYS facility name and address identify CGN Daesan,https://cleansys.or.kr/statAnnual.do,2026-06-15
+나래에너지서비스,위례,env_info,CM000000000000002302,preferred,ENV-INFO child-site name identifies Wirye energy service,https://www.env-info.kr/user/register/viewUserSearch2.do?YEAR=2024&COMP_ID=CM000000000000002302&OPEN_YN=Y,2026-06-15
+나래에너지서비스,위례,cleansys,150758,preferred,CleanSYS facility name and address identify Wirye,https://cleansys.or.kr/statAnnual.do,2026-06-15
+대륜발전,양주,env_info,CT000000000000003414,preferred,ENV-INFO individual site identifies Yangju cogeneration,https://www.env-info.kr/user/register/viewUserSearch2.do?YEAR=2024&COMP_ID=CT000000000000003414&OPEN_YN=Y,2026-06-15
+대륜발전,양주,cleansys,150613,preferred,CleanSYS facility name and address identify Yangju,https://cleansys.or.kr/statAnnual.do,2026-06-15
+지에스이앤알,반월,env_info,CT000000000000062967,preferred,ENV-INFO individual site identifies Banwol cogeneration,https://www.env-info.kr/user/register/viewUserSearch2.do?YEAR=2024&COMP_ID=CT000000000000062967&OPEN_YN=Y,2026-06-15
+지에스이앤알,반월,cleansys,150014,preferred,CleanSYS facility name and address identify Banwol,https://cleansys.or.kr/statAnnual.do,2026-06-15
+지에스이앤알,구미,env_info,CT000000000000058341,preferred,ENV-INFO individual site identifies Gumi power,https://www.env-info.kr/user/register/viewUserSearch2.do?YEAR=2024&COMP_ID=CT000000000000058341&OPEN_YN=Y,2026-06-15
+지에스이앤알,구미,cleansys,130501,preferred,CleanSYS facility name and address identify Gumi,https://cleansys.or.kr/statAnnual.do,2026-06-15
+에스케이이앤에스,광양,env_info,00000000000000187103,preferred,ENV-INFO facility name identifies SK E&S Gwangyang,https://www.env-info.kr/user/register/viewUserSearch2.do?YEAR=2024&COMP_ID=00000000000000187103&OPEN_YN=Y,2026-06-15
+포스코인터내셔널,포스코,env_info,CM000000000000003200,preferred,ENV-INFO child-site record identifies the current Incheon power facility,https://www.env-info.kr/user/register/viewUserSearch2.do?YEAR=2024&COMP_ID=CM000000000000003200&OPEN_YN=Y,2026-06-15
+포스코인터내셔널,포스코,cleansys,150045,preferred,CleanSYS facility name and address identify POSCO Incheon,https://cleansys.or.kr/statAnnual.do,2026-06-15
+금호석유화학,금호여수,env_info,00000000000000185895,preferred,ENV-INFO facility name identifies Kumho Petrochemical Yeosu Number 2 Energy,https://www.env-info.kr/user/register/viewUserSearch2.do?YEAR=2024&COMP_ID=00000000000000185895&OPEN_YN=Y,2026-06-15
+금호석유화학,금호여수,cleansys,110044,preferred,CleanSYS facility name and address identify Kumho Yeosu,https://cleansys.or.kr/statAnnual.do,2026-06-15
+한국토지주택공사,대전서남부,env_info,CM000000000000001929,preferred,ENV-INFO child-site name identifies Daejeon Southwest energy facility,https://www.env-info.kr/user/register/viewUserSearch2.do?YEAR=2024&COMP_ID=CM000000000000001929&OPEN_YN=Y,2026-06-15
+한국토지주택공사,대전서남부,cleansys,170077,preferred,CleanSYS facility name and address identify Daejeon Southwest,https://cleansys.or.kr/statAnnual.do,2026-06-15
+한국토지주택공사,아산배방,env_info,CM000000000000001930,preferred,ENV-INFO child-site name identifies Asan Baebang energy facility,https://www.env-info.kr/user/register/viewUserSearch2.do?YEAR=2024&COMP_ID=CM000000000000001930&OPEN_YN=Y,2026-06-15
+한국토지주택공사,아산배방,cleansys,170721,preferred,CleanSYS facility name and address identify Asan Baebang,https://cleansys.or.kr/statAnnual.do,2026-06-15
+보임열병합발전,여수,env_info,CT000000000000002650,preferred,ENV-INFO individual site and company history identify the Yeosu cogeneration plant,https://www.env-info.kr/user/register/viewUserSearch2.do?YEAR=2024&COMP_ID=CT000000000000002650&OPEN_YN=Y,2026-06-15
+보임열병합발전,여수,cleansys,110050,preferred,CleanSYS facility name and address identify the same Yeosu site,https://cleansys.or.kr/statAnnual.do,2026-06-15
+한국중부발전,보령,env_info,00000000000000175922,preferred,ENV-INFO representative record identifies Boryeong power headquarters,https://www.env-info.kr/user/register/viewUserSearch2.do?YEAR=2024&COMP_ID=00000000000000175922&OPEN_YN=Y,2026-06-15
+한국중부발전,보령,cleansys,170030,preferred,CleanSYS facility name and address identify Boryeong,https://cleansys.or.kr/statAnnual.do,2026-06-15
+포스코인터내셔널,포스코,env_info,00000000000000207695,historical,Historical ENV-INFO ID has the same Incheon power-site identity before the record transition,https://www.env-info.kr/user/register/viewUserSearch2.do?YEAR=2021&COMP_ID=00000000000000207695&OPEN_YN=Y,2026-06-15
+지에스이앤알,구미,env_info,00000000000000257142,historical,Historical ENV-INFO ID has the same Gumi power-site identity before the record transition,https://www.env-info.kr/user/register/viewUserSearch2.do?YEAR=2022&COMP_ID=00000000000000257142&OPEN_YN=Y,2026-06-15

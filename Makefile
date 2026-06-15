@@ -152,6 +152,93 @@ scrape-thermal:
 	$(MAKE) scrape-midland-power
 
 
+## Download EPSIS annual generator rosters
+.PHONY: scrape-epsis-annual
+scrape-epsis-annual:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.epsis annual
+
+
+## Download EPSIS dated generator roster snapshots
+.PHONY: scrape-epsis-snapshots
+scrape-epsis-snapshots:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.epsis snapshots
+
+
+## Download EPSIS annual mixed-granularity capacity and generation
+.PHONY: scrape-epsis-generation
+scrape-epsis-generation:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.epsis annual-generation
+
+
+## Download all EPSIS annual and dated generator rosters
+.PHONY: scrape-epsis
+scrape-epsis:
+	$(MAKE) scrape-epsis-annual
+	$(MAKE) scrape-epsis-generation
+	$(MAKE) scrape-epsis-snapshots
+
+
+## Download CleanSYS annual facility-level air pollutant emissions
+.PHONY: scrape-cleansys
+scrape-cleansys:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.cleansys
+
+
+## Download ENV-INFO annual power-sector facility air pollutant emissions
+.PHONY: scrape-env-info
+scrape-env-info:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.env_info --start-year 2015 --end-year 2024
+
+
+FACILITY_START_YEAR ?= 2015
+FACILITY_END_YEAR ?= 2024
+
+
+## Download the EPSIS, CleanSYS, and ENV-INFO inputs used for facility emission factors
+.PHONY: scrape-facility-ef-inputs
+scrape-facility-ef-inputs:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.epsis annual --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.epsis annual-generation --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.cleansys --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.env_info --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
+
+
+## Rebuild normalized facility-EF inputs strictly from preserved raw files
+.PHONY: rebuild-facility-ef-inputs-offline
+rebuild-facility-ef-inputs-offline:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.epsis --offline annual --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.epsis --offline annual-generation --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.cleansys --offline --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.env_info --offline --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
+
+
+## Build the EPSIS to ENV-INFO and CleanSYS thermal facility crosswalk
+.PHONY: build-thermal-crosswalk
+build-thermal-crosswalk:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.crosswalk
+
+
+## Download all facility-EF inputs and build the documented crosswalk
+.PHONY: reproduce-facility-crosswalk
+reproduce-facility-crosswalk: scrape-facility-ef-inputs build-thermal-crosswalk
+
+
+## Rebuild facility-EF inputs and crosswalk without contacting providers
+.PHONY: verify-facility-crosswalk-offline
+verify-facility-crosswalk-offline: rebuild-facility-ef-inputs-offline build-thermal-crosswalk
+
+
+## Build annual plant generation, reconcile emissions, and calculate emission factors
+.PHONY: build-annual-plant-panel
+build-annual-plant-panel:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.annual_panel
+
+
+## Rebuild all annual facility inputs, crosswalks, and the final plant-year panel offline
+.PHONY: reproduce-annual-plant-panel-offline
+reproduce-annual-plant-panel-offline: verify-facility-crosswalk-offline combine-thermal build-annual-plant-panel
+
+
 ## Check every thermal scraper command without network access
 .PHONY: check-scraper-cli
 check-scraper-cli:
@@ -162,6 +249,11 @@ check-scraper-cli:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southeast_power --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power emissions --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power generation --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.epsis --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.cleansys --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.env_info --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.crosswalk --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.annual_panel --help
 
 
 ## Verify code and rebuild implemented interim datasets without network access
