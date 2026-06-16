@@ -22,6 +22,7 @@ from datetime import date, datetime
 import json
 import os
 from pathlib import Path
+import time
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import xml.etree.ElementTree as ET
@@ -41,6 +42,7 @@ API_KEY_ENV = "DATA_GO_KR_API_KEY"
 API_URL_ENV = "SOUTHERN_POWER_GENERATION_API_URL"
 DEFAULT_START_DATE = "19000101"
 DEFAULT_PER_PAGE = 10000
+DEFAULT_RETRIES = 3
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = (
@@ -169,18 +171,33 @@ def request_page(
     start_date: str,
     end_date: str,
     timeout: int,
+    retries: int = DEFAULT_RETRIES,
 ) -> tuple[ET.Element, str]:
     """Request and parse one generation XML page."""
     base_url, params = build_params(api_url, service_key, page, per_page, start_date, end_date)
     prepared_url = requests.Request("GET", base_url, params=params).prepare().url
     redacted_request_url = redact_url(prepared_url)
 
-    try:
-        response = requests.get(base_url, params=params, timeout=timeout)
-    except requests.RequestException as error:
-        raise RuntimeError(
-            f"Request failed for {redacted_request_url}: {error.__class__.__name__}"
-        ) from None
+    last_error: str | None = None
+    response: requests.Response | None = None
+    for attempt in range(1, retries + 1):
+        try:
+            response = requests.get(base_url, params=params, timeout=timeout)
+            break
+        except requests.RequestException as error:
+            last_error = error.__class__.__name__
+            if attempt == retries:
+                raise RuntimeError(
+                    f"Request failed for {redacted_request_url}: {last_error}"
+                ) from None
+            print(
+                f"Request failed for {redacted_request_url}: {last_error}; "
+                f"retrying {attempt}/{retries - 1}"
+            )
+            time.sleep(attempt)
+
+    if response is None:
+        raise RuntimeError(f"Request failed for {redacted_request_url}: {last_error}")
 
     print(f"Request URL: {redacted_request_url}")
     print(f"Status code: {response.status_code}")

@@ -19,6 +19,7 @@ from collections.abc import Iterable
 import json
 import os
 from pathlib import Path
+import time
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -31,6 +32,7 @@ DATASET_URL = "https://www.data.go.kr/data/15099768/fileData.do#tab-layer-openap
 API_KEY_ENV = "DATA_GO_KR_API_KEY"
 API_URL_ENV = "EASTWEST_POWER_API_URL"
 DEFAULT_PER_PAGE = 1000
+DEFAULT_RETRIES = 3
 FUEL_MAPPING_REFERENCE = "references/thermal/eastwest_power_energy_type_mapping.csv"
 ENRICHMENT_SOURCES = [
     {
@@ -136,6 +138,7 @@ def request_page(
     page: int,
     per_page: int,
     timeout: int,
+    retries: int = DEFAULT_RETRIES,
 ) -> tuple[dict[str, Any], str]:
     """
     Request one paginated JSON page.
@@ -149,12 +152,26 @@ def request_page(
     prepared_url = requests.Request("GET", base_url, params=params).prepare().url
     redacted_request_url = redact_url(prepared_url)
 
-    try:
-        response = requests.get(base_url, params=params, timeout=timeout)
-    except requests.RequestException as error:
-        raise RuntimeError(
-            f"Request failed for {redacted_request_url}: {error.__class__.__name__}"
-        ) from None
+    last_error: str | None = None
+    response: requests.Response | None = None
+    for attempt in range(1, retries + 1):
+        try:
+            response = requests.get(base_url, params=params, timeout=timeout)
+            break
+        except requests.RequestException as error:
+            last_error = error.__class__.__name__
+            if attempt == retries:
+                raise RuntimeError(
+                    f"Request failed for {redacted_request_url}: {last_error}"
+                ) from None
+            print(
+                f"Request failed for {redacted_request_url}: {last_error}; "
+                f"retrying {attempt}/{retries - 1}"
+            )
+            time.sleep(attempt)
+
+    if response is None:
+        raise RuntimeError(f"Request failed for {redacted_request_url}: {last_error}")
 
     print(f"Request URL: {redacted_request_url}")
     print(f"Status code: {response.status_code}")
