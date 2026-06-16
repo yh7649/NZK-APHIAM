@@ -7,7 +7,7 @@ from nzk_aphiam.data.clean.thermal.schema import THERMAL_OUTPUT_COLUMNS
 from nzk_aphiam.data.clean.thermal.southeast_power import cleaner
 
 
-def test_clean_southeast_power_preserves_daily_measurements() -> None:
+def test_clean_southeast_power_derives_monthly_mass() -> None:
     raw = pd.DataFrame(
         [
             {
@@ -22,14 +22,14 @@ def test_clean_southeast_power_preserves_daily_measurements() -> None:
                 "온도": "91.87",
             },
             {
-                "사업소": "여수",
-                "호기": "-",
-                "일자": "20260610",
-                "SOX": None,
-                "NOX": "",
-                "먼지": None,
+                "사업소": "삼천포",
+                "호기": "3A호기",
+                "일자": "20260612",
+                "SOX": "1",
+                "NOX": "2",
+                "먼지": "122.41",
                 "산소": None,
-                "유량": None,
+                "유량": "1000",
                 "온도": None,
             },
         ],
@@ -39,19 +39,30 @@ def test_clean_southeast_power_preserves_daily_measurements() -> None:
     result = cleaner.clean_southeast_power(raw)
 
     assert list(result.columns) == THERMAL_OUTPUT_COLUMNS
-    assert len(result) == len(raw)
-    assert result.loc[0, "date"] == pd.Timestamp("2026-06-11")
+    assert len(result) == 1
+    assert result.loc[0, "date"] == pd.Timestamp("2026-06-01")
     assert result.loc[0, "plant_name"] == "Samcheonpo"
     assert result.loc[0, "plant_number"] == 3
     assert result.loc[0, "original_korean_unit_name"] == "3A호기"
-    assert pd.isna(result.loc[1, "plant_number"])
-    assert result.loc[0, "nox"] == 27.37
-    assert result.loc[0, "oxygen"] == 6.61
-    assert result.loc[0, "flue_gas_flow"] == 72495.55
-    assert result.loc[0, "temperature_celsius"] == 91.87
-    assert result.loc[0, "pollutant_measurement_basis"] == "concentration"
-    assert result.loc[0, "nox_unit"] == "not_reported"
-    assert pd.isna(result.loc[0, "emissions_mass_unit"])
+    expected_nox = (
+        27.37 * 72495.55 * 46 / (22.4 * 1_000_000) * 288
+        + 2 * 1000 * 46 / (22.4 * 1_000_000) * 288
+    )
+    expected_sox = (
+        11.78 * 72495.55 * 64 / (22.4 * 1_000_000) * 288
+        + 1 * 1000 * 64 / (22.4 * 1_000_000) * 288
+    )
+    expected_dust = 5.01 * 72495.55 / 1_000_000 * 288
+    assert result.loc[0, "nox"] == pytest.approx(expected_nox)
+    assert result.loc[0, "sox"] == pytest.approx(expected_sox)
+    assert result.loc[0, "dust_tsp"] == pytest.approx(expected_dust)
+    assert pd.isna(result.loc[0, "oxygen"])
+    assert pd.isna(result.loc[0, "flue_gas_flow"])
+    assert pd.isna(result.loc[0, "temperature_celsius"])
+    assert result.loc[0, "pollutant_measurement_basis"] == "mass"
+    assert result.loc[0, "nox_unit"] == "kilograms"
+    assert result.loc[0, "emissions_mass_unit"] == "kilograms"
+    assert "dust concentration rows >30 mg/Sm3" in result.loc[0, "original_korean_note"]
     assert pd.isna(result.loc[0, "energy_generated_mwh"])
     assert pd.isna(result.loc[0, "energy_type"])
     assert str(result["plant_number"].dtype) == "Int64"

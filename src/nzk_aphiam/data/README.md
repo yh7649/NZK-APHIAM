@@ -303,8 +303,8 @@ input, both emissions panels, both reference tables, and the method version.
 
 ## Combined Monthly Dataset
 
-Combine the three interim datasets that currently report compatible monthly
-pollutant mass and generation:
+Combine the interim datasets that currently report compatible monthly
+pollutant mass:
 
 ```bash
 make combine-thermal
@@ -316,14 +316,15 @@ The processed output is:
 data/power_generation/thermal/processed/thermal_power_generation_emissions.csv
 ```
 
-The command combines East-West, Western, and Southern Power. It checks every
-input schema before concatenation, retains generation in MWh and capacity in
-MW, and standardizes NOx, SOx, and dust mass to kilograms. East-West and
-Western values are multiplied by 1,000 to convert metric tonnes to kilograms;
-Southern values are already reported in kilograms.
+The command combines East-West, Western, Southern, and South-East Power. It
+checks every input schema before concatenation, retains generation in MWh and
+capacity in MW where available, and standardizes NOx, SOx, and dust mass to
+kilograms. East-West and Western values are multiplied by 1,000 to convert
+metric tonnes to kilograms; Southern and South-East values are already in
+kilograms.
 
 Oxygen, flue-gas flow, and temperature are omitted from this processed monthly
-mass dataset because they are empty across the three included sources. They
+mass dataset because they are empty across the included mass sources. They
 remain in source-specific interim datasets where reported.
 
 The command also writes
@@ -331,8 +332,6 @@ The command also writes
 It contains ordered `varname` and `label` fields for every column, including
 units in quantitative labels.
 
-South-East is excluded because its available source reports daily
-concentrations with undocumented units rather than monthly pollutant mass.
 Midland is excluded until the requested monthly raw emissions data are
 available.
 
@@ -360,14 +359,25 @@ provider export currently begins on July 16, 2020.
 The interim output is:
 
 ```text
-data/power_generation/thermal/interim/southeast_power/southeast_power_daily_air_pollutant_measurements.csv
+data/power_generation/thermal/interim/southeast_power/southeast_power_monthly_derived_emissions.csv
 ```
 
-It retains reported NOx, SOx, dust, oxygen, flue-gas flow, and temperature.
-The export does not document the pollutant concentration or flow units, so
-those fields are marked `not_reported`. Generation, capacity, fuel type, and
-emissions mass remain null. The cleaner does not attempt an unsupported
-concentration-to-mass conversion.
+It converts reported daily concentrations and flow to inferred daily mass, then
+aggregates to month/unit rows in the shared thermal schema. The derivation uses
+the provider's confirmed formulas:
+
+```text
+SOx kg  = SOx ppm * flow Sm3 * 64 / (22.4 * 1,000,000) * 288
+NOx kg  = NOx ppm * flow Sm3 * 46 / (22.4 * 1,000,000) * 288
+Dust kg = dust mg/Sm3 * flow Sm3 / 1,000,000 * 288
+```
+
+The `288` multiplier is an inferred 5-minute integrated-flow basis. It was
+validated against KOEN annual ESG totals and the three subsidiaries with
+published mass datasets. Dust concentration rows above `30 mg/Sm3` are excluded
+from dust mass because they match invalid/non-operating measurement patterns
+and otherwise overstate KOEN annual dust mass by about threefold. Generation,
+capacity, and fuel type remain null.
 
 ## Midland Power
 

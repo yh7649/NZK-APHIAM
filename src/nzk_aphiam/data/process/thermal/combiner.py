@@ -78,6 +78,11 @@ DATASET_SPECS = (
         "monthly",
         THERMAL_INTERIM_DIR / "southern_power" / "southern_power_monthly_generation_emissions.csv",
     ),
+    DatasetSpec(
+        "southeast_power",
+        "monthly",
+        THERMAL_INTERIM_DIR / "southeast_power" / "southeast_power_monthly_derived_emissions.csv",
+    ),
 )
 
 

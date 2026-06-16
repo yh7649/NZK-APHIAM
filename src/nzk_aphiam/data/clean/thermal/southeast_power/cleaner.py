@@ -1,10 +1,19 @@
 """
 Clean Korea South-East Power daily air-pollutant measurements.
 
-The source reports daily values for SOX, NOX, dust, oxygen, flue-gas flow, and
-temperature, but its export does not state the pollutant or flow units. The
-cleaner therefore preserves the reported values without converting them or
-mislabeling them as emissions mass.
+This cleaner reads the public KOEN raw CSV scraped from data.go.kr/provider
+pages and derives monthly pollutant mass from those scraped values. A separate
+KOEN data-request workbook is used only as methodology evidence: it confirms
+the concentration-to-mass chemistry but does not serve as pipeline input.
+
+The scraped source reports daily average concentrations and flue-gas flow, not
+published mass emissions. Cross-checks against KOEN annual ESG totals and other
+KEPCO subsidiaries indicate that the daily flow value behaves like a daily
+average of 5-minute integrated standard gas volumes, so this cleaner multiplies
+the provider-style formula by 288 5-minute periods per day. Dust rows above
+30 mg/Sm3 are excluded from dust mass because they behave like
+invalid/non-operating measurements and otherwise triple KOEN's reported annual
+dust mass.
 """
 
 from __future__ import annotations
@@ -34,11 +43,24 @@ DEFAULT_OUTPUT_PATH = (
     / "thermal"
     / "interim"
     / "southeast_power"
-    / "southeast_power_daily_air_pollutant_measurements.csv"
+    / "southeast_power_monthly_derived_emissions.csv"
 )
 
 SUBSIDIARY_COMPANY = "Korea South-East Power"
 SOURCE_COLUMNS = ["사업소", "호기", "일자", "SOX", "NOX", "먼지", "산소", "유량", "온도"]
+FIVE_MINUTE_PERIODS_PER_DAY = 288
+MOLAR_VOLUME_LITERS_PER_MOL = 22.4
+SOX_MOLECULAR_WEIGHT_GRAMS = 64
+NOX_MOLECULAR_WEIGHT_GRAMS = 46
+DUST_VALID_CONCENTRATION_MAX_MG_SM3 = 30
+DERIVATION_NOTE = (
+    "Derived from scraped KOEN daily concentration and flow data using inferred "
+    "5-minute integrated-flow basis. The KOEN workbook was used only to verify "
+    "the gas/dust conversion formulas, not as cleaner input: gas kg = ppm * "
+    "flow_sm3 * molecular_weight / (22.4 * 1,000,000) * 288; dust kg = "
+    "mg_per_sm3 * flow_sm3 / 1,000,000 * 288, excluding dust concentration "
+    "rows >30 mg/Sm3."
+)
 PLANT_NAMES = {
     "분당": "Bundang",
     "삼천포": "Samcheonpo",
@@ -66,16 +88,21 @@ def extract_unit_number(value: object) -> int | None:
     return int(match.group()) if match else None
 
 
-def clean_southeast_power(raw: pd.DataFrame) -> pd.DataFrame:
-    """Return every source row in the shared thermal schema."""
-    validate_source_columns(raw)
-    source = raw.copy()
+def sum_with_missing(values: pd.Series) -> float | pd.NA:
+    """Sum a group while preserving missingness for all-missing groups."""
+    return values.sum(min_count=1)
 
-    unknown_plants = sorted(set(source["사업소"].dropna()) - set(PLANT_NAMES))
-    if unknown_plants:
-        raise ValueError(f"Unknown South-East Power plant names: {unknown_plants}")
 
-    cleaned = pd.DataFrame(
+def build_daily_derived_mass(source: pd.DataFrame) -> pd.DataFrame:
+    """Convert daily source measurements to inferred daily pollutant mass."""
+    flow = pd.to_numeric(source["유량"], errors="coerce")
+    sox_ppm = pd.to_numeric(source["SOX"], errors="coerce")
+    nox_ppm = pd.to_numeric(source["NOX"], errors="coerce")
+    dust_mg_sm3 = pd.to_numeric(source["먼지"], errors="coerce")
+
+    # Use the scraped public export as the only pipeline input. The workbook
+    # from KOEN is external evidence for these formulas and constants.
+    daily = pd.DataFrame(
         {
             "date": pd.to_datetime(
                 source["일자"].astype("string"),
@@ -84,33 +111,104 @@ def clean_southeast_power(raw: pd.DataFrame) -> pd.DataFrame:
             ),
             "plant_name": source["사업소"].map(PLANT_NAMES),
             "plant_number": source["호기"].map(extract_unit_number),
-            "plant_opening_date": pd.Series(pd.NaT, index=source.index),
-            "plant_closing_date": pd.Series(pd.NaT, index=source.index),
-            "plant_latitude": pd.Series(pd.NA, index=source.index, dtype="Float64"),
-            "plant_longitude": pd.Series(pd.NA, index=source.index, dtype="Float64"),
-            "subsidiary_company": SUBSIDIARY_COMPANY,
-            "energy_type": pd.Series(pd.NA, index=source.index, dtype="string"),
-            "energy_generated_mwh": pd.Series(pd.NA, index=source.index, dtype="Float64"),
-            "energy_capacity_mw": pd.Series(pd.NA, index=source.index, dtype="Float64"),
-            "nox": pd.to_numeric(source["NOX"], errors="coerce"),
-            "sox": pd.to_numeric(source["SOX"], errors="coerce"),
-            "dust_tsp": pd.to_numeric(source["먼지"], errors="coerce"),
-            "pollutant_measurement_basis": "concentration",
-            "nox_unit": "not_reported",
-            "sox_unit": "not_reported",
-            "dust_tsp_unit": "not_reported",
-            "emissions_mass_unit": pd.Series(pd.NA, index=source.index, dtype="string"),
-            "oxygen": pd.to_numeric(source["산소"], errors="coerce"),
-            "oxygen_unit": "not_reported",
-            "flue_gas_flow": pd.to_numeric(source["유량"], errors="coerce"),
-            "flue_gas_flow_unit": "not_reported",
-            "temperature_celsius": pd.to_numeric(source["온도"], errors="coerce"),
+            # Gas conversion follows the provider workbook chemistry, then
+            # scales from one inferred 5-minute interval to a full day.
+            "nox": (
+                nox_ppm
+                * flow
+                * NOX_MOLECULAR_WEIGHT_GRAMS
+                / (MOLAR_VOLUME_LITERS_PER_MOL * 1_000_000)
+                * FIVE_MINUTE_PERIODS_PER_DAY
+            ),
+            "sox": (
+                sox_ppm
+                * flow
+                * SOX_MOLECULAR_WEIGHT_GRAMS
+                / (MOLAR_VOLUME_LITERS_PER_MOL * 1_000_000)
+                * FIVE_MINUTE_PERIODS_PER_DAY
+            ),
+            # Dust uses the same inferred 5-minute basis, but we suppress
+            # implausible high-concentration rows that align with invalid or
+            # non-operating conditions in KOEN's public export.
+            "dust_tsp": (
+                dust_mg_sm3.where(dust_mg_sm3 <= DUST_VALID_CONCENTRATION_MAX_MG_SM3)
+                * flow
+                / 1_000_000
+                * FIVE_MINUTE_PERIODS_PER_DAY
+            ),
             "original_korean_plant_name": source["사업소"],
             "original_korean_unit_name": source["호기"],
-            "original_korean_note": pd.Series(pd.NA, index=source.index, dtype="string"),
+        }
+    )
+    daily["plant_number"] = daily["plant_number"].astype("Int64")
+    return daily
+
+
+def aggregate_monthly_mass(daily: pd.DataFrame) -> pd.DataFrame:
+    """Aggregate inferred daily mass to the shared monthly thermal schema."""
+    source = daily.copy()
+    source["date"] = source["date"].dt.to_period("M").dt.to_timestamp()
+
+    group_columns = [
+        "date",
+        "plant_name",
+        "plant_number",
+        "original_korean_plant_name",
+        "original_korean_unit_name",
+    ]
+    monthly = (
+        source.groupby(group_columns, dropna=False, as_index=False)
+        .agg({"nox": sum_with_missing, "sox": sum_with_missing, "dust_tsp": sum_with_missing})
+        .sort_values(["date", "plant_name", "original_korean_unit_name"], ignore_index=True)
+    )
+
+    cleaned = pd.DataFrame(
+        {
+            "date": monthly["date"],
+            "plant_name": monthly["plant_name"],
+            "plant_number": monthly["plant_number"],
+            "plant_opening_date": pd.Series(pd.NaT, index=monthly.index),
+            "plant_closing_date": pd.Series(pd.NaT, index=monthly.index),
+            "plant_latitude": pd.Series(pd.NA, index=monthly.index, dtype="Float64"),
+            "plant_longitude": pd.Series(pd.NA, index=monthly.index, dtype="Float64"),
+            "subsidiary_company": SUBSIDIARY_COMPANY,
+            "energy_type": pd.Series(pd.NA, index=monthly.index, dtype="string"),
+            "energy_generated_mwh": pd.Series(pd.NA, index=monthly.index, dtype="Float64"),
+            "energy_capacity_mw": pd.Series(pd.NA, index=monthly.index, dtype="Float64"),
+            "nox": monthly["nox"],
+            "sox": monthly["sox"],
+            "dust_tsp": monthly["dust_tsp"],
+            "pollutant_measurement_basis": "mass",
+            "nox_unit": "kilograms",
+            "sox_unit": "kilograms",
+            "dust_tsp_unit": "kilograms",
+            "emissions_mass_unit": "kilograms",
+            "oxygen": pd.Series(pd.NA, index=monthly.index, dtype="Float64"),
+            "oxygen_unit": pd.Series(pd.NA, index=monthly.index, dtype="string"),
+            "flue_gas_flow": pd.Series(pd.NA, index=monthly.index, dtype="Float64"),
+            "flue_gas_flow_unit": pd.Series(pd.NA, index=monthly.index, dtype="string"),
+            "temperature_celsius": pd.Series(pd.NA, index=monthly.index, dtype="Float64"),
+            "original_korean_plant_name": monthly["original_korean_plant_name"],
+            "original_korean_unit_name": monthly["original_korean_unit_name"],
+            "original_korean_note": DERIVATION_NOTE,
         },
         columns=THERMAL_OUTPUT_COLUMNS,
     )
+
+    return cleaned
+
+
+def clean_southeast_power(raw: pd.DataFrame) -> pd.DataFrame:
+    """Return inferred monthly pollutant mass in the shared thermal schema."""
+    validate_source_columns(raw)
+    source = raw.copy()
+
+    unknown_plants = sorted(set(source["사업소"].dropna()) - set(PLANT_NAMES))
+    if unknown_plants:
+        raise ValueError(f"Unknown South-East Power plant names: {unknown_plants}")
+
+    daily = build_daily_derived_mass(source)
+    cleaned = aggregate_monthly_mass(daily)
 
     cleaned["plant_number"] = cleaned["plant_number"].astype("Int64")
     for column in [
@@ -169,8 +267,8 @@ def main() -> None:
     cleaned = load_and_clean(args.input_path)
     save_cleaned(cleaned, args.output_path)
     print(f"Saved {len(cleaned)} cleaned rows to {args.output_path}")
-    print(f"Daily coverage: {cleaned['date'].min():%Y-%m-%d} to {cleaned['date'].max():%Y-%m-%d}")
-    print("Pollutant and flue-gas-flow units are not reported by the source export.")
+    print(f"Monthly coverage: {cleaned['date'].min():%Y-%m} to {cleaned['date'].max():%Y-%m}")
+    print("Derived SOx/NOx/dust mass using inferred 5-minute flow basis.")
 
 
 if __name__ == "__main__":
