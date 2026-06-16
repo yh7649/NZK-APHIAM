@@ -3,7 +3,7 @@
 #################################################################################
 
 PROJECT_NAME = NZK-APHIAM
-PYTHON_VERSION = 3.14.5
+PYTHON_VERSION = 3.11
 PYTHON_INTERPRETER = python
 
 #################################################################################
@@ -270,7 +270,7 @@ verify-offline:
 ## Build the combined data and run the main manual R analysis workspace
 .PHONY: r-analysis
 r-analysis: combine-thermal
-	Rscript analysis/manual_analysis.R
+	Rscript analysis/kepco/manual_analysis.R
 
 
 ## Set up Python interpreter environment

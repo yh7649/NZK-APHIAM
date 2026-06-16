@@ -1,6 +1,7 @@
 # NZK-APHIAM manual analysis workspace
 #
-# Open NZK-APHIAM.Rproj, then work through this script interactively.
+# Open NZK-APHIAM.Rproj, then work through this KEPCO analysis script
+# interactively.
 # Python owns data merging and unit standardization. Run `make combine-thermal`
 # before using this file whenever an interim dataset changes.
 

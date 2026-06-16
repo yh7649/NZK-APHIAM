@@ -102,7 +102,7 @@ make combine-thermal PYTHON_INTERPRETER=.venv/bin/python
 ```
 
 Open `NZK-APHIAM.Rproj` in RStudio and use
-`analysis/manual_analysis.R` as the main analysis workspace. The project file
+`analysis/kepco/manual_analysis.R` as the main analysis workspace. The project file
 and R script are tracked in Git and do not need to be generated. From the
 terminal, the same analysis setup can be checked with:
 
@@ -121,7 +121,7 @@ datasets. R only loads the resulting processed dataset for analysis:
 make r-analysis
 ```
 
-The R entry point is `analysis/manual_analysis.R`, with shared path helpers
+The R entry point is `analysis/kepco/manual_analysis.R`, with shared path helpers
 under `analysis/R/`. Generated figures, tables, analysis objects, and models are
 written under `results/`. Data remains local under `data/` and is ignored by
 Git. The RStudio project and analysis scripts are tracked source files, so they

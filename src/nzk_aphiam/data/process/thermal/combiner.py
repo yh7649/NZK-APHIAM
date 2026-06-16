@@ -28,6 +28,7 @@ MASS_TO_KILOGRAMS = {
 }
 VARIABLE_LABELS = {
     "source_dataset": "Source interim dataset (categorical identifier)",
+    "operator_category": "Operator category for the combined dataset (kepco)",
     "observation_frequency": "Observation frequency (monthly)",
     "date": "Observation month (YYYY-MM-DD; first day of month)",
     "plant_name": "Power plant name (English)",
@@ -143,6 +144,7 @@ def prepare_dataset(data: pd.DataFrame, spec: DatasetSpec) -> pd.DataFrame:
     validate_interim_dataset(data, spec)
     prepared = standardize_mass_to_kilograms(data)
     prepared.insert(0, "observation_frequency", spec.frequency)
+    prepared.insert(0, "operator_category", "kepco")
     prepared.insert(0, "source_dataset", spec.name)
     return prepared[COMBINED_THERMAL_OUTPUT_COLUMNS]
 

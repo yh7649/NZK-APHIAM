@@ -40,6 +40,7 @@ COMBINED_THERMAL_EXCLUDED_COLUMNS = {
 
 COMBINED_THERMAL_OUTPUT_COLUMNS = [
     "source_dataset",
+    "operator_category",
     "observation_frequency",
     *[
         column

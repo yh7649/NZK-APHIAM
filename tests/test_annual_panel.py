@@ -2,6 +2,7 @@ from nzk_aphiam.data.process.annual_panel.pipeline import (
     classify_generation_row,
     collapse_source_candidates,
     factor,
+    operator_category,
     reconcile_emissions,
 )
 
@@ -78,3 +79,9 @@ def test_emission_factor_requires_positive_generation() -> None:
     assert factor(100.0, 50.0) == 2.0
     assert factor(100.0, 0.0) == ""
     assert factor(100.0, None) == ""
+
+
+def test_operator_category_identifies_kepco_variants() -> None:
+    assert operator_category("남부발전㈜") == "kepco"
+    assert operator_category("한국전력") == "kepco"
+    assert operator_category("GS EPS") == "private_or_other"

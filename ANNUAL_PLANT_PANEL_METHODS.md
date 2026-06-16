@@ -5,6 +5,9 @@
 The pipeline produces one canonical row per Korean thermal plant and year,
 where public source coverage permits, with annual gross generation, selected
 NOx/SOx/TSP mass, source provenance, emission factors, and review flags.
+Outputs also classify each operator as `kepco` or `private_or_other` so the
+clean direct-subsidiary lane can be separated from the broader reconstructed
+panel.
 
 Run the complete preserved-raw workflow with:
 

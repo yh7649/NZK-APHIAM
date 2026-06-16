@@ -94,6 +94,28 @@ GENERIC_COMPANIES = {
     "한전자회사",
     "한전",
 }
+KEPCO_OPERATOR_KEYS = {
+    normalize_company(value)
+    for value in (
+        "한국전력",
+        "한전",
+        "한국남동발전",
+        "남동발전",
+        "한국남부발전",
+        "남부발전",
+        "남부발전㈜",
+        "남부발전(주)",
+        "코스포",
+        "한국동서발전",
+        "동서발전",
+        "한국서부발전",
+        "서부발전",
+        "서부발전㈜",
+        "한국중부발전",
+        "중부발전",
+        "중부발전㈜",
+    )
+}
 
 GENERATION_AUDIT_COLUMNS = [
     "source_file",
@@ -118,6 +140,7 @@ GENERATION_COLUMNS = [
     "plant_id",
     "canonical_plant_name",
     "company",
+    "operator_category",
     "fuel",
     "generation_mwh",
     "gross_generation_mwh",
@@ -166,6 +189,7 @@ FINAL_COLUMNS = [
     "plant_id",
     "plant",
     "company",
+    "operator_category",
     "fuel",
     "generation_mwh",
     "nox_kg",
@@ -222,6 +246,11 @@ def number(value: str | None) -> float | None:
         return None
     parsed = float(cleaned)
     return parsed if math.isfinite(parsed) else None
+
+
+def operator_category(company: str) -> str:
+    """Classify EPSIS operators into the current KEPCO/non-KEPCO split."""
+    return "kepco" if normalize_company(company) in KEPCO_OPERATOR_KEYS else "private_or_other"
 
 
 def is_thermal_generation_row(row: dict[str, str]) -> bool:
@@ -457,6 +486,7 @@ def build_generation(
                 "plant_id": plant_id,
                 "canonical_plant_name": plants_by_id[plant_id].name,
                 "company": plants_by_id[plant_id].operator,
+                "operator_category": operator_category(plants_by_id[plant_id].operator),
                 "fuel": " | ".join(sorted({row["fuel_detail"] for row in source_rows})),
                 "generation_mwh": sum(gross_values),
                 "gross_generation_mwh": sum(gross_values),
@@ -799,6 +829,7 @@ def build_final_panel(
                 "plant_id": plant_id,
                 "plant": plant.name,
                 "company": plant.operator,
+                "operator_category": operator_category(plant.operator),
                 "fuel": generation_row["fuel"] if generation_row else plant.fuels,
                 "generation_mwh": "" if generation_value is None else generation_value,
                 "nox_kg": ("" if pollutant_values["nox"] is None else pollutant_values["nox"]),
@@ -949,7 +980,7 @@ def build_annual_panel(
 
     metadata = {
         "dataset": "Korean annual thermal plant generation and air emissions",
-        "method_version": 1,
+        "method_version": 2,
         "built_at_utc": datetime.now(timezone.utc).isoformat(),
         "generation_measure": "gross_generation_mwh",
         "source_precedence": ["direct_company", "cleansys", "env_info_individual_site"],
@@ -977,6 +1008,10 @@ def build_annual_panel(
                 company: sum(row["company"] == company for row in generation)
                 for company in sorted({row["company"] for row in generation})
             },
+            "generation_by_operator_category": {
+                category: sum(row["operator_category"] == category for row in generation)
+                for category in sorted({row["operator_category"] for row in generation})
+            },
             "generation_by_fuel": {
                 fuel: sum(row["fuel"] == fuel for row in generation)
                 for fuel in sorted({row["fuel"] for row in generation})
@@ -991,6 +1026,10 @@ def build_annual_panel(
             "selected_emissions_by_source": {
                 source: sum(row["selected_source"] == source for row in emissions)
                 for source in ("direct_company", "cleansys", "env_info")
+            },
+            "final_rows_by_operator_category": {
+                category: sum(row["operator_category"] == category for row in final)
+                for category in sorted({row["operator_category"] for row in final})
             },
         },
         "validation": checks,

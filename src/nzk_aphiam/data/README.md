@@ -91,6 +91,13 @@ date, English plant name, nullable unit number, subsidiary, energy type,
 generation, capacity, pollutant measurements and units, and original Korean
 source labels.
 
+The processed monthly thermal dataset is the clean KEPCO subsidiary lane. It
+adds `operator_category = kepco` before writing
+`thermal_power_generation_emissions.csv`. The annual plant panel adds the same
+concept as `operator_category`, using `kepco` for KEPCO and generation-company
+operators and `private_or_other` for the broader reconstructed EPSIS/CleanSYS/
+ENV-INFO records.
+
 Nullable `plant_opening_date` and `plant_closing_date` columns are reserved for
 documented plant metadata. Cleaners must not infer them from the first or last
 observation in a source dataset.

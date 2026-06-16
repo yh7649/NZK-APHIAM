@@ -58,6 +58,7 @@ def test_combiner_standardizes_metric_tonnes_to_kilograms() -> None:
 
     assert list(result.columns) == COMBINED_THERMAL_OUTPUT_COLUMNS
     assert result["source_dataset"].tolist() == ["kilograms_source", "tonnes_source"]
+    assert result["operator_category"].eq("kepco").all()
     assert result["observation_frequency"].eq("monthly").all()
     assert result["emissions_mass_unit"].eq("kilograms").all()
     assert result["nox_unit"].eq("kilograms").all()
