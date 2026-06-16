@@ -43,6 +43,7 @@ API_URL_ENV = "SOUTHERN_POWER_GENERATION_API_URL"
 DEFAULT_START_DATE = "19000101"
 DEFAULT_PER_PAGE = 10000
 DEFAULT_RETRIES = 3
+TRANSIENT_HTTP_STATUS_CODES = {429, 500, 502, 503, 504}
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = (
@@ -183,7 +184,16 @@ def request_page(
     for attempt in range(1, retries + 1):
         try:
             response = requests.get(base_url, params=params, timeout=timeout)
-            break
+            if response.status_code not in TRANSIENT_HTTP_STATUS_CODES:
+                break
+
+            last_error = f"HTTP {response.status_code}"
+            if attempt == retries:
+                break
+            print(
+                f"Request failed for {redacted_request_url}: {last_error}; "
+                f"retrying {attempt}/{retries - 1}"
+            )
         except requests.RequestException as error:
             last_error = error.__class__.__name__
             if attempt == retries:
@@ -194,7 +204,7 @@ def request_page(
                 f"Request failed for {redacted_request_url}: {last_error}; "
                 f"retrying {attempt}/{retries - 1}"
             )
-            time.sleep(attempt)
+        time.sleep(attempt)
 
     if response is None:
         raise RuntimeError(f"Request failed for {redacted_request_url}: {last_error}")
@@ -224,6 +234,7 @@ def fetch_all_pages(
     per_page: int = DEFAULT_PER_PAGE,
     max_pages: int | None = None,
     timeout: int = 60,
+    retries: int = DEFAULT_RETRIES,
 ) -> tuple[list[dict[str, str]], list[ET.Element], list[str]]:
     """Fetch all unfiltered daily generation records in the requested date range."""
     rows: list[dict[str, str]] = []
@@ -241,6 +252,7 @@ def fetch_all_pages(
             start_date=start_date,
             end_date=end_date,
             timeout=timeout,
+            retries=retries,
         )
         page_rows = extract_rows(root)
 
@@ -333,6 +345,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional page cap for smoke tests. The default downloads all pages.",
     )
     parser.add_argument("--timeout", type=int, default=60)
+    parser.add_argument(
+        "--retries",
+        type=int,
+        default=DEFAULT_RETRIES,
+        help="Attempts per page for transient network and gateway failures.",
+    )
     return parser
 
 
@@ -353,6 +371,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         per_page=args.per_page,
         max_pages=args.max_pages,
         timeout=args.timeout,
+        retries=args.retries,
     )
 
     args.out_dir.mkdir(parents=True, exist_ok=True)

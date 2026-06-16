@@ -3,6 +3,7 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 
 import pytest
+import requests
 
 from nzk_aphiam.data.scrape.thermal.southern_power import (
     emissions_scraper,
@@ -94,6 +95,47 @@ def test_generation_fetches_until_source_total(monkeypatch: pytest.MonkeyPatch) 
     ]
 
 
+def test_generation_request_page_retries_transient_http(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    responses = [
+        _response(502, b"<html><body>Bad Gateway</body></html>"),
+        _response(
+            200,
+            b"""\
+<response>
+  <header><resultCode>800</resultCode><resultMsg>NORMAL_SERVICE.</resultMsg></header>
+  <body>
+    <items><item><ymd>2024-01-01</ymd></item></items>
+    <paginginfo><totalCnt>1</totalCnt></paginginfo>
+  </body>
+</response>
+""",
+        ),
+    ]
+
+    def fake_get(*args: object, **kwargs: object) -> requests.Response:
+        return responses.pop(0)
+
+    monkeypatch.setattr(generation_scraper.requests, "get", fake_get)
+    monkeypatch.setattr(generation_scraper.time, "sleep", lambda _: None)
+
+    root, request_url = generation_scraper.request_page(
+        api_url="http://example.test/data",
+        service_key="secret",
+        page=30,
+        per_page=10000,
+        start_date="19000101",
+        end_date="20260616",
+        timeout=10,
+        retries=2,
+    )
+
+    assert root.findtext("./body/items/item/ymd") == "2024-01-01"
+    assert "secret" not in request_url
+    assert not responses
+
+
 def test_emissions_extracts_rows_and_total_count() -> None:
     payload = {
         "data": [{"발전소": "하동"}, "invalid", {"발전소": "삼척"}],
@@ -130,3 +172,11 @@ def _generation_page(dates: list[str], total_count: int) -> ET.Element:
 </response>
 """
     )
+
+
+def _response(status_code: int, content: bytes) -> requests.Response:
+    response = requests.Response()
+    response.status_code = status_code
+    response._content = content
+    response.url = "http://example.test/data"
+    return response
