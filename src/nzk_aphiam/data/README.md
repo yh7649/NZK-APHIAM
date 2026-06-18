@@ -332,8 +332,8 @@ The command also writes
 It contains ordered `varname` and `label` fields for every column, including
 units in quantitative labels.
 
-Midland is excluded until the requested monthly raw emissions data are
-available.
+Midland facility-status rows are included where the source reports stack
+pollutant concentrations and flue-gas flow.
 
 ## South-East Power
 
@@ -372,9 +372,13 @@ NOx kg  = NOx ppm * flow Sm3 * 46 / (22.4 * 1,000,000) * 288
 Dust kg = dust mg/Sm3 * flow Sm3 / 1,000,000 * 288
 ```
 
-The `288` multiplier is an inferred 5-minute integrated-flow basis. It was
-validated against KOEN annual ESG totals and the three subsidiaries with
-published mass datasets. Dust concentration rows above `30 mg/Sm3` are excluded
+KOEN clarified in June 2026 that the reported daily concentration, flow, and
+calculated mass values are daily averages of 288 five-minute readings, so the
+`288` multiplier approximates daily totals from those daily averages. KOEN also
+confirmed that SOx uses an SO2 molecular weight of `64`, NOx uses an NO2
+molecular weight of `46`, reported concentrations are already corrected to 6%
+standard oxygen, and numeric units combine A/B stack labels (for example,
+Samcheonpo 3 = 3A + 3B). Dust concentration rows above `30 mg/Sm3` are excluded
 from dust mass because they match invalid/non-operating measurement patterns
 and otherwise overstate KOEN annual dust mass by about threefold. Generation,
 capacity, and fuel type remain null.
@@ -382,10 +386,12 @@ capacity, and fuel type remain null.
 ## Midland Power
 
 Midland Power exposes monthly generation and air-pollutant measurements through
-data.go.kr XML APIs:
+data.go.kr XML APIs, plus facility-specific air-status datasets through
+odcloud file-backed APIs:
 
 ```bash
 make scrape-midland-power
+make clean-midland-power
 ```
 
 The commands retain source field names and values, save XML responses, CSV
@@ -404,4 +410,38 @@ The verified June 12, 2026 pull contains 4,424 generation records from January
 emissions API returns no records for December 2019, December 2020, or July
 2023; the scraper preserves those source gaps.
 
-The current emissions source is not used in the combined monthly mass dataset.
+The monthly emissions API returns pollutant standards and average concentration
+values, but not flue-gas flow, so it is not used for mass derivation. The newer
+facility-status APIs are saved under:
+
+```text
+data/power_generation/thermal/raw/midland_power/facilities/
+```
+
+Each facility has its own subdirectory, and the scraper also writes:
+
+```text
+data/power_generation/thermal/raw/midland_power/facilities/midland_power_facility_air_status.csv
+```
+
+The cleaner reads that merged raw file and writes:
+
+```text
+data/power_generation/thermal/interim/midland_power/midland_power_monthly_derived_emissions.csv
+```
+
+For Seocheon, Sejong, Jeju, and Incheon, the facility-status APIs report
+pollutant concentrations and stack `유량`, so the cleaner derives row-level mass
+and sums to month/unit rows:
+
+```text
+SOx kg  = SOx ppm * flow Sm3 * 64 / (22.4 * 1,000,000)
+NOx kg  = NOx ppm * flow Sm3 * 46 / (22.4 * 1,000,000)
+Dust kg = dust mg/Sm3 * flow Sm3 / 1,000,000
+```
+
+Boryeong, Seoul, and Shin-Boryeong are retained as raw facility datasets, but
+they expose TMS diagnostic/calibration fields rather than stack pollutant
+concentrations plus stack flow, so the cleaner excludes them from mass
+derivation. Generation, capacity, and fuel type remain null in the derived
+facility-status output.

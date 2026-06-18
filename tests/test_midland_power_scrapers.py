@@ -7,6 +7,7 @@ import pytest
 
 from nzk_aphiam.data.scrape.thermal.midland_power import (
     emissions_scraper,
+    facility_status_scraper,
     generation_scraper,
 )
 
@@ -100,6 +101,48 @@ def test_parse_response_rejects_api_error() -> None:
             b"<response><header><resultCode>30</resultCode>"
             b"<resultMsg>KEY ERROR</resultMsg></header></response>"
         )
+
+
+def test_facility_status_fetches_until_total_count(monkeypatch: pytest.MonkeyPatch) -> None:
+    spec = facility_status_scraper.FACILITY_STATUS_BY_SLUG["seocheon"]
+    responses = [
+        {"totalCount": 3, "data": [{"처리일": "2025-01-01"}, {"처리일": "2025-01-02"}]},
+        {"totalCount": 3, "data": [{"처리일": "2025-01-03"}]},
+    ]
+
+    def fake_request_page(**kwargs: object) -> tuple[dict[str, object], str]:
+        page = int(kwargs["page"])
+        return responses[page - 1], f"https://example.test?page={page}"
+
+    monkeypatch.setattr(facility_status_scraper, "request_page", fake_request_page)
+    rows, pages, urls = facility_status_scraper.fetch_facility_records(
+        spec=spec,
+        service_key="secret",
+        per_page=2,
+    )
+
+    assert [row["처리일"] for row in rows] == ["2025-01-01", "2025-01-02", "2025-01-03"]
+    assert len(pages) == 2
+    assert urls == ["https://example.test?page=1", "https://example.test?page=2"]
+
+
+def test_facility_status_annotation_preserves_provider_fields() -> None:
+    spec = facility_status_scraper.FACILITY_STATUS_BY_SLUG["sejong"]
+
+    rows = facility_status_scraper.annotate_rows(spec, [{"발전소 호기": "1호기", "유량": 1000}])
+
+    assert rows == [
+        {
+            "source_facility": "sejong",
+            "source_korean_facility_name": "세종발전소",
+            "source_english_facility_name": "Sejong",
+            "source_namespace": "15155553",
+            "source_endpoint_path": "/15155553/v1/uddi:708cb5a2-9c9e-4362-9201-f468fb37b2c8",
+            "usable_for_mass_derivation": True,
+            "발전소 호기": "1호기",
+            "유량": 1000,
+        }
+    ]
 
 
 def test_existing_raw_outputs_are_protected(tmp_path: Path) -> None:

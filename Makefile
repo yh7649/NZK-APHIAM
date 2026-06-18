@@ -103,6 +103,7 @@ clean-thermal:
 	$(MAKE) clean-eastwest-power
 	$(MAKE) clean-southern-power
 	$(MAKE) clean-southeast-power
+	$(MAKE) clean-midland-power
 
 
 ## Combine East-West, Western, and Southern monthly data with pollutant mass in kilograms
@@ -140,6 +141,43 @@ scrape-midland-power-generation:
 scrape-midland-power:
 	$(MAKE) scrape-midland-power-emissions
 	$(MAKE) scrape-midland-power-generation
+	$(MAKE) scrape-midland-power-facility-status
+
+
+## Download Midland Power facility air-status data
+.PHONY: scrape-midland-power-facility-status
+scrape-midland-power-facility-status:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power facility-status --overwrite
+
+
+## Download individual Midland Power facility air-status datasets
+.PHONY: scrape-midland-power-boryeong scrape-midland-power-seoul scrape-midland-power-seocheon scrape-midland-power-sejong scrape-midland-power-shin-boryeong scrape-midland-power-jeju scrape-midland-power-incheon
+scrape-midland-power-boryeong:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.boryeong --overwrite
+
+scrape-midland-power-seoul:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.seoul --overwrite
+
+scrape-midland-power-seocheon:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.seocheon --overwrite
+
+scrape-midland-power-sejong:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.sejong --overwrite
+
+scrape-midland-power-shin-boryeong:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.shin_boryeong --overwrite
+
+scrape-midland-power-jeju:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.jeju --overwrite
+
+scrape-midland-power-incheon:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.incheon --overwrite
+
+
+## Clean Midland Power facility air-status data
+.PHONY: clean-midland-power
+clean-midland-power:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.clean.thermal.midland_power
 
 
 ## Download raw thermal data for all five power subsidiaries

@@ -6,6 +6,7 @@ import sys
 
 from nzk_aphiam.data.scrape.thermal.midland_power import (
     emissions_scraper,
+    facility_status_scraper,
     generation_scraper,
 )
 
@@ -15,7 +16,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Download raw Midland Power datasets.")
     parser.add_argument(
         "dataset",
-        choices=("emissions", "generation"),
+        choices=("emissions", "facility-status", "generation"),
         help="Raw dataset to download.",
     )
 
@@ -28,6 +29,8 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     if args.dataset == "emissions":
         emissions_scraper.main(scraper_args)
+    elif args.dataset == "facility-status":
+        facility_status_scraper.main(scraper_args)
     else:
         generation_scraper.main(scraper_args)
 

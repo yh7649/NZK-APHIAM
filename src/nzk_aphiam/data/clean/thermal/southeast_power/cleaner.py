@@ -7,11 +7,12 @@ KOEN data-request workbook is used only as methodology evidence: it confirms
 the concentration-to-mass chemistry but does not serve as pipeline input.
 
 The scraped source reports daily average concentrations and flue-gas flow, not
-published mass emissions. Cross-checks against KOEN annual ESG totals and other
-KEPCO subsidiaries indicate that the daily flow value behaves like a daily
-average of 5-minute integrated standard gas volumes, so this cleaner multiplies
-the provider-style formula by 288 5-minute periods per day. Dust rows above
-30 mg/Sm3 are excluded from dust mass because they behave like
+published mass emissions. KOEN clarified in June 2026 that each daily value is
+the average of 288 five-minute readings; daily mass is therefore approximated by
+multiplying the concentration-and-flow formula by 288. KOEN also confirmed that
+reported concentrations are already corrected to 6% standard oxygen and that
+numeric unit identifiers combine A/B labels, such as Samcheonpo 3 = 3A + 3B.
+Dust rows above 30 mg/Sm3 are excluded from dust mass because they behave like
 invalid/non-operating measurements and otherwise triple KOEN's reported annual
 dust mass.
 """
@@ -54,12 +55,13 @@ SOX_MOLECULAR_WEIGHT_GRAMS = 64
 NOX_MOLECULAR_WEIGHT_GRAMS = 46
 DUST_VALID_CONCENTRATION_MAX_MG_SM3 = 30
 DERIVATION_NOTE = (
-    "Derived from scraped KOEN daily concentration and flow data using inferred "
-    "5-minute integrated-flow basis. The KOEN workbook was used only to verify "
-    "the gas/dust conversion formulas, not as cleaner input: gas kg = ppm * "
-    "flow_sm3 * molecular_weight / (22.4 * 1,000,000) * 288; dust kg = "
-    "mg_per_sm3 * flow_sm3 / 1,000,000 * 288, excluding dust concentration "
-    "rows >30 mg/Sm3."
+    "Derived from scraped KOEN daily concentration and flow data using KOEN's "
+    "confirmed approximation for daily averages of 288 five-minute readings; "
+    "reported concentrations are already corrected to 6% standard O2. The KOEN "
+    "workbook/clarification was used only to verify the formulas, not as cleaner "
+    "input: gas kg = ppm * flow_sm3 * molecular_weight / (22.4 * 1,000,000) "
+    "* 288; dust kg = mg_per_sm3 * flow_sm3 / 1,000,000 * 288, excluding dust "
+    "concentration rows >30 mg/Sm3. Numeric unit rows combine A/B labels."
 )
 PLANT_NAMES = {
     "분당": "Bundang",
@@ -93,6 +95,12 @@ def sum_with_missing(values: pd.Series) -> float | pd.NA:
     return values.sum(min_count=1)
 
 
+def join_unique_non_missing(values: pd.Series) -> str | pd.NA:
+    """Join source labels while preserving first-seen order."""
+    labels = [str(value) for value in pd.unique(values.dropna())]
+    return "; ".join(labels) if labels else pd.NA
+
+
 def build_daily_derived_mass(source: pd.DataFrame) -> pd.DataFrame:
     """Convert daily source measurements to inferred daily pollutant mass."""
     flow = pd.to_numeric(source["유량"], errors="coerce")
@@ -111,8 +119,8 @@ def build_daily_derived_mass(source: pd.DataFrame) -> pd.DataFrame:
             ),
             "plant_name": source["사업소"].map(PLANT_NAMES),
             "plant_number": source["호기"].map(extract_unit_number),
-            # Gas conversion follows the provider workbook chemistry, then
-            # scales from one inferred 5-minute interval to a full day.
+            # Gas conversion follows KOEN's confirmed chemistry, then scales
+            # the daily-average five-minute value to a full day.
             "nox": (
                 nox_ppm
                 * flow
@@ -154,11 +162,17 @@ def aggregate_monthly_mass(daily: pd.DataFrame) -> pd.DataFrame:
         "plant_name",
         "plant_number",
         "original_korean_plant_name",
-        "original_korean_unit_name",
     ]
     monthly = (
         source.groupby(group_columns, dropna=False, as_index=False)
-        .agg({"nox": sum_with_missing, "sox": sum_with_missing, "dust_tsp": sum_with_missing})
+        .agg(
+            {
+                "nox": sum_with_missing,
+                "sox": sum_with_missing,
+                "dust_tsp": sum_with_missing,
+                "original_korean_unit_name": join_unique_non_missing,
+            }
+        )
         .sort_values(["date", "plant_name", "original_korean_unit_name"], ignore_index=True)
     )
 
@@ -268,7 +282,7 @@ def main() -> None:
     save_cleaned(cleaned, args.output_path)
     print(f"Saved {len(cleaned)} cleaned rows to {args.output_path}")
     print(f"Monthly coverage: {cleaned['date'].min():%Y-%m} to {cleaned['date'].max():%Y-%m}")
-    print("Derived SOx/NOx/dust mass using inferred 5-minute flow basis.")
+    print("Derived SOx/NOx/dust mass using KOEN's confirmed 5-minute average basis.")
 
 
 if __name__ == "__main__":

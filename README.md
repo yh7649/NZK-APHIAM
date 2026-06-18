@@ -136,10 +136,10 @@ make scrape-thermal
 
 This is a **networked** workflow: it contacts data.go.kr and subsidiary
 websites and replaces the reproducible raw outputs with a fresh download.
-Midland Power is included even though its emissions data is not currently
-sufficient for monthly emission-factor calculations. The command stops if any
-scraper fails. Individual subsidiary and dataset targets are available through
-`make help`.
+Midland Power includes both the original monthly APIs and facility-status
+datasets that can derive approximate pollutant mass where stack flow is
+reported. The command stops if any scraper fails. Individual subsidiary,
+facility, and dataset targets are available through `make help`.
 
 For a fully local check using preserved raw files, run:
 

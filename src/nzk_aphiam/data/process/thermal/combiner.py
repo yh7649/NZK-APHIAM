@@ -83,6 +83,11 @@ DATASET_SPECS = (
         "monthly",
         THERMAL_INTERIM_DIR / "southeast_power" / "southeast_power_monthly_derived_emissions.csv",
     ),
+    DatasetSpec(
+        "midland_power",
+        "monthly",
+        THERMAL_INTERIM_DIR / "midland_power" / "midland_power_monthly_derived_emissions.csv",
+    ),
 )
 
 
@@ -211,8 +216,8 @@ def save_variable_metadata(metadata: pd.DataFrame, metadata_path: Path) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Combine East-West, Western, and Southern monthly datasets and "
-            "standardize pollutant mass to kilograms."
+            "Combine implemented KEPCO subsidiary monthly datasets and standardize "
+            "pollutant mass to kilograms."
         )
     )
     parser.add_argument("--output-path", type=Path, default=OUTPUT_PATH)
