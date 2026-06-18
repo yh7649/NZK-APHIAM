@@ -194,6 +194,9 @@ rsconnect/
 *.Rproj.user
 *.nb.html
 
+# Generated analysis figures
+results/figures/
+
 # PyPI configuration file
 .pypirc.env
 .env.*

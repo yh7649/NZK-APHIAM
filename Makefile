@@ -18,6 +18,16 @@ requirements:
 	$(PYTHON_INTERPRETER) -m pip install -r requirements.txt
 	
 
+## Install R analysis dependencies
+.PHONY: requirements-r
+requirements-r:
+	Rscript -e 'options(repos = c(CRAN = "https://cloud.r-project.org")); pkgs <- readLines("requirements-r.txt", warn = FALSE); pkgs <- pkgs[nzchar(pkgs)]; missing <- pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)]; if (length(missing)) install.packages(missing)'
+
+
+## Install Python and R dependencies
+.PHONY: requirements-all
+requirements-all: requirements requirements-r
+
 
 
 ## Delete all compiled Python files
