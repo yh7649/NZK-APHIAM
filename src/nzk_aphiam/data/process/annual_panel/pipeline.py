@@ -75,6 +75,7 @@ THERMAL_TERMS = (
     "부생가스",
     "폐기물",
 )
+KHNP_CLEAN_GENERATION_TERMS = ("원자력", "수력", "양수")
 UNIT_PATTERN = re.compile(r"(?:#\s*\d+)|(?:\d+\s*호기)|(?:\b(?:GT|ST)\s*#?\s*\d+)", re.I)
 PLANT_TOTAL_PATTERN = re.compile(r"(?:C/C|열병합|복합)$", re.I)
 FUEL_TOTAL_LABELS = {
@@ -114,6 +115,8 @@ KEPCO_OPERATOR_KEYS = {
         "한국중부발전",
         "중부발전",
         "중부발전㈜",
+        "한국수력원자력",
+        "한수원",
     )
 }
 
@@ -260,6 +263,19 @@ def is_thermal_generation_row(row: dict[str, str]) -> bool:
     return any(term.lower() in text.lower() for term in THERMAL_TERMS)
 
 
+def is_khnp_clean_generation_row(row: dict[str, str]) -> bool:
+    text = " ".join(
+        row.get(column, "") for column in ("generation_source", "fuel_group", "fuel_detail")
+    )
+    return normalize_company(row.get("company", "")) == "한국수력원자력" and any(
+        term in text for term in KHNP_CLEAN_GENERATION_TERMS
+    )
+
+
+def is_generation_row_in_scope(row: dict[str, str]) -> bool:
+    return is_thermal_generation_row(row) or is_khnp_clean_generation_row(row)
+
+
 def classify_generation_row(row: dict[str, str]) -> tuple[str, str]:
     """Classify one EPSIS annual-generation row without assigning it."""
     label = row["source_record_name"].strip()
@@ -281,6 +297,8 @@ def classify_generation_row(row: dict[str, str]) -> tuple[str, str]:
         return "fuel_total", "company-category fuel total"
     if is_thermal_generation_row(row):
         return "plant_total", "thermal label without a unit designator"
+    if is_khnp_clean_generation_row(row):
+        return "plant_total", "KHNP nuclear/hydro plant label"
     return "unresolved", "not a thermal plant row"
 
 
@@ -398,8 +416,8 @@ def build_generation(
             gross = number(row["gross_generation_mwh"])
             net = number(row["net_generation_mwh"])
             exclusion = ""
-            if not is_thermal_generation_row(row):
-                exclusion = "non_thermal"
+            if not is_generation_row_in_scope(row):
+                exclusion = "out_of_scope_generation_type"
                 plant_id = ""
             elif row_class not in {"unit", "plant_total"}:
                 exclusion = row_class

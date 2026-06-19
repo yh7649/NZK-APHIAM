@@ -71,6 +71,8 @@ company,보임열병합발전,보임열병합발전,Canonical self mapping,https
 company,서울시,서울에너지공사,Historical municipal operator and current corporation,https://www.i-se.co.kr/,2026-06-15
 company,서울도시개발공사,서울에너지공사,Historical municipal operator and current corporation,https://www.i-se.co.kr/,2026-06-15
 company,서울에너지공사,서울에너지공사,Canonical self mapping,https://www.i-se.co.kr/,2026-06-15
+company,한수원,한국수력원자력,Provider short name and full legal name,https://www.khnp.co.kr/main/index.do,2026-06-18
+company,한국수력원자력,한국수력원자력,Canonical self mapping,https://www.khnp.co.kr/main/index.do,2026-06-18
 plant,강릉안인,강릉,EPSIS and facility-name abbreviation,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15
 plant,북평,동해,EPSIS and facility-name abbreviation,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-15
 plant,명품오산,오산,Facility brand and EPSIS plant name,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
@@ -89,3 +91,8 @@ plant,sgc에너지,군장,Current company-branded facility and historical plant 
 plant,군장에너지,군장,Historical company-branded facility and plant name,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
 plant,익산에너지,전북집단에너지,Facility and EPSIS plant naming variants,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-15
 plant,데이원,여수,Historical company-branded facility and EPSIS location name,https://www.boimkorea.com/company/history.php,2026-06-15
+plant,신고리,고리,KHNP ENV-INFO disclosure groups Shin-Kori 1-2 with Kori headquarters,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-18
+plant,신월성,월성,KHNP ENV-INFO disclosure groups Shin-Wolsong with Wolsong headquarters,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-18
+plant,신한울,한울,KHNP ENV-INFO disclosure groups Shin-Hanul with Hanul headquarters,https://www.env-info.kr/member/open/companyTotalInfoSearch.do,2026-06-18
+plant,한빛영광,한빛,Older EPSIS labels include the former Yeonggwang site name,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-18
+plant,한울울진,한울,Older EPSIS labels include the former Uljin site name,https://epsis.kpx.or.kr/epsisnew/selectEkfaFclDtlChart.do?menuId=020600,2026-06-18

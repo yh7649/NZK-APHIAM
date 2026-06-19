@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from difflib import SequenceMatcher
 from hashlib import sha1, sha256
+import html
 import json
 from pathlib import Path
 import re
@@ -47,6 +48,7 @@ THERMAL_TERMS = (
     "바이오",
     "폐기물",
 )
+KHNP_CLEAN_GENERATION_TERMS = ("원자력", "수력", "양수")
 
 LEGAL_TERMS = (
     "주식회사",
@@ -170,7 +172,7 @@ class Facility:
 
 
 def compact(value: str) -> str:
-    value = value.lower().replace("&", "n")
+    value = html.unescape(value).lower()
     for term in LEGAL_TERMS:
         value = value.replace(term.lower(), "")
     return re.sub(r"[^0-9a-z가-힣]", "", value)
@@ -271,6 +273,16 @@ def is_thermal(row: dict[str, str]) -> bool:
     return any(term in text for term in THERMAL_TERMS)
 
 
+def is_khnp_clean_generation(row: dict[str, str]) -> bool:
+    company = normalize_company(row.get("generation_company", ""))
+    text = " ".join(
+        row.get(column, "") for column in ("generation_source", "generation_type", "fuel")
+    )
+    return company == "한국수력원자력" and any(
+        term in text for term in KHNP_CLEAN_GENERATION_TERMS
+    )
+
+
 def is_generic_operator(value: str) -> bool:
     stripped = value.strip()
     normalized = normalize_company(stripped)
@@ -290,7 +302,7 @@ def build_epsis_plants(epsis_dir: Path) -> list[dict[str, Any]]:
     source_rows: list[dict[str, str]] = []
     for path in sorted(epsis_dir.glob("epsis_generator_roster_*.csv")):
         for row in read_csv(path):
-            if not is_thermal(row):
+            if not (is_thermal(row) or is_khnp_clean_generation(row)):
                 continue
             row["_operator_key"] = normalize_company(row["generation_company"])
             row["_plant_key"] = normalize_plant(row["plant_name"])
@@ -536,6 +548,8 @@ def apply_manual_override(
         (plant["epsis_operator_key"], plant["epsis_plant_key"], source)
     )
     if not identifier:
+        if plant["epsis_operator_key"] == "한국수력원자력":
+            return None, margin, "unmatched"
         return match, margin, status
     manual_match = score_candidate(plant, facilities_by_id[identifier])
     manual_match["score"] = max(manual_match["score"], 0.95)

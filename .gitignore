@@ -197,6 +197,10 @@ rsconnect/
 # Generated analysis figures
 results/figures/
 
+# Generated analysis model objects
+results/models/*
+!results/models/.gitkeep
+
 # PyPI configuration file
 .pypirc.env
 .env.*
