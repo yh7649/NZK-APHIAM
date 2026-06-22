@@ -24,6 +24,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[5]
 DEFAULT_GENERATION_DIR = (
     PROJECT_ROOT / "data" / "plant_rosters" / "epsis" / "raw" / "annual_generation"
 )
+DEFAULT_ROSTER_DIR = PROJECT_ROOT / "data" / "plant_rosters" / "epsis" / "raw" / "annual"
 DEFAULT_PLANTS_PATH = PROJECT_ROOT / "data" / "crosswalks" / "thermal" / "epsis_thermal_plants.csv"
 DEFAULT_LINKS_PATH = (
     PROJECT_ROOT / "data" / "crosswalks" / "thermal" / "epsis_emissions_facility_links.csv"
@@ -211,6 +212,49 @@ FINAL_COLUMNS = [
     "validation_flags",
 ]
 
+FUEL_VALIDATION_COLUMNS = [
+    "year",
+    "plant_id",
+    "plant",
+    "company",
+    "panel_fuel",
+    "roster_fuel",
+    "panel_fuel_normalized",
+    "roster_fuel_normalized",
+    "validation_status",
+    "source",
+    "notes",
+]
+
+FUEL_ALIASES = {
+    "LNG": "natural_gas",
+    "가스": "natural_gas",
+    "천연가스": "natural_gas",
+    "유연탄": "bituminous_coal",
+    "역청탄": "bituminous_coal",
+    "석탄": "bituminous_coal",
+    "무연탄": "anthracite",
+    "중유": "heavy_oil",
+    "B-C": "heavy_oil",
+    "BC": "heavy_oil",
+    "LSWR": "heavy_oil",
+    "유류": "heavy_oil",
+    "경유": "diesel",
+    "LPG*": "lpg",
+    "LPG": "lpg",
+    "바이오중유": "bio_heavy_oil",
+    "바이오": "bio",
+    "원자력": "nuclear",
+    "농축U": "nuclear",
+    "천연U": "nuclear",
+    "수력": "hydro",
+    "일반수력": "hydro",
+    "소수력": "small_hydro",
+    "양수": "pumped_hydro",
+    "기타": "other",
+    "-": "missing",
+}
+
 
 @dataclass(frozen=True)
 class Plant:
@@ -316,6 +360,120 @@ def load_plants(path: Path) -> list[Plant]:
         )
         for row in read_csv(path)
     ]
+
+
+def fuel_tokens(value: str) -> set[str]:
+    return {token.strip() for token in value.split("|") if token.strip()}
+
+
+def normalized_fuel_tokens(value: str) -> set[str]:
+    return {
+        FUEL_ALIASES.get(token, token)
+        for token in fuel_tokens(value)
+        if FUEL_ALIASES.get(token, token) != "missing"
+    }
+
+
+def validation_status(panel_fuel: str, roster_fuel: str) -> tuple[str, str]:
+    panel_raw = fuel_tokens(panel_fuel)
+    roster_raw = fuel_tokens(roster_fuel)
+    panel_normalized = normalized_fuel_tokens(panel_fuel)
+    roster_normalized = normalized_fuel_tokens(roster_fuel)
+    if not roster_raw or roster_raw == {"-"}:
+        return "no_roster_fuel", "EPSIS roster has no usable fuel value for this plant-year"
+    if panel_raw == roster_raw:
+        return "exact_match", ""
+    if panel_normalized == roster_normalized:
+        return "alias_match", "Fuel labels differ but map to the same normalized fuel class"
+    if panel_normalized and roster_normalized and panel_normalized <= roster_normalized:
+        return "panel_subset_of_roster", "Panel fuel is covered by the broader roster fuel set"
+    if panel_normalized and roster_normalized and roster_normalized <= panel_normalized:
+        return "roster_subset_of_panel", "Roster fuel is covered by the broader panel fuel set"
+    if panel_normalized & roster_normalized:
+        return "partial_overlap", "Panel and roster fuel sets share at least one fuel class"
+    return "mismatch", "Panel fuel does not match the external EPSIS roster fuel class"
+
+
+def find_roster_plant(row: dict[str, str], plants: list[Plant]) -> Plant | None:
+    year = int(row["year"])
+    plant_key = normalize_plant(row["plant_name"])
+    operator_key = normalize_company(row["generation_company"])
+    active = [
+        plant
+        for plant in plants
+        if plant.first_year <= year <= plant.last_year and plant.plant_key == plant_key
+    ]
+    exact = [plant for plant in active if plant.operator_key == operator_key]
+    if len(exact) == 1:
+        return exact[0]
+    if len(active) == 1:
+        return active[0]
+    return None
+
+
+def build_roster_fuels_by_plant_year(
+    roster_dir: Path,
+    plants: list[Plant],
+) -> dict[tuple[int, str], set[str]]:
+    fuels_by_key: dict[tuple[int, str], set[str]] = {}
+    for path in sorted(roster_dir.glob("epsis_generator_roster_*.csv")):
+        if path.name.endswith("_raw.js"):
+            continue
+        for row in read_csv(path):
+            if not (is_thermal_roster_row(row) or is_khnp_clean_roster_row(row)):
+                continue
+            plant = find_roster_plant(row, plants)
+            if plant is None:
+                continue
+            fuels_by_key.setdefault((int(row["year"]), plant.identifier), set()).update(
+                fuel_tokens(row["fuel"])
+            )
+    return fuels_by_key
+
+
+def is_thermal_roster_row(row: dict[str, str]) -> bool:
+    text = " ".join(
+        row.get(column, "") for column in ("generation_source", "generation_type", "fuel")
+    )
+    return any(term.lower() in text.lower() for term in THERMAL_TERMS)
+
+
+def is_khnp_clean_roster_row(row: dict[str, str]) -> bool:
+    text = " ".join(
+        row.get(column, "") for column in ("generation_source", "generation_type", "fuel")
+    )
+    return normalize_company(row.get("generation_company", "")) == "한국수력원자력" and any(
+        term in text for term in KHNP_CLEAN_GENERATION_TERMS
+    )
+
+
+def validate_fuels_against_roster(
+    final: list[dict[str, Any]],
+    roster_dir: Path,
+    plants: list[Plant],
+) -> list[dict[str, Any]]:
+    roster_fuels = build_roster_fuels_by_plant_year(roster_dir, plants)
+    rows: list[dict[str, Any]] = []
+    for row in final:
+        key = (int(row["year"]), row["plant_id"])
+        roster_fuel = " | ".join(sorted(roster_fuels.get(key, set())))
+        status, notes = validation_status(str(row["fuel"]), roster_fuel)
+        rows.append(
+            {
+                "year": row["year"],
+                "plant_id": row["plant_id"],
+                "plant": row["plant"],
+                "company": row["company"],
+                "panel_fuel": row["fuel"],
+                "roster_fuel": roster_fuel,
+                "panel_fuel_normalized": " | ".join(sorted(normalized_fuel_tokens(row["fuel"]))),
+                "roster_fuel_normalized": " | ".join(sorted(normalized_fuel_tokens(roster_fuel))),
+                "validation_status": status,
+                "source": "KPX EPSIS annual generator roster",
+                "notes": notes,
+            }
+        )
+    return rows
 
 
 def load_generation_overrides(path: Path) -> dict[tuple[str, str, str], dict[str, str]]:
@@ -841,43 +999,42 @@ def build_final_panel(
                 flags.append("large_year_to_year_generation_change")
         if generation_value is not None:
             previous_generation[plant_id] = (year, generation_value)
-        result.append(
-            {
-                "year": year,
-                "plant_id": plant_id,
-                "plant": plant.name,
-                "company": plant.operator,
-                "operator_category": operator_category(plant.operator),
-                "fuel": generation_row["fuel"] if generation_row else plant.fuels,
-                "generation_mwh": "" if generation_value is None else generation_value,
-                "nox_kg": ("" if pollutant_values["nox"] is None else pollutant_values["nox"]),
-                "sox_kg": ("" if pollutant_values["sox"] is None else pollutant_values["sox"]),
-                "tsp_kg": ("" if pollutant_values["tsp"] is None else pollutant_values["tsp"]),
-                "nox_kg_per_mwh": factor(pollutant_values["nox"], generation_value),
-                "sox_kg_per_mwh": factor(pollutant_values["sox"], generation_value),
-                "tsp_kg_per_mwh": factor(pollutant_values["tsp"], generation_value),
-                "generation_source": generation_row["generation_source"] if generation_row else "",
-                "nox_source": pollutant_sources["nox"],
-                "sox_source": pollutant_sources["sox"],
-                "tsp_source": pollutant_sources["tsp"],
-                "generation_confidence": (
-                    generation_row["classification_confidence"] if generation_row else ""
-                ),
-                "emissions_confidence": (
-                    "review"
-                    if any(emission_reviews)
-                    else "high"
-                    if any(pollutant_sources.values())
-                    else ""
-                ),
-                "review_required": bool(
-                    flags
-                    or any(emission_reviews)
-                    or (generation_row and generation_row["review_required"])
-                ),
-                "validation_flags": "; ".join(sorted(set(flags))),
-            }
-        )
+        row = {
+            "year": year,
+            "plant_id": plant_id,
+            "plant": plant.name,
+            "company": plant.operator,
+            "operator_category": operator_category(plant.operator),
+            "fuel": generation_row["fuel"] if generation_row else plant.fuels,
+            "generation_mwh": "" if generation_value is None else generation_value,
+            "nox_kg": ("" if pollutant_values["nox"] is None else pollutant_values["nox"]),
+            "sox_kg": ("" if pollutant_values["sox"] is None else pollutant_values["sox"]),
+            "tsp_kg": ("" if pollutant_values["tsp"] is None else pollutant_values["tsp"]),
+            "nox_kg_per_mwh": factor(pollutant_values["nox"], generation_value),
+            "sox_kg_per_mwh": factor(pollutant_values["sox"], generation_value),
+            "tsp_kg_per_mwh": factor(pollutant_values["tsp"], generation_value),
+            "generation_source": generation_row["generation_source"] if generation_row else "",
+            "nox_source": pollutant_sources["nox"],
+            "sox_source": pollutant_sources["sox"],
+            "tsp_source": pollutant_sources["tsp"],
+            "generation_confidence": (
+                generation_row["classification_confidence"] if generation_row else ""
+            ),
+            "emissions_confidence": (
+                "review"
+                if any(emission_reviews)
+                else "high"
+                if any(pollutant_sources.values())
+                else ""
+            ),
+            "review_required": bool(
+                flags
+                or any(emission_reviews)
+                or (generation_row and generation_row["review_required"])
+            ),
+            "validation_flags": "; ".join(sorted(set(flags))),
+        }
+        result.append(row)
     return result
 
 
@@ -978,6 +1135,7 @@ def build_annual_panel(
             "tsp": extreme_tsp_kg_per_mwh,
         },
     )
+    fuel_validation = validate_fuels_against_roster(final, DEFAULT_ROSTER_DIR, plants_list)
     checks = validate_outputs(generation, generation_audit, candidates, emissions, final)
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -988,6 +1146,7 @@ def build_annual_panel(
         "emissions_candidates": output_dir / "annual_emissions_candidates.csv",
         "emissions_comparison": output_dir / "annual_emissions_comparison.csv",
         "final": output_dir / "annual_plant_generation_emissions.csv",
+        "fuel_validation": output_dir / "annual_fuel_validation.csv",
     }
     write_csv(paths["generation"], GENERATION_COLUMNS, generation)
     write_csv(paths["generation_audit"], GENERATION_AUDIT_COLUMNS, generation_audit)
@@ -995,6 +1154,7 @@ def build_annual_panel(
     write_csv(paths["emissions_candidates"], EMISSIONS_CANDIDATE_COLUMNS, candidates)
     write_csv(paths["emissions_comparison"], EMISSIONS_COMPARISON_COLUMNS, emissions)
     write_csv(paths["final"], FINAL_COLUMNS, final)
+    write_csv(paths["fuel_validation"], FUEL_VALIDATION_COLUMNS, fuel_validation)
 
     metadata = {
         "dataset": "Korean annual thermal plant generation and air emissions",
@@ -1016,6 +1176,7 @@ def build_annual_panel(
             "emissions_comparison_rows": len(emissions),
             "final_rows": len(final),
             "final_review_rows": sum(bool(row["review_required"]) for row in final),
+            "fuel_validation_rows": len(fuel_validation),
         },
         "coverage": {
             "generation_by_year": {
@@ -1048,6 +1209,10 @@ def build_annual_panel(
             "final_rows_by_operator_category": {
                 category: sum(row["operator_category"] == category for row in final)
                 for category in sorted({row["operator_category"] for row in final})
+            },
+            "fuel_validation_by_status": {
+                status: sum(row["validation_status"] == status for row in fuel_validation)
+                for status in sorted({row["validation_status"] for row in fuel_validation})
             },
         },
         "validation": checks,

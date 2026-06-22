@@ -522,6 +522,79 @@ for (i in seq_len(nrow(pollutants))) {
   message("Saved figure: ", output_path)
 }
 
+generation_by_fuel <- aggregate(
+  energy_generated_mwh ~ energy_type_clean + date,
+  data = analysis_thermal[!is.na(analysis_thermal$energy_generated_mwh), ],
+  sum,
+  na.rm = TRUE
+)
+generation_by_fuel <- generation_by_fuel[order(generation_by_fuel$date), ]
+generation_by_fuel$energy_generated_mwh_ma6 <- NA_real_
+for (fuel in sort(unique(generation_by_fuel$energy_type_clean))) {
+  idx <- which(generation_by_fuel$energy_type_clean == fuel)
+  idx <- idx[order(generation_by_fuel$date[idx])]
+  generation_by_fuel$energy_generated_mwh_ma6[idx] <- trailing_mean(
+    generation_by_fuel$energy_generated_mwh[idx],
+    window = 6
+  )
+}
+save_table(generation_by_fuel, "thermal_fuel_type_monthly_generation_mwh.csv")
+
+if (nrow(generation_by_fuel) > 0) {
+  output_path <- save_base_png(
+    file.path(
+      "thermal",
+      "fuel_type_averages",
+      "raw",
+      "thermal_fuel_type_generation_mwh.png"
+    )
+  )
+  fuels <- sort(unique(generation_by_fuel$energy_type_clean))
+  fuel_colors <- rep(line_colors, length.out = length(fuels))
+  y_range <- range(
+    c(generation_by_fuel$energy_generated_mwh, generation_by_fuel$energy_generated_mwh_ma6),
+    na.rm = TRUE
+  )
+  plot(
+    range(generation_by_fuel$date, na.rm = TRUE),
+    y_range,
+    type = "n",
+    xlab = "Month",
+    ylab = "Generation, MWh",
+    main = "Monthly generation by fuel type, 6-month moving average"
+  )
+  grid(col = "grey88")
+
+  for (j in seq_along(fuels)) {
+    fuel_data <- generation_by_fuel[generation_by_fuel$energy_type_clean == fuels[[j]], ]
+    fuel_data <- fuel_data[order(fuel_data$date), ]
+    lines(
+      fuel_data$date,
+      fuel_data$energy_generated_mwh,
+      col = adjustcolor(fuel_colors[[j]], alpha.f = 0.22),
+      lwd = 0.8
+    )
+    lines(
+      fuel_data$date,
+      fuel_data$energy_generated_mwh_ma6,
+      col = fuel_colors[[j]],
+      lwd = 2
+    )
+  }
+
+  legend(
+    "topright",
+    legend = fuels,
+    col = fuel_colors,
+    lty = 1,
+    lwd = 2,
+    bty = "n",
+    cex = 0.82
+  )
+  dev.off()
+  message("Saved figure: ", output_path)
+}
+
 fuel_time_series <- list()
 for (i in seq_len(nrow(pollutants))) {
   plot_data <- aggregate_ef(
@@ -575,6 +648,66 @@ for (i in seq_len(nrow(pollutants))) {
     lines(
       fuel_data$date,
       fuel_data$ef_ma_kg_per_mwh,
+      col = fuel_colors[[j]],
+      lwd = 2
+    )
+  }
+
+  legend(
+    "topright",
+    legend = fuels,
+    col = fuel_colors,
+    lty = 1,
+    lwd = 2,
+    bty = "n",
+    cex = 0.82
+  )
+  dev.off()
+  message("Saved figure: ", output_path)
+
+  mass_data <- plot_data[, c("energy_type_clean", "date", "emissions_kg", "generation_mwh")]
+  mass_data$emissions_kg_ma6 <- NA_real_
+  for (fuel in sort(unique(mass_data$energy_type_clean))) {
+    idx <- which(mass_data$energy_type_clean == fuel)
+    idx <- idx[order(mass_data$date[idx])]
+    mass_data$emissions_kg_ma6[idx] <- trailing_mean(mass_data$emissions_kg[idx], window = 6)
+  }
+  save_table(
+    mass_data,
+    paste0("thermal_fuel_type_monthly_", pollutants$pollutant[[i]], "_emissions_kg.csv")
+  )
+
+  output_path <- save_base_png(
+    file.path(
+      "thermal",
+      "fuel_type_averages",
+      "raw",
+      paste0("thermal_fuel_type_", pollutants$pollutant[[i]], "_emissions_kg.png")
+    )
+  )
+  y_range <- range(c(mass_data$emissions_kg, mass_data$emissions_kg_ma6), na.rm = TRUE)
+  plot(
+    range(mass_data$date, na.rm = TRUE),
+    y_range,
+    type = "n",
+    xlab = "Month",
+    ylab = paste0(pollutants$label[[i]], " emissions, kg"),
+    main = paste0("Monthly ", pollutants$label[[i]], " mass emissions by fuel type, 6-month moving average")
+  )
+  grid(col = "grey88")
+
+  for (j in seq_along(fuels)) {
+    fuel_data <- mass_data[mass_data$energy_type_clean == fuels[[j]], ]
+    fuel_data <- fuel_data[order(fuel_data$date), ]
+    lines(
+      fuel_data$date,
+      fuel_data$emissions_kg,
+      col = adjustcolor(fuel_colors[[j]], alpha.f = 0.22),
+      lwd = 0.8
+    )
+    lines(
+      fuel_data$date,
+      fuel_data$emissions_kg_ma6,
       col = fuel_colors[[j]],
       lwd = 2
     )

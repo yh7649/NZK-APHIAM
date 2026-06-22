@@ -4,6 +4,7 @@ from nzk_aphiam.data.process.annual_panel.pipeline import (
     factor,
     operator_category,
     reconcile_emissions,
+    validation_status,
 )
 
 
@@ -85,3 +86,13 @@ def test_operator_category_identifies_kepco_variants() -> None:
     assert operator_category("남부발전㈜") == "kepco"
     assert operator_category("한국전력") == "kepco"
     assert operator_category("GS EPS") == "private_or_other"
+
+
+def test_fuel_validation_accepts_known_aliases() -> None:
+    assert validation_status("가스", "LNG")[0] == "alias_match"
+    assert validation_status("석탄 | 유연탄", "유연탄")[0] == "alias_match"
+
+
+def test_fuel_validation_flags_mismatch_and_missing_roster() -> None:
+    assert validation_status("LNG", "유연탄")[0] == "mismatch"
+    assert validation_status("LNG", "")[0] == "no_roster_fuel"

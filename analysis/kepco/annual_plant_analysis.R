@@ -364,6 +364,54 @@ for (i in seq_len(nrow(pollutants))) {
 
 # ---- Average EF by Fuel Type -------------------------------------------------
 
+annual_generation_by_fuel <- annual_analysis %>%
+  filter(!is.na(generation_mwh)) %>%
+  group_by(fuel_clean, fuel_label, year) %>%
+  summarise(
+    generation_mwh = sum(generation_mwh, na.rm = TRUE),
+    plants = n_distinct(plant_id),
+    .groups = "drop"
+  )
+
+save_table(
+  annual_generation_by_fuel,
+  file.path("fuel_type_averages", "annual_fuel_type_generation_mwh.csv")
+)
+
+if (nrow(annual_generation_by_fuel) > 0) {
+  plotted_fuels <- annual_generation_by_fuel %>%
+    group_by(fuel_clean, fuel_label) %>%
+    summarise(
+      years = n(),
+      generation_mwh = sum(generation_mwh, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    filter(years >= 3) %>%
+    arrange(desc(generation_mwh)) %>%
+    slice_head(n = 8)
+
+  plot_data <- annual_generation_by_fuel %>%
+    semi_join(plotted_fuels, by = c("fuel_clean", "fuel_label"))
+
+  p <- ggplot(plot_data, aes(year, generation_mwh, color = fuel_label, group = fuel_label)) +
+    geom_line(linewidth = 0.9) +
+    geom_point(size = 1.8) +
+    scale_x_continuous(breaks = pretty_breaks()) +
+    scale_y_continuous(labels = label_number(scale_cut = cut_short_scale())) +
+    labs(
+      title = "Annual generation by fuel type",
+      x = NULL,
+      y = "Generation, MWh",
+      color = "Fuel"
+    ) +
+    plot_theme
+
+  save_figure(
+    file.path("fuel_type_averages", "annual_fuel_type_generation_mwh.png"),
+    p
+  )
+}
+
 fuel_time_series <- list()
 
 for (i in seq_len(nrow(pollutants))) {
@@ -419,6 +467,38 @@ for (i in seq_len(nrow(pollutants))) {
       paste0("annual_fuel_type_average_", pollutant_row$pollutant, "_ef.png")
     ),
     p
+  )
+
+  mass_series <- fuel_series %>%
+    select(fuel_clean, fuel_label, year, emissions_kg, generation_mwh, plants)
+
+  save_table(
+    mass_series,
+    file.path(
+      "fuel_type_averages",
+      paste0("annual_fuel_type_", pollutant_row$pollutant, "_emissions_kg.csv")
+    )
+  )
+
+  p_mass <- ggplot(plot_data, aes(year, emissions_kg, color = fuel_label, group = fuel_label)) +
+    geom_line(linewidth = 0.9) +
+    geom_point(size = 1.8) +
+    scale_x_continuous(breaks = pretty_breaks()) +
+    scale_y_continuous(labels = label_number(scale_cut = cut_short_scale())) +
+    labs(
+      title = paste("Annual", pollutant_row$label, "mass emissions by fuel type"),
+      x = NULL,
+      y = paste0(pollutant_row$label, " emissions, kg"),
+      color = "Fuel"
+    ) +
+    plot_theme
+
+  save_figure(
+    file.path(
+      "fuel_type_averages",
+      paste0("annual_fuel_type_", pollutant_row$pollutant, "_emissions_kg.png")
+    ),
+    p_mass
   )
 }
 

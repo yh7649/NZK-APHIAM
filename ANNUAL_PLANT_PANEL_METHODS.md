@@ -84,6 +84,14 @@ annual-generation extracts. Company-total exceedance validation therefore
 records zero available comparisons instead of treating fuel or portfolio
 aggregates as company benchmarks.
 
+Fuel classifications are externally checked against the KPX EPSIS annual
+generator roster rather than the EPSIS annual generation extract used for the
+generation denominator. The validation output preserves raw panel and roster
+fuel labels, compares normalized fuel classes for known aliases such as
+`가스`/`LNG` and `석탄`/`유연탄`, and records exact matches, alias matches,
+subset/partial overlaps for mixed-fuel plants, missing roster fuel values, and
+true mismatches.
+
 ## Output Files
 
 - `epsis_annual_plant_generation.csv`: accepted plant-year generation.
@@ -93,4 +101,6 @@ aggregates as company benchmarks.
 - `annual_emissions_candidates.csv`: every standardized source candidate.
 - `annual_emissions_comparison.csv`: side-by-side source values and selection.
 - `annual_plant_generation_emissions.csv`: final plant-year panel and factors.
+- `annual_fuel_validation.csv`: panel fuel labels checked against the external
+  EPSIS annual generator roster.
 - `metadata.json`: checksums, thresholds, counts, coverage, and validations.
