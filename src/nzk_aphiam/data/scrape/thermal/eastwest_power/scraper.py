@@ -33,7 +33,7 @@ API_KEY_ENV = "DATA_GO_KR_API_KEY"
 API_URL_ENV = "EASTWEST_POWER_API_URL"
 DEFAULT_PER_PAGE = 1000
 DEFAULT_RETRIES = 3
-FUEL_MAPPING_REFERENCE = "references/thermal/eastwest_power_energy_type_mapping.csv"
+FUEL_MAPPING_REFERENCE = "docs/references/thermal/eastwest_power_energy_type_mapping.csv"
 ENRICHMENT_SOURCES = [
     {
         "description": "East-West Power 2011 sustainability report: unit fuels",
@@ -47,7 +47,7 @@ ENRICHMENT_SOURCES = [
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = (
-    PROJECT_ROOT / "data" / "power_generation" / "thermal" / "raw" / "eastwest_power"
+    PROJECT_ROOT / "data" / "raw" / "eastwest_power"
 )
 
 SECRET_QUERY_KEYS = {"servicekey", "service_key", "apikey", "api_key", "key"}

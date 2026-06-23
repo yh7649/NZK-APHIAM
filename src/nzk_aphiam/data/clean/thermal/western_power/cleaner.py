@@ -9,7 +9,7 @@ The source data also does not contain fuel type. ``energy_type`` is enriched
 from Korea Western Power's official plant and operating-history pages. The
 mapping evidence is recorded in:
 
-    references/thermal/western_power_energy_type_mapping.csv
+    docs/references/thermal/western_power_energy_type_mapping.csv
 
 Run from the project root:
 
@@ -30,8 +30,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_INPUT_PATH = (
     PROJECT_ROOT
     / "data"
-    / "power_generation"
-    / "thermal"
     / "raw"
     / "western_power"
     / "western_power_air_pollutants_generation.csv"
@@ -39,8 +37,6 @@ DEFAULT_INPUT_PATH = (
 DEFAULT_OUTPUT_PATH = (
     PROJECT_ROOT
     / "data"
-    / "power_generation"
-    / "thermal"
     / "interim"
     / "western_power"
     / "western_power_monthly_generation_emissions.csv"

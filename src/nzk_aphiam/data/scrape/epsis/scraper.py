@@ -38,7 +38,9 @@ LAST_ANNUAL_YEAR = 2024
 FIRST_GENERATION_YEAR = 2002
 
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "plant_rosters" / "epsis" / "raw"
+DEFAULT_OUTPUT_DIR = (
+    PROJECT_ROOT / "data" / "interim" / "supporting" / "plant_rosters" / "epsis" / "raw"
+)
 
 ANNUAL_COLUMNS = [
     "year",

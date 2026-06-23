@@ -5,7 +5,7 @@ Monthly emissions are preserved in their reported unit, kilograms. Daily gross
 generation is summed to months and converted from kWh to MWh. Explicit
 granularity and fuel rules are documented in:
 
-    references/thermal/southern_power_energy_type_mapping.csv
+    docs/references/thermal/southern_power_energy_type_mapping.csv
 """
 
 from __future__ import annotations
@@ -22,8 +22,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_EMISSIONS_PATH = (
     PROJECT_ROOT
     / "data"
-    / "power_generation"
-    / "thermal"
     / "raw"
     / "southern_power"
     / "southern_power_air_pollutant_emissions.csv"
@@ -31,8 +29,6 @@ DEFAULT_EMISSIONS_PATH = (
 DEFAULT_GENERATION_PATH = (
     PROJECT_ROOT
     / "data"
-    / "power_generation"
-    / "thermal"
     / "raw"
     / "southern_power"
     / "southern_power_daily_generation.csv"
@@ -40,8 +36,6 @@ DEFAULT_GENERATION_PATH = (
 DEFAULT_OUTPUT_PATH = (
     PROJECT_ROOT
     / "data"
-    / "power_generation"
-    / "thermal"
     / "interim"
     / "southern_power"
     / "southern_power_monthly_generation_emissions.csv"

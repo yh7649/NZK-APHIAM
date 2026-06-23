@@ -21,25 +21,24 @@ from nzk_aphiam.data.process.crosswalk.builder import (
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
+SUPPORTING_DATA_DIR = PROJECT_ROOT / "data" / "interim" / "supporting"
 DEFAULT_GENERATION_DIR = (
-    PROJECT_ROOT / "data" / "plant_rosters" / "epsis" / "raw" / "annual_generation"
+    SUPPORTING_DATA_DIR / "plant_rosters" / "epsis" / "raw" / "annual_generation"
 )
-DEFAULT_ROSTER_DIR = PROJECT_ROOT / "data" / "plant_rosters" / "epsis" / "raw" / "annual"
-DEFAULT_PLANTS_PATH = PROJECT_ROOT / "data" / "crosswalks" / "thermal" / "epsis_thermal_plants.csv"
+DEFAULT_ROSTER_DIR = SUPPORTING_DATA_DIR / "plant_rosters" / "epsis" / "raw" / "annual"
+DEFAULT_PLANTS_PATH = SUPPORTING_DATA_DIR / "crosswalks" / "thermal" / "epsis_thermal_plants.csv"
 DEFAULT_LINKS_PATH = (
-    PROJECT_ROOT / "data" / "crosswalks" / "thermal" / "epsis_emissions_facility_links.csv"
+    SUPPORTING_DATA_DIR / "crosswalks" / "thermal" / "epsis_emissions_facility_links.csv"
 )
 DEFAULT_CLEANSYS_PATH = (
-    PROJECT_ROOT
-    / "data"
+    SUPPORTING_DATA_DIR
     / "emissions"
     / "cleansys"
     / "raw"
     / "cleansys_annual_emissions_panel.csv"
 )
 DEFAULT_ENV_INFO_PATH = (
-    PROJECT_ROOT
-    / "data"
+    SUPPORTING_DATA_DIR
     / "emissions"
     / "env_info"
     / "raw"
@@ -48,18 +47,22 @@ DEFAULT_ENV_INFO_PATH = (
 DEFAULT_DIRECT_PATH = (
     PROJECT_ROOT
     / "data"
-    / "power_generation"
-    / "thermal"
+    / "kepco"
     / "processed"
-    / "thermal_power_generation_emissions.csv"
+    / "kepco_monthly_generation_emissions.csv"
 )
 DEFAULT_GENERATION_OVERRIDES = (
-    PROJECT_ROOT / "references" / "annual_panel" / "generation_overrides.csv"
+    PROJECT_ROOT / "docs" / "references" / "archive" / "annual_panel" / "generation_overrides.csv"
 )
 DEFAULT_DIRECT_LINKS = (
-    PROJECT_ROOT / "references" / "annual_panel" / "direct_company_plant_links.csv"
+    PROJECT_ROOT
+    / "docs"
+    / "references"
+    / "archive"
+    / "annual_panel"
+    / "direct_company_plant_links.csv"
 )
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "power_generation" / "annual_plant"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "archive" / "annual_plant"
 
 POLLUTANTS = ("nox", "sox", "tsp")
 THERMAL_TERMS = (

@@ -4,7 +4,7 @@ Clean Korea East-West Power monthly generation and air-pollutant data.
 The source reports pollutant mass in metric tonnes. Fuel type is enriched from
 official East-West Power reports documented in:
 
-    references/thermal/eastwest_power_energy_type_mapping.csv
+    docs/references/thermal/eastwest_power_energy_type_mapping.csv
 """
 
 from __future__ import annotations
@@ -20,8 +20,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_INPUT_PATH = (
     PROJECT_ROOT
     / "data"
-    / "power_generation"
-    / "thermal"
     / "raw"
     / "eastwest_power"
     / "eastwest_power_air_pollutants_generation.csv"
@@ -29,8 +27,6 @@ DEFAULT_INPUT_PATH = (
 DEFAULT_OUTPUT_PATH = (
     PROJECT_ROOT
     / "data"
-    / "power_generation"
-    / "thermal"
     / "interim"
     / "eastwest_power"
     / "eastwest_power_monthly_generation_emissions.csv"

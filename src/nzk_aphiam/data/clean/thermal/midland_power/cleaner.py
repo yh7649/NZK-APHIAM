@@ -24,8 +24,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_INPUT_PATH = (
     PROJECT_ROOT
     / "data"
-    / "power_generation"
-    / "thermal"
     / "raw"
     / "midland_power"
     / "facilities"
@@ -34,8 +32,6 @@ DEFAULT_INPUT_PATH = (
 DEFAULT_OUTPUT_PATH = (
     PROJECT_ROOT
     / "data"
-    / "power_generation"
-    / "thermal"
     / "interim"
     / "midland_power"
     / "midland_power_monthly_derived_emissions.csv"

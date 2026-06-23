@@ -35,15 +35,19 @@ data_path <- function(...) {
 }
 
 thermal_raw_path <- function(...) {
-  data_path("power_generation", "thermal", "raw", ...)
+  data_path("raw", ...)
 }
 
 thermal_interim_path <- function(...) {
-  data_path("power_generation", "thermal", "interim", ...)
+  data_path("interim", ...)
+}
+
+kepco_processed_path <- function(...) {
+  data_path("kepco", "processed", ...)
 }
 
 thermal_processed_path <- function(...) {
-  data_path("power_generation", "thermal", "processed", ...)
+  kepco_processed_path(...)
 }
 
 results_path <- function(...) {

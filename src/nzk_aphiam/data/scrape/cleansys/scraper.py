@@ -31,7 +31,9 @@ FIRST_YEAR = 2015
 LAST_CONFIRMED_YEAR = 2024
 
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "emissions" / "cleansys" / "raw"
+DEFAULT_OUTPUT_DIR = (
+    PROJECT_ROOT / "data" / "interim" / "supporting" / "emissions" / "cleansys" / "raw"
+)
 
 SOURCE_COLUMNS = [
     "examin_year",

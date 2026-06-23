@@ -48,7 +48,7 @@ PLANT_CODES = {
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = (
-    PROJECT_ROOT / "data" / "power_generation" / "thermal" / "raw" / "southeast_power"
+    PROJECT_ROOT / "data" / "raw" / "southeast_power"
 )
 
 

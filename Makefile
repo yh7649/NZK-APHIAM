@@ -116,10 +116,15 @@ clean-thermal:
 	$(MAKE) clean-midland-power
 
 
-## Combine East-West, Western, and Southern monthly data with pollutant mass in kilograms
-.PHONY: combine-thermal
-combine-thermal:
+## Combine KEPCO monthly generation and emissions data with pollutant mass in kilograms
+.PHONY: combine-kepco
+combine-kepco:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.thermal
+
+
+## Backward-compatible alias for the combined KEPCO monthly dataset
+.PHONY: combine-thermal
+combine-thermal: combine-kepco
 
 
 ## Download fresh South-East Power raw data
@@ -284,7 +289,7 @@ build-annual-plant-panel:
 
 ## Rebuild all annual facility inputs, crosswalks, and the final plant-year panel offline
 .PHONY: reproduce-annual-plant-panel-offline
-reproduce-annual-plant-panel-offline: verify-facility-crosswalk-offline combine-thermal build-annual-plant-panel
+reproduce-annual-plant-panel-offline: verify-facility-crosswalk-offline combine-kepco build-annual-plant-panel
 
 
 ## Check every thermal scraper command without network access
@@ -311,14 +316,14 @@ verify-offline:
 	$(MAKE) test
 	$(MAKE) check-scraper-cli
 	$(MAKE) clean-thermal
-	$(MAKE) combine-thermal
+	$(MAKE) combine-kepco
 	$(MAKE) r-analysis
 
 
 ## Build the combined data and run the main manual R analysis workspace
 .PHONY: r-analysis
-r-analysis: combine-thermal
-	Rscript analysis/kepco/manual_analysis.R
+r-analysis: combine-kepco
+	Rscript analysis/kepco/kepco_monthly_analysis.R
 
 
 ## Set up Python interpreter environment

@@ -1,4 +1,4 @@
-"""Combine thermal interim datasets into one unit-standardized product."""
+"""Combine KEPCO interim datasets into one unit-standardized product."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ from nzk_aphiam.data.clean.thermal.schema import (
     THERMAL_OUTPUT_COLUMNS,
 )
 
-OUTPUT_PATH = THERMAL_PROCESSED_DIR / "thermal_power_generation_emissions.csv"
-METADATA_PATH = THERMAL_PROCESSED_DIR / "thermal_power_generation_emissions_metadata.csv"
+OUTPUT_PATH = THERMAL_PROCESSED_DIR / "kepco_monthly_generation_emissions.csv"
+METADATA_PATH = THERMAL_PROCESSED_DIR / "kepco_monthly_generation_emissions_metadata.csv"
 POLLUTANT_COLUMNS = ("nox", "sox", "dust_tsp")
 POLLUTANT_UNIT_COLUMNS = {
     "nox": "nox_unit",

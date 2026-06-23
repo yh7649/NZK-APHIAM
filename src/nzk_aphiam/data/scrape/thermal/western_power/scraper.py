@@ -33,7 +33,7 @@ API_KEY_ENV = "DATA_GO_KR_API_KEY"
 API_URL_ENV = "WESTERN_POWER_API_URL"
 DEFAULT_PER_PAGE = 1000
 DEFAULT_RETRIES = 3
-FUEL_MAPPING_REFERENCE = "references/thermal/western_power_energy_type_mapping.csv"
+FUEL_MAPPING_REFERENCE = "docs/references/thermal/western_power_energy_type_mapping.csv"
 FUEL_MAPPING_SOURCES = [
     {
         "description": "Taean plant fuel table",
@@ -67,7 +67,7 @@ FUEL_MAPPING_SOURCES = [
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = (
-    PROJECT_ROOT / "data" / "power_generation" / "thermal" / "raw" / "western_power"
+    PROJECT_ROOT / "data" / "raw" / "western_power"
 )
 
 SECRET_QUERY_KEYS = {"servicekey", "service_key", "apikey", "api_key", "key"}

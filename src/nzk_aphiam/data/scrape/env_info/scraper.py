@@ -27,7 +27,9 @@ DETAIL_URL = f"{BASE_URL}/user/register/viewUserSearch2.do"
 POWER_INDUSTRY = "전기, 가스, 증기 및 수도사업"
 
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "emissions" / "env_info" / "raw"
+DEFAULT_OUTPUT_DIR = (
+    PROJECT_ROOT / "data" / "interim" / "supporting" / "emissions" / "env_info" / "raw"
+)
 
 OUTPUT_COLUMNS = [
     "year",

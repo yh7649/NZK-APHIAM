@@ -7,19 +7,20 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = PROJECT_ROOT / "data"
 SRC_DIR = PROJECT_ROOT / "src"
 
-# Legacy datasets
-LEGACY_DIR = DATA_DIR / "legacy"
+# Archived datasets
+ARCHIVE_DIR = DATA_DIR / "archive"
 
-LEGACY_RAW_DIR = LEGACY_DIR / "raw"
-LEGACY_INTERIM_DIR = LEGACY_DIR / "interim"
-LEGACY_PROCESSED_DIR = LEGACY_DIR / "processed"
+ARCHIVE_RAW_DIR = ARCHIVE_DIR / "raw"
+ARCHIVE_INTERIM_DIR = ARCHIVE_DIR / "interim"
+ARCHIVE_PROCESSED_DIR = ARCHIVE_DIR / "processed"
 
-# CleanSYS (archived project)
-CLEANSYS_DIR = LEGACY_RAW_DIR / "cleansys_tms"
+# CleanSYS TMS (archived project)
+CLEANSYS_DIR = ARCHIVE_RAW_DIR / "cleansys_tms"
 
-# KEPCO thermal subsidiary project
-THERMAL_DIR = DATA_DIR / "power_generation" / "thermal"
+# KEPCO subsidiary source files and final processed dataset
+KEPCO_DIR = DATA_DIR / "kepco"
+KEPCO_PROCESSED_DIR = KEPCO_DIR / "processed"
 
-THERMAL_RAW_DIR = THERMAL_DIR / "raw"
-THERMAL_INTERIM_DIR = THERMAL_DIR / "interim"
-THERMAL_PROCESSED_DIR = THERMAL_DIR / "processed"
+THERMAL_RAW_DIR = DATA_DIR / "raw"
+THERMAL_INTERIM_DIR = DATA_DIR / "interim"
+THERMAL_PROCESSED_DIR = KEPCO_PROCESSED_DIR

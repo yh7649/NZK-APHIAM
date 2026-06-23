@@ -41,7 +41,7 @@ DEFAULT_RETRIES = 3
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = (
-    PROJECT_ROOT / "data" / "power_generation" / "thermal" / "raw" / "southern_power"
+    PROJECT_ROOT / "data" / "raw" / "southern_power"
 )
 
 SECRET_QUERY_KEYS = {"servicekey", "service_key", "apikey", "api_key", "key"}

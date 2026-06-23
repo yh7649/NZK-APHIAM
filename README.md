@@ -18,7 +18,7 @@ the research and released work remains with the human author.
 If you use this repository, cite it using [`CITATION.cff`](CITATION.cff).
 GitHub will expose this through its **Cite this repository** interface. See
 [`AUTHORS.md`](AUTHORS.md) for contribution credit,
-[`DATA_PROVENANCE.md`](DATA_PROVENANCE.md) for source-data and licensing
+[`docs/project/data_provenance.md`](docs/project/data_provenance.md) for source-data and licensing
 guidance, and [`RELEASING.md`](RELEASING.md) for tagged releases and Zenodo DOI
 archiving.
 
@@ -98,11 +98,11 @@ Clean and combine them:
 make clean-eastwest-power PYTHON_INTERPRETER=.venv/bin/python
 make clean-western-power PYTHON_INTERPRETER=.venv/bin/python
 make clean-southern-power PYTHON_INTERPRETER=.venv/bin/python
-make combine-thermal PYTHON_INTERPRETER=.venv/bin/python
+make combine-kepco PYTHON_INTERPRETER=.venv/bin/python
 ```
 
 Open `NZK-APHIAM.Rproj` in RStudio and use
-`analysis/kepco/manual_analysis.R` as the main analysis workspace. The project file
+`analysis/kepco/kepco_monthly_analysis.R` as the main analysis workspace. The project file
 and R script are tracked in Git and do not need to be generated. From the
 terminal, the same analysis setup can be checked with:
 
@@ -121,7 +121,7 @@ datasets. R only loads the resulting processed dataset for analysis:
 make r-analysis
 ```
 
-The R entry point is `analysis/kepco/manual_analysis.R`, with shared path helpers
+The R entry point is `analysis/kepco/kepco_monthly_analysis.R`, with shared path helpers
 under `analysis/R/`. Generated figures, tables, analysis objects, and models are
 written under `results/`. Data remains local under `data/` and is ignored by
 Git. The RStudio project and analysis scripts are tracked source files, so they
@@ -151,7 +151,7 @@ This performs formatting and lint checks, runs the complete Python test suite,
 checks every scraper command-line entry point with `--help`, and rebuilds all
 currently implemented interim datasets. It does not access the internet.
 
-## Thermal Data Documentation
+## KEPCO Data Documentation
 
 Detailed source-specific documentation for Western, East-West, Southern,
 South-East, and Midland Power, along with the shared schema and combined
@@ -163,7 +163,7 @@ dataset rules, lives in
 ```
 ├── CITATION.cff       <- Machine-readable software citation
 ├── AUTHORS.md         <- Human authorship and AI-assistance disclosure
-├── DATA_PROVENANCE.md <- Source-data, licensing, and reproducibility guidance
+├── docs/project       <- Project-level provenance and governance documentation
 ├── RELEASING.md       <- Versioning, GitHub release, and Zenodo instructions
 ├── LICENSE            <- MIT license for repository software and documentation
 ├── Makefile           <- Reproducible scrape, clean, combine, test, and analysis commands
