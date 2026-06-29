@@ -201,6 +201,9 @@ results/figures/
 results/models/*
 !results/models/.gitkeep
 
+# Generated analysis tables
+results/tables/
+
 # PyPI configuration file
 .pypirc.env
 .env.*
