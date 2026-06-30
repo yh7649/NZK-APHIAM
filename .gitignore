@@ -216,3 +216,16 @@ venv/
 data/raw/
 data/interim/
 data/processed/
+
+# Preserve the non-reproducible power-plant roster supplied by a project
+# collaborator, together with its local provenance record. Keep all other
+# datasets under data/ ignored.
+!/data/
+/data/*
+!/data/raw/
+/data/raw/*
+!/data/raw/reference/
+/data/raw/reference/*
+!/data/raw/reference/province_level_power.xlsx
+!/data/raw/reference/province_level_power.metadata.json
+!/data/raw/reference/README.md

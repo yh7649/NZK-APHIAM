@@ -1,0 +1,16 @@
+{
+  "file": "province_level_power.xlsx",
+  "source_type": "teammate_compiled_secondary_reference",
+  "received_date": "2026-06-30",
+  "sha256": "86591641ba639bb552cc0f8ed955fa41c02d450c29c528672c8a5bad771f749a",
+  "size_bytes": 5594188,
+  "preserve_unmodified": true,
+  "intended_use": [
+    "plant and unit name crosswalk support",
+    "location and coordinate enrichment candidates",
+    "completion and retirement date cross-checks",
+    "technology and province coverage checks"
+  ],
+  "status": "reference_not_independently_validated",
+  "notes": "Workbook contains multiple side-by-side tables, mixed capacity units, and incomplete row-level provenance. See README.md in this directory before use."
+}
