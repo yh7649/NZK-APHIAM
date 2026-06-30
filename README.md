@@ -185,6 +185,44 @@ and invalid or incomplete ZIPs are rejected. No data.go.kr API key is needed:
 the downloader uses AirKorea's public finalized-data archive rather than the
 recent, provisional real-time API.
 
+## KMA Weather and Dispersion Features
+
+Create a KMA API Hub account, activate the ASOS, radiosonde, radiosonde
+stability-analysis, Wind Profiler, and upper-air station-information APIs, and
+add the issued key to `.env`:
+
+```dotenv
+KMA_API_HUB_KEY=...
+```
+
+Download the core 2001–2024 observations. These include ASOS surface weather,
+station history, twice-daily radiosonde profiles, and KMA stability indices:
+
+```bash
+make scrape-kma-weather PYTHON_INTERPRETER=.venv/bin/python
+```
+
+Wind Profiler is intentionally separate because hourly nationwide retrieval
+requires about 8,760 requests per year. Its Make target downloads one year by
+default; change the explicit year variables to retrieve another batch:
+
+```bash
+make scrape-kma-profiler KMA_PROFILER_START_YEAR=2015 KMA_PROFILER_END_YEAR=2015
+```
+
+Normalize timestamps and units and derive sounding-time mixing-height and
+surface-inversion features with:
+
+```bash
+make process-kma-weather PYTHON_INTERPRETER=.venv/bin/python
+```
+
+Raw and processed files remain partitioned by calendar year under
+`data/raw/weather/kma/` and `data/processed/weather/kma/`. No observations are
+interpolated or imputed. See
+[`docs/datasets/kma_weather.md`](docs/datasets/kma_weather.md) for variable,
+coverage, request-budget, and methodological details.
+
 ## Public Health Baseline
 
 The initial public Korean health panel uses three KOSIS tables:

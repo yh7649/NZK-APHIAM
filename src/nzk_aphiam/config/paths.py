@@ -26,3 +26,9 @@ THERMAL_INTERIM_DIR = DATA_DIR / "interim"
 PROCESSED_DIR = DATA_DIR / "processed"
 KEPCO_PROCESSED_DIR = PROCESSED_DIR / "kepco"
 THERMAL_PROCESSED_DIR = KEPCO_PROCESSED_DIR
+
+# KMA meteorology: official API responses, normalized observation tables,
+# and analysis-ready dispersion features.
+WEATHER_RAW_DIR = DATA_DIR / "raw" / "weather" / "kma"
+WEATHER_INTERIM_DIR = DATA_DIR / "interim" / "weather" / "kma"
+WEATHER_PROCESSED_DIR = PROCESSED_DIR / "weather" / "kma"

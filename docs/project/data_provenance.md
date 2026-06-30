@@ -33,6 +33,16 @@ communications problems; these values are source missing-value codes, not
 pollution concentrations. A year marked with an asterisk on the source page is
 based on monthly-report statistics and may change during annual finalization.
 
+KMA meteorology is retrieved from the official KMA API Hub using a private
+project-local credential. Surface ASOS timestamps are KST; radiosonde,
+stability-analysis, and Wind Profiler timestamps are UTC. Raw KMA fields are
+preserved in immutable annual snapshots with checksums and request counts.
+Processed weather partitions convert surface times to UTC, apply physical
+bounds, derive vector wind components, and estimate mixing height and surface
+inversions from radiosonde potential-temperature profiles. These derived
+upper-air values are labeled estimates and are not interpolated or represented
+as directly observed KMA variables.
+
 The public-health baseline preserves annual KOSIS API responses for monthly
 all-cause mortality, annual cause-specific mortality, and monthly resident
 population. Mortality geography follows the deceased person's residence.

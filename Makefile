@@ -286,6 +286,37 @@ scrape-airkorea:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.airkorea --start-year $(AIRKOREA_START_YEAR) $(if $(AIRKOREA_END_YEAR),--end-year $(AIRKOREA_END_YEAR),)
 
 
+KMA_START_YEAR ?= 2001
+KMA_END_YEAR ?= 2024
+KMA_PROFILER_START_YEAR ?= 2004
+KMA_PROFILER_END_YEAR ?= 2004
+
+
+## Download core KMA surface, station, radiosonde, and stability observations
+.PHONY: scrape-kma-weather
+scrape-kma-weather:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.weather.kma core --start-year $(KMA_START_YEAR) --end-year $(KMA_END_YEAR)
+
+
+## Download high-volume hourly KMA Wind Profiler data (one year by default)
+.PHONY: scrape-kma-profiler
+scrape-kma-profiler:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.weather.kma profiler --start-year $(KMA_PROFILER_START_YEAR) --end-year $(KMA_PROFILER_END_YEAR)
+
+
+## Normalize KMA observations and derive mixing-height/inversion features
+.PHONY: process-kma-weather
+process-kma-weather:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.weather.kma --start-year $(KMA_START_YEAR) --end-year $(KMA_END_YEAR)
+
+
+## Version KMA annual raw snapshots with local DVC
+.PHONY: track-kma-snapshots
+track-kma-snapshots:
+	dvc add data/raw/weather/kma
+	@echo "KMA snapshots staged for git (review with 'git status', then commit)."
+
+
 HEALTH_START_YEAR ?= 2001
 HEALTH_END_YEAR ?= 2024
 
@@ -366,6 +397,8 @@ check-scraper-cli:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.epsis --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.airkorea --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.health.kosis --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.weather.kma --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.weather.kma --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.cleansys --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.env_info --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.process.crosswalk --help

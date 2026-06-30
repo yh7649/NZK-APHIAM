@@ -20,6 +20,7 @@ dependencies = [
     "requests",
     "python-dotenv",
     "pandas",
+    "numpy",
     "loguru",
 ]
 
