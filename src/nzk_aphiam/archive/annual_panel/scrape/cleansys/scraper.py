@@ -5,7 +5,7 @@ The public CleanSYS annual statistics endpoint covers 2015 onward and reports
 emissions in kilograms per year for facilities fitted with stack TMS monitors.
 
 Run from the project root:
-    python -m nzk_aphiam.data.scrape.cleansys
+    python -m nzk_aphiam.archive.annual_panel.scrape.cleansys
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ DATA_URL = f"{BASE_URL}/apiService/selectAnnualResult.do"
 FIRST_YEAR = 2015
 LAST_CONFIRMED_YEAR = 2024
 
-PROJECT_ROOT = Path(__file__).resolve().parents[5]
+PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = (
     PROJECT_ROOT / "data" / "interim" / "supporting" / "emissions" / "cleansys" / "raw"
 )

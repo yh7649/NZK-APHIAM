@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from nzk_aphiam.data.scrape.cleansys import scraper
+from nzk_aphiam.archive.annual_panel.scrape.cleansys import scraper
 
 
 def make_record(**updates: object) -> dict[str, object]:

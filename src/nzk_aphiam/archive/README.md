@@ -11,7 +11,7 @@ raw API response → cleaning script → processed CSV
 ```
 
 Raw data should not be edited manually. The cleaning scripts read from
-`data/archive/raw/` and write cleaned outputs to `data/archive/processed/`.
+`data/archive/raw/` and write cleaned outputs to `data/archive/interim/`.
 
 Generated CSV files are not committed to Git by default because `data/` is ignored in `.gitignore`.
 
@@ -22,13 +22,13 @@ The CleanSYS TMS scripts process real-time stack emissions measurement data down
 Source scraper:
 
 ```bash
-python -m nzk_aphiam.data.scrape.data_go_kr.cleansys_tms
+python -m nzk_aphiam.archive.cleansys_tms_scraper
 ```
 
 Optional filters:
 
 ```bash
-python -m nzk_aphiam.data.scrape.data_go_kr.cleansys_tms \
+python -m nzk_aphiam.archive.cleansys_tms_scraper \
     --area-nm 충남 \
     --fact-manage-nm 태안
 ```
@@ -46,13 +46,13 @@ The wide cleaner creates the main cleaned data product.
 Run:
 
 ```bash
-python -m nzk_aphiam.data.clean.cleansys_tms_wide
+python -m nzk_aphiam.archive.cleansys_tms_wide
 ```
 
 Output:
 
 ```text
-data/archive/processed/cleansys_tms/cleansys_tms_wide.csv
+data/archive/interim/cleansys_tms/cleansys_tms_wide.csv
 ```
 
 Unit of observation:
@@ -114,13 +114,13 @@ The long cleaner creates a pollutant-level version of the same data.
 Run:
 
 ```bash
-python -m nzk_aphiam.data.clean.cleansys_tms_long
+python -m nzk_aphiam.archive.cleansys_tms_long
 ```
 
 Output:
 
 ```text
-data/archive/processed/cleansys_tms/cleansys_tms_long.csv
+data/archive/interim/cleansys_tms/cleansys_tms_long.csv
 ```
 
 Unit of observation:

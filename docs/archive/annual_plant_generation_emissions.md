@@ -187,7 +187,7 @@ Sources are alternatives and are not added together.
 From the project root, regenerate the annual outputs with:
 
 ```bash
-python -m nzk_aphiam.data.process.annual_panel
+python -m nzk_aphiam.archive.annual_panel.process.annual_panel
 ```
 
 Regenerate the related monthly KEPCO subsidiary panel with:

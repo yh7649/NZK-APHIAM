@@ -31,6 +31,7 @@ from dotenv import load_dotenv
 import pandas as pd
 import requests
 
+from nzk_aphiam.data.scrape.common.period_snapshot import save_period_snapshots
 from nzk_aphiam.data.scrape.thermal.southern_power.provenance import (
     ENRICHMENT_SOURCES,
     FUEL_MAPPING_REFERENCE,
@@ -40,6 +41,7 @@ DATASET_NAME = "한국남부발전(주)_발전실적 조회_GW"
 DATASET_URL = "https://www.data.go.kr/data/15125305/openapi.do"
 API_KEY_ENV = "DATA_GO_KR_API_KEY"
 API_URL_ENV = "SOUTHERN_POWER_GENERATION_API_URL"
+DATE_COLUMN = "ymd"
 DEFAULT_START_DATE = "19000101"
 DEFAULT_PER_PAGE = 10000
 DEFAULT_RETRIES = 3
@@ -302,12 +304,6 @@ def save_xml_pages(pages: Iterable[ET.Element], path: Path) -> None:
     ET.ElementTree(document_root).write(path, encoding="utf-8", xml_declaration=True)
 
 
-def save_csv(rows: Iterable[dict[str, Any]], path: Path) -> None:
-    """Save source records to CSV without aggregation."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(rows).to_csv(path, index=False, encoding="utf-8-sig")
-
-
 def save_json(data: dict[str, Any], path: Path) -> None:
     """Save metadata as UTF-8 JSON."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -387,11 +383,18 @@ def main(argv: Sequence[str] | None = None) -> None:
     args.out_dir.mkdir(parents=True, exist_ok=True)
     output_stem = args.out_dir / "southern_power_daily_generation"
     raw_path = output_stem.with_suffix(".xml")
-    csv_path = output_stem.with_suffix(".csv")
     metadata_path = output_stem.with_suffix(".metadata.json")
 
     save_xml_pages(pages, raw_path)
-    save_csv(rows, csv_path)
+
+    snapshot_summary = save_period_snapshots(
+        pd.DataFrame(rows),
+        date_column=DATE_COLUMN,
+        date_format="%Y-%m-%d",
+        output_dir=args.out_dir,
+        stem=output_stem.name,
+    )
+
     save_json(
         {
             "source": "data.go.kr",
@@ -405,17 +408,23 @@ def main(argv: Sequence[str] | None = None) -> None:
             "end_date": args.end_date,
             "row_count": len(rows),
             "output_xml": str(raw_path),
-            "output_csv": str(csv_path),
+            "output_csv": str(snapshot_summary.combined_path),
             "per_page": args.per_page,
             "max_pages": args.max_pages,
+            "period_snapshots": snapshot_summary.to_metadata_dict(),
         },
         metadata_path,
     )
 
     print(f"Saved raw responses to: {raw_path}")
-    print(f"Saved CSV to: {csv_path}")
+    print(f"Saved CSV to: {snapshot_summary.combined_path}")
     print(f"Saved metadata to: {metadata_path}")
     print(f"Rows saved: {len(rows)}")
+    if snapshot_summary.revisions:
+        print(
+            f"NOTE: {len(snapshot_summary.revisions)} historic period(s) were revised "
+            "by the source -- see warnings above and the metadata file."
+        )
 
 
 if __name__ == "__main__":

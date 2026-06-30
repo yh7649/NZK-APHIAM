@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from nzk_aphiam.data.scrape.epsis import scraper
+from nzk_aphiam.archive.annual_panel.scrape.epsis import scraper
 
 
 def test_parse_annual_payload_extracts_all_fields() -> None:

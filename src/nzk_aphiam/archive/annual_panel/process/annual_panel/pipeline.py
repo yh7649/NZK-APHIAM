@@ -13,14 +13,14 @@ from pathlib import Path
 import re
 from typing import Any, Iterable
 
-from nzk_aphiam.data.process.crosswalk.builder import (
+from nzk_aphiam.archive.annual_panel.process.crosswalk.builder import (
     company_keys,
     normalize_company,
     normalize_plant,
     similarity,
 )
 
-PROJECT_ROOT = Path(__file__).resolve().parents[5]
+PROJECT_ROOT = Path(__file__).resolve().parents[6]
 SUPPORTING_DATA_DIR = PROJECT_ROOT / "data" / "interim" / "supporting"
 DEFAULT_GENERATION_DIR = (
     SUPPORTING_DATA_DIR / "plant_rosters" / "epsis" / "raw" / "annual_generation"
@@ -31,11 +31,7 @@ DEFAULT_LINKS_PATH = (
     SUPPORTING_DATA_DIR / "crosswalks" / "thermal" / "epsis_emissions_facility_links.csv"
 )
 DEFAULT_CLEANSYS_PATH = (
-    SUPPORTING_DATA_DIR
-    / "emissions"
-    / "cleansys"
-    / "raw"
-    / "cleansys_annual_emissions_panel.csv"
+    SUPPORTING_DATA_DIR / "emissions" / "cleansys" / "raw" / "cleansys_annual_emissions_panel.csv"
 )
 DEFAULT_ENV_INFO_PATH = (
     SUPPORTING_DATA_DIR
@@ -45,11 +41,7 @@ DEFAULT_ENV_INFO_PATH = (
     / "env_info_power_emissions_2015_2024.csv"
 )
 DEFAULT_DIRECT_PATH = (
-    PROJECT_ROOT
-    / "data"
-    / "kepco"
-    / "processed"
-    / "kepco_monthly_generation_emissions.csv"
+    PROJECT_ROOT / "data" / "kepco" / "processed" / "kepco_monthly_generation_emissions.csv"
 )
 DEFAULT_GENERATION_OVERRIDES = (
     PROJECT_ROOT / "docs" / "references" / "archive" / "annual_panel" / "generation_overrides.csv"

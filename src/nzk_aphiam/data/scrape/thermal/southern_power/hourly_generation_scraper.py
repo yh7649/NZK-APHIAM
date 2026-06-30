@@ -12,12 +12,14 @@ from pathlib import Path
 from dotenv import load_dotenv
 import pandas as pd
 
+from nzk_aphiam.data.scrape.common.period_snapshot import save_period_snapshots
 from nzk_aphiam.data.scrape.thermal.southern_power import generation_scraper as common
 
 DATASET_NAME = "한국남부발전(주)_시간대별 발전량및송전량 정보조회_GW"
 DATASET_URL = "https://www.data.go.kr/data/15125317/openapi.do"
 DEFAULT_API_URL = "https://apis.data.go.kr/B552520/PwrGenTran/getDataService"
 API_URL_ENV = "SOUTHERN_POWER_HOURLY_GENERATION_API_URL"
+DATE_COLUMN = "ymd"
 DEFAULT_OUTPUT_DIR = common.DEFAULT_OUTPUT_DIR
 
 
@@ -159,7 +161,15 @@ def main(argv: Sequence[str] | None = None) -> None:
     args.out_dir.mkdir(parents=True, exist_ok=True)
     stem = args.out_dir / "southern_power_hourly_generation"
     common.save_xml_pages(pages, stem.with_suffix(".xml"))
-    pd.DataFrame(rows).to_csv(stem.with_suffix(".csv"), index=False, encoding="utf-8-sig")
+
+    snapshot_summary = save_period_snapshots(
+        pd.DataFrame(rows),
+        date_column=DATE_COLUMN,
+        date_format="%Y-%m-%d",
+        output_dir=args.out_dir,
+        stem=stem.name,
+    )
+
     with stem.with_suffix(".metadata.json").open("w", encoding="utf-8") as file:
         json.dump(
             {
@@ -173,12 +183,18 @@ def main(argv: Sequence[str] | None = None) -> None:
                 "plant_code": args.plant_code,
                 "unit_code": args.unit_code,
                 "row_count": len(rows),
+                "period_snapshots": snapshot_summary.to_metadata_dict(),
             },
             file,
             ensure_ascii=False,
             indent=2,
         )
-    print(f"Saved {len(rows)} hourly-source rows to {stem.with_suffix('.csv')}")
+    print(f"Saved {len(rows)} hourly-source rows to {snapshot_summary.combined_path}")
+    if snapshot_summary.revisions:
+        print(
+            f"NOTE: {len(snapshot_summary.revisions)} historic period(s) were revised "
+            "by the source -- see warnings above and the metadata file."
+        )
 
 
 if __name__ == "__main__":

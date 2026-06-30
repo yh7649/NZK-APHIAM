@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from nzk_aphiam.data.scrape.env_info.scraper import (
+from nzk_aphiam.archive.annual_panel.scrape.env_info.scraper import (
     columnar_json_to_rows,
     parse_emissions_detail,
     scrape_year,

@@ -141,6 +141,18 @@ datasets that can derive approximate pollutant mass where stack flow is
 reported. The command stops if any scraper fails. Individual subsidiary,
 facility, and dataset targets are available through `make help`.
 
+Each subsidiary's raw output is written as immutable per-year snapshot files
+plus a combined file in the shape cleaners expect, so re-running a scraper
+after a source adds new months only changes the newest year, not the whole
+history. To version a fresh pull locally with DVC (no remote required):
+
+```bash
+make track-kepco-snapshots
+```
+
+See [`docs/project/data_provenance.md`](docs/project/data_provenance.md#raw-snapshot-versioning)
+for how this works and how to add a remote later.
+
 For a fully local check using preserved raw files, run:
 
 ```bash

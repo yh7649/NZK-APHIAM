@@ -56,6 +56,21 @@ overlap. Neither source contains monthly pollutant mass. Missing monthly values
 therefore remain missing unless a future source matches the same reporting
 boundary and month directly.
 
+**The annual, non-KEPCO plant-level panel and its EPSIS/ENV-INFO/CleanSYS
+crosswalk are paused indefinitely.** The project's active scope is the KEPCO
+thermal subsidiary monthly panel (see
+[`docs/datasets/kepco_monthly_generation_emissions.md`](../datasets/kepco_monthly_generation_emissions.md)).
+The annual-panel matching and source integration were judged too messy for
+current research needs relative to a fuel-type and emissions-only KEPCO scope.
+The code is preserved, not deleted, under
+`src/nzk_aphiam/archive/annual_panel/` (scrapers for EPSIS, ENV-INFO, and
+CleanSYS under `scrape/`; the crosswalk builder and annual-panel pipeline
+under `process/`), and remains runnable through the Makefile targets marked
+`[PAUSED: annual non-KEPCO panel]` (`make help` lists them). Generated raw,
+interim, and processed data for this effort are not committed to Git and were
+removed from local disk; they are fully reproducible by rerunning those
+targets.
+
 The thermal crosswalk retains scored alternatives and distinguishes automatic,
 manual, probable, review, and unmatched records. Historical ENV-INFO IDs can
 appear as multiple dated links for one physical plant after ownership or
@@ -91,6 +106,44 @@ the derived datasets. Do not manually edit raw files. For a publication or
 release, record the software version, retrieval date, source metadata, and any
 provider-specific license in the accompanying methods or data-availability
 statement.
+
+### Raw snapshot versioning
+
+The five KEPCO subsidiary scrapers (East-West, Western, Southern, South-East,
+Midland) write their raw CSV output as immutable per-period snapshots
+(`{dataset}.source.{period}.csv`, one file per calendar year) plus a combined
+file in the same row shape every downstream cleaner already expects
+(`{dataset}.csv`). This is implemented once, in
+`src/nzk_aphiam/data/scrape/common/period_snapshot.py`, and used by every
+subsidiary scraper rather than each one writing its own single ever-growing
+file. A period file is only rewritten when its content actually changes; an
+unchanged period produces no new file. If a source revises historic data
+(not just appends new months), the scraper prints an explicit warning naming
+the period and a sample of the changed rows, and records the same detail in
+that scrape's `*.metadata.json` under `period_snapshots`, so a silent
+correction never passes for a normal monthly update.
+
+This is what makes [DVC](https://dvc.org) viable for archiving raw snapshots:
+since each period is its own file, re-running a scraper after a source
+appends new months only changes (and only re-stores) the newest period, not
+the entire historic record. Track a fresh pull with:
+
+```bash
+make track-kepco-snapshots
+```
+
+This runs `dvc add` over each subsidiary's raw directory and stages the
+resulting small pointer files for git; it does not push anywhere; no DVC
+remote is configured yet. `git status` shows what changed before you commit,
+and `dvc push` becomes available once a remote (Google Drive, S3-compatible
+storage, etc.) is configured with `dvc remote add`.
+
+A live scrape failing partway through never overwrites prior data: every
+scraper only calls `save_period_snapshots()` after a fetch has fully
+succeeded, so an interrupted or failed run leaves the previous successful
+snapshot exactly as it was. There is deliberately no separate "fall back to
+cache" code path; the safety property falls out of write order rather than
+needing its own logic to maintain.
 
 For the facility-level emission-factor inputs and crosswalk:
 

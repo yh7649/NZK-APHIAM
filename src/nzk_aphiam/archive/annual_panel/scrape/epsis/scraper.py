@@ -6,8 +6,8 @@ website uses POST endpoints to populate the annual roster grid and a paginated
 board whose dated snapshot attachments contain CSV and XLSX files.
 
 Run from the project root:
-    python -m nzk_aphiam.data.scrape.epsis annual
-    python -m nzk_aphiam.data.scrape.epsis snapshots
+    python -m nzk_aphiam.archive.annual_panel.scrape.epsis annual
+    python -m nzk_aphiam.archive.annual_panel.scrape.epsis snapshots
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ FIRST_ANNUAL_YEAR = 2012
 LAST_ANNUAL_YEAR = 2024
 FIRST_GENERATION_YEAR = 2002
 
-PROJECT_ROOT = Path(__file__).resolve().parents[5]
+PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = (
     PROJECT_ROOT / "data" / "interim" / "supporting" / "plant_rosters" / "epsis" / "raw"
 )

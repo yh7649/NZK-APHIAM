@@ -15,7 +15,7 @@ Run from the project root:
 from __future__ import annotations
 
 import argparse
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 import json
 import os
 from pathlib import Path
@@ -27,6 +27,7 @@ from dotenv import load_dotenv
 import pandas as pd
 import requests
 
+from nzk_aphiam.data.scrape.common.period_snapshot import save_period_snapshots
 from nzk_aphiam.data.scrape.thermal.southern_power.provenance import (
     ENRICHMENT_SOURCES,
     FUEL_MAPPING_REFERENCE,
@@ -36,13 +37,12 @@ DATASET_NAME = "한국남부발전(주)_대기오염물질 배출량 현황"
 DATASET_URL = "https://www.data.go.kr/data/15099713/fileData.do"
 API_KEY_ENV = "DATA_GO_KR_API_KEY"
 API_URL_ENV = "SOUTHERN_POWER_EMISSIONS_API_URL"
+DATE_COLUMN = "년월"
 DEFAULT_PER_PAGE = 1000
 DEFAULT_RETRIES = 3
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
-DEFAULT_OUTPUT_DIR = (
-    PROJECT_ROOT / "data" / "raw" / "southern_power"
-)
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "southern_power"
 
 SECRET_QUERY_KEYS = {"servicekey", "service_key", "apikey", "api_key", "key"}
 
@@ -227,12 +227,6 @@ def save_json(data: dict[str, Any], path: Path) -> None:
         json.dump(data, file, ensure_ascii=False, indent=2)
 
 
-def save_csv(rows: Iterable[dict[str, Any]], path: Path) -> None:
-    """Save source records to CSV without aggregation."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    pd.DataFrame(rows).to_csv(path, index=False, encoding="utf-8-sig")
-
-
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Download raw Korea Southern Power monthly emissions."
@@ -280,7 +274,6 @@ def main(argv: Sequence[str] | None = None) -> None:
     args.out_dir.mkdir(parents=True, exist_ok=True)
     output_stem = args.out_dir / "southern_power_air_pollutant_emissions"
     raw_path = output_stem.with_suffix(".json")
-    csv_path = output_stem.with_suffix(".csv")
     metadata_path = output_stem.with_suffix(".metadata.json")
 
     save_json(
@@ -294,7 +287,15 @@ def main(argv: Sequence[str] | None = None) -> None:
         },
         raw_path,
     )
-    save_csv(rows, csv_path)
+
+    snapshot_summary = save_period_snapshots(
+        pd.DataFrame(rows),
+        date_column=DATE_COLUMN,
+        date_format="%Y-%m",
+        output_dir=args.out_dir,
+        stem=output_stem.name,
+    )
+
     save_json(
         {
             "source": "data.go.kr",
@@ -306,17 +307,23 @@ def main(argv: Sequence[str] | None = None) -> None:
             "request_urls_redacted": request_urls,
             "row_count": len(rows),
             "output_json": str(raw_path),
-            "output_csv": str(csv_path),
+            "output_csv": str(snapshot_summary.combined_path),
             "per_page": args.per_page,
             "max_pages": args.max_pages,
+            "period_snapshots": snapshot_summary.to_metadata_dict(),
         },
         metadata_path,
     )
 
     print(f"Saved raw response to: {raw_path}")
-    print(f"Saved CSV to: {csv_path}")
+    print(f"Saved CSV to: {snapshot_summary.combined_path}")
     print(f"Saved metadata to: {metadata_path}")
     print(f"Rows saved: {len(rows)}")
+    if snapshot_summary.revisions:
+        print(
+            f"NOTE: {len(snapshot_summary.revisions)} historic period(s) were revised "
+            "by the source -- see warnings above and the metadata file."
+        )
 
 
 if __name__ == "__main__":

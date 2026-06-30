@@ -1,3 +1,4 @@
+dvc
 ipython
 jupyterlab
 loguru

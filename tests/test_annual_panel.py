@@ -1,4 +1,4 @@
-from nzk_aphiam.data.process.annual_panel.pipeline import (
+from nzk_aphiam.archive.annual_panel.process.annual_panel.pipeline import (
     classify_generation_row,
     collapse_source_candidates,
     factor,

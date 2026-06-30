@@ -230,25 +230,39 @@ scrape-thermal:
 	$(MAKE) scrape-midland-power
 
 
-## Download EPSIS annual generator rosters
+## Version this run's KEPCO raw snapshots with DVC (local only; configure a
+## remote with `dvc remote add` before `dvc push` can share them with a teammate)
+.PHONY: track-kepco-snapshots
+track-kepco-snapshots:
+	dvc add \
+		data/raw/eastwest_power \
+		data/raw/western_power \
+		data/raw/southern_power \
+		data/raw/southeast_power \
+		data/raw/midland_power
+	@echo "Snapshots staged for git (review with 'git status', then commit)."
+	@echo "Run 'dvc push' once a remote is configured to share them."
+
+
+## [PAUSED: annual non-KEPCO panel] Download EPSIS annual generator rosters
 .PHONY: scrape-epsis-annual
 scrape-epsis-annual:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.epsis annual
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.epsis annual
 
 
-## Download EPSIS dated generator roster snapshots
+## [PAUSED: annual non-KEPCO panel] Download EPSIS dated generator roster snapshots
 .PHONY: scrape-epsis-snapshots
 scrape-epsis-snapshots:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.epsis snapshots
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.epsis snapshots
 
 
-## Download EPSIS annual mixed-granularity capacity and generation
+## [PAUSED: annual non-KEPCO panel] Download EPSIS annual mixed-granularity capacity and generation
 .PHONY: scrape-epsis-generation
 scrape-epsis-generation:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.epsis annual-generation
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.epsis annual-generation
 
 
-## Download all EPSIS annual and dated generator rosters
+## [PAUSED: annual non-KEPCO panel] Download all EPSIS annual and dated generator rosters
 .PHONY: scrape-epsis
 scrape-epsis:
 	$(MAKE) scrape-epsis-annual
@@ -256,10 +270,10 @@ scrape-epsis:
 	$(MAKE) scrape-epsis-snapshots
 
 
-## Download CleanSYS annual facility-level air pollutant emissions
+## [PAUSED: annual non-KEPCO panel] Download CleanSYS annual facility-level air pollutant emissions
 .PHONY: scrape-cleansys
 scrape-cleansys:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.cleansys
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.cleansys
 
 
 AIRKOREA_START_YEAR ?= 2001
@@ -282,57 +296,57 @@ scrape-health:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.health.kosis --start-year $(HEALTH_START_YEAR) --end-year $(HEALTH_END_YEAR)
 
 
-## Download ENV-INFO annual power-sector facility air pollutant emissions
+## [PAUSED: annual non-KEPCO panel] Download ENV-INFO annual power-sector facility air pollutant emissions
 .PHONY: scrape-env-info
 scrape-env-info:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.env_info --start-year 2015 --end-year 2024
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.env_info --start-year 2015 --end-year 2024
 
 
 FACILITY_START_YEAR ?= 2015
 FACILITY_END_YEAR ?= 2024
 
 
-## Download the EPSIS, CleanSYS, and ENV-INFO inputs used for facility emission factors
+## [PAUSED: annual non-KEPCO panel] Download the EPSIS, CleanSYS, and ENV-INFO inputs used for facility emission factors
 .PHONY: scrape-facility-ef-inputs
 scrape-facility-ef-inputs:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.epsis annual --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.epsis annual-generation --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.cleansys --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.env_info --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.epsis annual --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.epsis annual-generation --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.cleansys --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.env_info --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
 
 
-## Rebuild normalized facility-EF inputs strictly from preserved raw files
+## [PAUSED: annual non-KEPCO panel] Rebuild normalized facility-EF inputs strictly from preserved raw files
 .PHONY: rebuild-facility-ef-inputs-offline
 rebuild-facility-ef-inputs-offline:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.epsis --offline annual --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.epsis --offline annual-generation --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.cleansys --offline --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.env_info --offline --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.epsis --offline annual --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.epsis --offline annual-generation --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.cleansys --offline --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.env_info --offline --start-year $(FACILITY_START_YEAR) --end-year $(FACILITY_END_YEAR)
 
 
-## Build the EPSIS to ENV-INFO and CleanSYS thermal facility crosswalk
+## [PAUSED: annual non-KEPCO panel] Build the EPSIS to ENV-INFO and CleanSYS thermal facility crosswalk
 .PHONY: build-thermal-crosswalk
 build-thermal-crosswalk:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.crosswalk
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.process.crosswalk
 
 
-## Download all facility-EF inputs and build the documented crosswalk
+## [PAUSED: annual non-KEPCO panel] Download all facility-EF inputs and build the documented crosswalk
 .PHONY: reproduce-facility-crosswalk
 reproduce-facility-crosswalk: scrape-facility-ef-inputs build-thermal-crosswalk
 
 
-## Rebuild facility-EF inputs and crosswalk without contacting providers
+## [PAUSED: annual non-KEPCO panel] Rebuild facility-EF inputs and crosswalk without contacting providers
 .PHONY: verify-facility-crosswalk-offline
 verify-facility-crosswalk-offline: rebuild-facility-ef-inputs-offline build-thermal-crosswalk
 
 
-## Build annual plant generation, reconcile emissions, and calculate emission factors
+## [PAUSED: annual non-KEPCO panel] Build annual plant generation, reconcile emissions, and calculate emission factors
 .PHONY: build-annual-plant-panel
 build-annual-plant-panel:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.annual_panel
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.process.annual_panel
 
 
-## Rebuild all annual facility inputs, crosswalks, and the final plant-year panel offline
+## [PAUSED: annual non-KEPCO panel] Rebuild all annual facility inputs, crosswalks, and the final plant-year panel offline
 .PHONY: reproduce-annual-plant-panel-offline
 reproduce-annual-plant-panel-offline: verify-facility-crosswalk-offline combine-kepco build-annual-plant-panel
 
@@ -349,13 +363,13 @@ check-scraper-cli:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southeast_power --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power emissions --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power generation --help
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.epsis --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.epsis --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.airkorea --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.health.kosis --help
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.cleansys --help
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.env_info --help
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.crosswalk --help
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.annual_panel --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.cleansys --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.env_info --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.process.crosswalk --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.process.annual_panel --help
 
 
 ## Verify code and rebuild implemented interim datasets without network access

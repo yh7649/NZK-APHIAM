@@ -2,8 +2,12 @@
 
 This document describes the processed monthly KEPCO subsidiary generation and
 emissions dataset. This is the preferred dataset for near-term analysis. Work
-on the annual plant-level panel is paused because its plant matching and annual
-source integration are too messy for the current research needs.
+on the annual plant-level panel is paused indefinitely because its plant
+matching and annual source integration are too messy for the current research
+needs, and the project's scope is narrowed to KEPCO thermal subsidiaries. The
+annual panel's code is preserved under `src/nzk_aphiam/archive/annual_panel/`;
+see [`docs/project/data_provenance.md`](../project/data_provenance.md) for
+details and the still-runnable (but `[PAUSED]`-marked) Makefile targets.
 
 The active dataset uses KEPCO-wide naming rather than "thermal" naming. The
 included monthly emissions sources are mostly thermal subsidiaries, but the

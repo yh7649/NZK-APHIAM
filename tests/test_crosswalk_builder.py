@@ -1,4 +1,4 @@
-from nzk_aphiam.data.process.crosswalk.builder import (
+from nzk_aphiam.archive.annual_panel.process.crosswalk.builder import (
     Facility,
     normalize_company,
     normalize_plant,
