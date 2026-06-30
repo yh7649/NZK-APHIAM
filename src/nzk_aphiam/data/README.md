@@ -429,12 +429,12 @@ and unit-specific outlier mass and emission-factor thresholds
 (`Q3 + 3 * IQR`, requiring at least 12 valid unit-months).
 
 It never drops or imputes a row. It rewrites each subsidiary's processed CSV
-in place with `audit_severity` (the worst flag raised, or missing) and
+and the final combined CSV with `audit_severity` (the worst flag raised, or missing) and
 `audit_issue_codes` (every issue code, joined with `;`), and writes
 long-format flag detail and summary tables to
 `results/tables/<subsidiary>/audit/`. Re-running `combine-kepco` after
-`audit-kepco` rebuilds the subsidiary files from interim data and removes
-the audit columns until `audit-kepco` runs again.
+`audit-kepco` rebuilds the subsidiary and combined files from interim data and
+removes the audit columns until `audit-kepco` runs again.
 
 ## South-East Power
 

@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 
 from nzk_aphiam.config.paths import DATA_DIR, THERMAL_PROCESSED_DIR
+from nzk_aphiam.data.clean.thermal.schema import COMBINED_THERMAL_OUTPUT_COLUMNS
 
 KEY = ["date", "plant_name", "plant_number", "original_korean_unit_name"]
 GROUP_KEY = ["plant_name", "plant_number", "original_korean_unit_name"]
@@ -38,6 +39,14 @@ SUBSIDIARY_NAMES = [
 ]
 SUBSIDIARY_OUTPUT_DIR = THERMAL_PROCESSED_DIR / "subsidiaries"
 RESULTS_DIR = DATA_DIR.parent / "results" / "tables"
+COMBINED_OUTPUT_PATH = THERMAL_PROCESSED_DIR / "kepco_monthly_generation_emissions.csv"
+METADATA_PATH = THERMAL_PROCESSED_DIR / "kepco_monthly_generation_emissions_metadata.csv"
+AUDIT_COLUMNS = ["audit_severity", "audit_issue_codes"]
+AUDITED_COMBINED_OUTPUT_COLUMNS = [*COMBINED_THERMAL_OUTPUT_COLUMNS, *AUDIT_COLUMNS]
+AUDIT_VARIABLE_LABELS = {
+    "audit_severity": "Worst audit flag raised against the row (critical, warning, or review)",
+    "audit_issue_codes": "Semicolon-delimited audit issue codes raised against the row",
+}
 
 
 @dataclass
@@ -425,18 +434,84 @@ def save_audit_outputs(result: AuditResult, processed_dir: Path, results_dir: Pa
     result.audited_data.to_csv(output_path, index=False, date_format="%Y-%m-%d")
 
 
+def combine_audited_results(results: dict[str, AuditResult]) -> pd.DataFrame:
+    """Combine audited subsidiaries into the canonical final dataset."""
+    if not results:
+        return pd.DataFrame(columns=AUDITED_COMBINED_OUTPUT_COLUMNS)
+
+    frames: list[pd.DataFrame] = []
+    for name, result in results.items():
+        missing = set(AUDITED_COMBINED_OUTPUT_COLUMNS) - set(result.audited_data.columns)
+        if missing:
+            raise ValueError(f"Audited {name} data is missing columns: {sorted(missing)}")
+        source_names = set(result.audited_data["source_dataset"].dropna())
+        if source_names != {name}:
+            raise ValueError(
+                f"Audited {name} data has unexpected source_dataset values: {sorted(source_names)}"
+            )
+        frames.append(result.audited_data[AUDITED_COMBINED_OUTPUT_COLUMNS])
+
+    combined = pd.concat(frames, ignore_index=True)
+    combined["date"] = pd.to_datetime(combined["date"], errors="raise")
+    return combined.sort_values(
+        ["date", "source_dataset", "plant_name", "plant_number"],
+        na_position="last",
+        ignore_index=True,
+    )
+
+
+def save_audited_combined(
+    results: dict[str, AuditResult],
+    output_path: Path,
+    metadata_path: Path | None,
+) -> pd.DataFrame:
+    """Write the final audited combined dataset and extend its variable dictionary."""
+    if metadata_path is not None and not metadata_path.exists():
+        raise FileNotFoundError(
+            f"Combined variable metadata is missing: {metadata_path}. "
+            "Run combine-kepco before audit-kepco."
+        )
+
+    combined = combine_audited_results(results)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    combined.to_csv(output_path, index=False, date_format="%Y-%m-%d")
+
+    if metadata_path is not None:
+        metadata = pd.read_csv(metadata_path)
+        metadata = metadata.loc[~metadata["varname"].isin(AUDIT_COLUMNS)]
+        audit_metadata = pd.DataFrame(
+            {
+                "varname": AUDIT_COLUMNS,
+                "label": [AUDIT_VARIABLE_LABELS[column] for column in AUDIT_COLUMNS],
+            }
+        )
+        metadata = pd.concat([metadata, audit_metadata], ignore_index=True)
+        metadata.to_csv(metadata_path, index=False)
+
+    return combined
+
+
 def audit_all(
     names: list[str],
     processed_dir: Path = SUBSIDIARY_OUTPUT_DIR,
     results_dir: Path = RESULTS_DIR,
+    combined_output_path: Path = COMBINED_OUTPUT_PATH,
+    metadata_path: Path | None = METADATA_PATH,
 ) -> dict[str, AuditResult]:
-    """Audit every named subsidiary's processed file and write its outputs."""
+    """Audit subsidiaries and rebuild the final combined file with audit columns."""
+    if combined_output_path == COMBINED_OUTPUT_PATH and set(names) != set(SUBSIDIARY_NAMES):
+        raise ValueError(
+            "Refusing to replace the canonical combined dataset with a subsidiary subset. "
+            "Audit all default subsidiaries or provide --combined-output-path."
+        )
+
     results: dict[str, AuditResult] = {}
     for name in names:
         data = load_subsidiary_data(name, processed_dir)
         result = audit_subsidiary(name, data)
         save_audit_outputs(result, processed_dir, results_dir)
         results[name] = result
+    save_audited_combined(results, combined_output_path, metadata_path)
     return results
 
 
@@ -451,12 +526,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--subsidiaries", nargs="+", default=SUBSIDIARY_NAMES)
     parser.add_argument("--processed-dir", type=Path, default=SUBSIDIARY_OUTPUT_DIR)
     parser.add_argument("--results-dir", type=Path, default=RESULTS_DIR)
+    parser.add_argument("--combined-output-path", type=Path, default=COMBINED_OUTPUT_PATH)
+    parser.add_argument("--metadata-path", type=Path, default=METADATA_PATH)
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
-    results = audit_all(args.subsidiaries, args.processed_dir, args.results_dir)
+    results = audit_all(
+        args.subsidiaries,
+        args.processed_dir,
+        args.results_dir,
+        args.combined_output_path,
+        args.metadata_path,
+    )
     for name, result in results.items():
         flagged_rows = result.audited_data["audit_severity"].notna().sum()
         critical = (
@@ -466,6 +549,8 @@ def main() -> None:
             f"{name}: audited {len(result.audited_data):,} rows, "
             f"{flagged_rows:,} flagged ({critical:,} critical flags)"
         )
+    combined_rows = sum(len(result.audited_data) for result in results.values())
+    print(f"combined: saved {combined_rows:,} audited rows to {args.combined_output_path}")
 
 
 if __name__ == "__main__":

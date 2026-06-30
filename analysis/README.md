@@ -1,13 +1,16 @@
 # Analysis
 
-`kepco/kepco_monthly_analysis.R` is the main RStudio analysis workspace. It loads and
-validates the combined monthly dataset, applies variable labels, creates kg/MWh
-emission-factor columns, defines output paths, and provides helpers for saving
-tables, figures, R objects, and models under `results/`.
+Dataset merging, schema validation, and unit standardization are handled in
+Python by `make combine-kepco`. R and Stata are reserved for analysis only.
 
-Shared path helpers live in `R/`. Dataset merging, schema validation, and unit
-standardization are handled in Python by `make combine-kepco`; R is reserved
-for analysis.
+## R
+
+`kepco/kepco_monthly_analysis.R` is the main RStudio workspace. It loads and
+validates the combined monthly dataset, applies variable labels, creates kg/MWh
+emission-factor columns, and provides helpers for saving tables, figures, and
+model objects under `results/`.
+
+Shared path helpers live in `R/paths.R` — source it at the top of any R script.
 
 Open `NZK-APHIAM.Rproj` and work through `kepco/kepco_monthly_analysis.R`
 interactively, or run the complete setup from the terminal with:
@@ -15,3 +18,22 @@ interactively, or run the complete setup from the terminal with:
 ```bash
 make r-analysis
 ```
+
+## Stata
+
+Panel regressions, health impact models, DiD event studies, and
+publication-ready tables are handled in Stata. Shell `.do` files live alongside
+their R counterparts in `kepco/`.
+
+Shared path helpers live in `stata/paths.do` — source it at the top of every
+do file. It sets `$project_root`, `$kepco_processed_root`, `$results_root`, and
+related globals. It detects the project root automatically (via the
+`NZK_APHIAM_ROOT` env var or by walking up from cwd); no manual edits needed.
+
+To run a do file from the terminal:
+
+```bash
+stata -b do analysis/kepco/kepco_panel.do
+```
+
+Or open interactively from within Stata after `cd`-ing to the project root.

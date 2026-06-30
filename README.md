@@ -151,6 +151,55 @@ This performs formatting and lint checks, runs the complete Python test suite,
 checks every scraper command-line entry point with `--help`, and rebuilds all
 currently implemented interim datasets. It does not access the internet.
 
+## AirKorea Hourly Monitor Data
+
+Download the official finalized hourly monitoring-station archives (2001
+through the latest year advertised by AirKorea):
+
+```bash
+make scrape-airkorea PYTHON_INTERPRETER=.venv/bin/python
+```
+
+For a smaller inclusive range, for example the years around a policy event:
+
+```bash
+make scrape-airkorea AIRKOREA_START_YEAR=2015 AIRKOREA_END_YEAR=2022
+```
+
+Annual ZIP files and a checksum manifest are written under
+`data/raw/airkorea/hourly_finalized/`. Existing complete archives are reused,
+interrupted `.part` files are resumed when the server supports byte ranges,
+and invalid or incomplete ZIPs are rejected. No data.go.kr API key is needed:
+the downloader uses AirKorea's public finalized-data archive rather than the
+recent, provisional real-time API.
+
+## Public Health Baseline
+
+The initial public Korean health panel uses three KOSIS tables:
+
+- monthly all-cause deaths by residence 시군구;
+- annual deaths by 시군구 and 50 cause groups; and
+- monthly resident population denominators.
+
+Request a free KOSIS OpenAPI key and add it to `.env`:
+
+```dotenv
+KOSIS_API_KEY=...
+```
+
+Then download the 2001–2024 baseline aligned with the finalized AirKorea
+series:
+
+```bash
+make scrape-health PYTHON_INTERPRETER=.venv/bin/python
+```
+
+Override `HEALTH_START_YEAR` and `HEALTH_END_YEAR` for a narrower panel. Raw
+annual JSON responses, normalized CSVs, checksums, and provenance metadata are
+written under `data/raw/health/kosis/`. Aggregate national and provincial rows
+are retained and labeled so boundary harmonization can be handled explicitly
+before the DiD/GWR panel is constructed.
+
 ## KEPCO Data Documentation
 
 Detailed source-specific documentation for Western, East-West, Southern,

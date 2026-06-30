@@ -12,7 +12,7 @@ scrapers, cleaners, and processing commands.
 ## Source Data
 
 Current sources include data.go.kr datasets, official power subsidiary
-websites, KPX EPSIS, and the Korea Environment Corporation CleanSYS website.
+websites, AirKorea, KPX EPSIS, and the Korea Environment Corporation CleanSYS website.
 Each scraper preserves source responses and writes request metadata beside its
 raw outputs. Dataset names, source URLs, retrieval parameters, and enrichment
 sources are documented in those metadata files and in `README.md`.
@@ -26,11 +26,35 @@ CleanSYS annual records are facility-level totals for pollutants measured by
 stack TMS instruments. They do not represent every emission source at a
 facility and do not identify individual generating units.
 
+AirKorea annual archives contain finalized hourly monitoring-station
+observations. The downloader preserves the provider ZIPs and records their
+checksums. AirKorea uses `-999` for observations invalidated by equipment or
+communications problems; these values are source missing-value codes, not
+pollution concentrations. A year marked with an asterisk on the source page is
+based on monthly-report statistics and may change during annual finalization.
+
+The public-health baseline preserves annual KOSIS API responses for monthly
+all-cause mortality, annual cause-specific mortality, and monthly resident
+population. Mortality geography follows the deceased person's residence.
+National and province aggregates remain in the normalized files with explicit
+geography-level labels. District codes and boundaries can change over time and
+must be harmonized before longitudinal spatial analysis. Death counts should
+be modeled as counts with population exposure or `log(population)` offsets,
+rather than converted only to crude rates.
+
 ENV-INFO records are verified annual environmental disclosures. The scraper
 retains individual-site records where the public site exposes them and extracts
 NOx, SOx, and TSP mass in metric tonnes. Its power-sector industry category
 also contains gas, steam, water, and other utilities, so records must be
 matched to EPSIS before they are treated as electricity generators.
+
+Western Power's annual generator-performance and Taean daily-generation files
+are cross-check sources, not automatic monthly gap fills. Annual totals are too
+coarse to distribute across months. The available Taean daily file overlaps
+the combined monthly source but does not supply any missing unit-month in that
+overlap. Neither source contains monthly pollutant mass. Missing monthly values
+therefore remain missing unless a future source matches the same reporting
+boundary and month directly.
 
 The thermal crosswalk retains scored alternatives and distinguishes automatic,
 manual, probable, review, and unmatched records. Historical ENV-INFO IDs can

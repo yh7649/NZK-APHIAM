@@ -46,9 +46,7 @@ DEFAULT_RETRIES = 3
 TRANSIENT_HTTP_STATUS_CODES = {429, 500, 502, 503, 504}
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
-DEFAULT_OUTPUT_DIR = (
-    PROJECT_ROOT / "data" / "raw" / "southern_power"
-)
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "southern_power"
 
 SECRET_QUERY_KEYS = {"servicekey", "service_key", "apikey", "api_key", "key"}
 
@@ -106,6 +104,7 @@ def build_params(
     per_page: int,
     start_date: str,
     end_date: str,
+    extra_params: dict[str, str] | None = None,
 ) -> tuple[str, dict[str, str | int]]:
     """Build an unfiltered generation request."""
     base_url, params = split_url_params(api_url)
@@ -123,6 +122,8 @@ def build_params(
             "strEdate": end_date,
         }
     )
+    if extra_params:
+        params.update(extra_params)
     return base_url, params
 
 
@@ -136,7 +137,7 @@ def parse_response(xml_content: str | bytes) -> ET.Element:
     result_code = root.findtext("./header/resultCode")
     result_message = root.findtext("./header/resultMsg")
 
-    if result_code != "800":
+    if result_code not in {"0", "00", "800"}:
         raise RuntimeError(
             f"Southern Power API error {result_code or 'UNKNOWN'}: "
             f"{result_message or 'No message'}"
@@ -173,9 +174,18 @@ def request_page(
     end_date: str,
     timeout: int,
     retries: int = DEFAULT_RETRIES,
+    extra_params: dict[str, str] | None = None,
 ) -> tuple[ET.Element, str]:
     """Request and parse one generation XML page."""
-    base_url, params = build_params(api_url, service_key, page, per_page, start_date, end_date)
+    base_url, params = build_params(
+        api_url,
+        service_key,
+        page,
+        per_page,
+        start_date,
+        end_date,
+        extra_params,
+    )
     prepared_url = requests.Request("GET", base_url, params=params).prepare().url
     redacted_request_url = redact_url(prepared_url)
 
@@ -214,12 +224,12 @@ def request_page(
 
     try:
         response.raise_for_status()
-    except requests.HTTPError as error:
+    except requests.HTTPError:
         print("Response preview:")
         print(response.text[:1000])
         raise RuntimeError(
             f"HTTP error for {redacted_request_url}: {response.status_code}"
-        ) from error
+        ) from None
 
     # The gateway can advertise an incorrect character set. Parsing bytes lets
     # the XML parser decode the UTF-8 Korean text correctly.

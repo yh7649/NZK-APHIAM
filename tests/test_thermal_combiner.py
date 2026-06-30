@@ -11,8 +11,10 @@ from nzk_aphiam.data.clean.thermal.schema import (
 )
 from nzk_aphiam.data.process.thermal.combiner import (
     DatasetSpec,
+    build_subsidiary_coverage,
     build_variable_metadata,
     combine_thermal_datasets,
+    process_subsidiary_datasets,
 )
 
 
@@ -101,3 +103,55 @@ def test_variable_metadata_matches_combined_schema_and_labels_units() -> None:
     assert "flue_gas_flow" not in labels
     assert "flue_gas_flow_unit" not in labels
     assert "temperature_celsius" not in labels
+
+
+def test_processes_each_subsidiary_without_cross_source_concatenation() -> None:
+    tonnes = DatasetSpec("tonnes_source", "monthly", Path("unused.csv"))
+    kilograms = DatasetSpec("kilograms_source", "monthly", Path("unused.csv"))
+
+    result = process_subsidiary_datasets(
+        [
+            (tonnes, make_row(unit="metric_tonnes", nox=1.5)),
+            (kilograms, make_row(unit="kilograms", nox=2.5)),
+        ]
+    )
+
+    assert set(result) == {"tonnes_source", "kilograms_source"}
+    assert result["tonnes_source"]["nox"].item() == 1500
+    assert result["kilograms_source"]["nox"].item() == 2.5
+    assert result["tonnes_source"]["source_dataset"].eq("tonnes_source").all()
+
+
+def test_subsidiary_coverage_reports_nonmissing_counts_and_percentages() -> None:
+    spec = DatasetSpec("test_source", "monthly", Path("unused.csv"))
+    data = pd.concat(
+        [make_row(unit="kilograms"), make_row(unit="kilograms")],
+        ignore_index=True,
+    )
+    data.loc[1, "energy_generated_mwh"] = pd.NA
+    processed = process_subsidiary_datasets([(spec, data)])
+
+    coverage = build_subsidiary_coverage(processed).iloc[0]
+
+    assert coverage["rows"] == 2
+    assert coverage["energy_generated_mwh_nonmissing"] == 1
+    assert coverage["energy_generated_mwh_coverage_pct"] == 50.0
+    assert coverage["nox_coverage_pct"] == 100.0
+
+
+def test_subsidiary_coverage_excludes_inactive_placeholders_from_denominator() -> None:
+    spec = DatasetSpec("test_source", "monthly", Path("unused.csv"))
+    data = pd.concat(
+        [make_row(unit="kilograms"), make_row(unit="kilograms")],
+        ignore_index=True,
+    )
+    data.loc[1, "row_status"] = "inactive_placeholder"
+    data.loc[1, ["energy_generated_mwh", "nox", "sox", "dust_tsp"]] = pd.NA
+    processed = process_subsidiary_datasets([(spec, data)])
+
+    coverage = build_subsidiary_coverage(processed).iloc[0]
+
+    assert coverage["rows"] == 2
+    assert coverage["analysis_rows"] == 1
+    assert coverage["inactive_placeholder_rows"] == 1
+    assert coverage["energy_generated_mwh_coverage_pct"] == 100.0

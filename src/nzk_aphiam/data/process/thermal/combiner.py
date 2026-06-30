@@ -1,4 +1,4 @@
-"""Combine KEPCO interim datasets into one unit-standardized product."""
+"""Build subsidiary-level and combined unit-standardized KEPCO products."""
 
 from __future__ import annotations
 
@@ -16,6 +16,8 @@ from nzk_aphiam.data.clean.thermal.schema import (
 
 OUTPUT_PATH = THERMAL_PROCESSED_DIR / "kepco_monthly_generation_emissions.csv"
 METADATA_PATH = THERMAL_PROCESSED_DIR / "kepco_monthly_generation_emissions_metadata.csv"
+SUBSIDIARY_OUTPUT_DIR = THERMAL_PROCESSED_DIR / "subsidiaries"
+COVERAGE_PATH = SUBSIDIARY_OUTPUT_DIR / "subsidiary_coverage.csv"
 POLLUTANT_COLUMNS = ("nox", "sox", "dust_tsp")
 POLLUTANT_UNIT_COLUMNS = {
     "nox": "nox_unit",
@@ -41,9 +43,25 @@ VARIABLE_LABELS = {
     "energy_type": "Primary energy or fuel type (categorical)",
     "energy_generated_mwh": "Monthly electricity generation (MWh)",
     "energy_capacity_mw": "Installed generating capacity (MW)",
+    "reporting_unit_id": "Stable source reporting-boundary identifier",
+    "reporting_start_date": "First month with reported generation or pollutant activity (YYYY-MM-DD)",
+    "reporting_end_date": "Documented reporting-boundary retirement date (YYYY-MM-DD)",
+    "reporting_window_basis": "Evidence defining the reporting activity window",
+    "observation_level": "Physical reporting boundary (generating_unit, gas_turbine, generation_block, plant, or unresolved)",
+    "component_count": "Number of source generation components aggregated to the observation",
+    "generation_source": "Generation source selected for the monthly value",
+    "generation_days_reported": "Minimum distinct source days reported across contributing components",
+    "generation_days_expected": "Calendar days expected in the observation month",
+    "generation_coverage_status": "Generation day coverage status (complete, partial, or missing)",
+    "alternate_energy_generated_mwh": "Monthly generation from the alternate official source (MWh)",
+    "generation_difference_pct": "Absolute percent difference between primary and alternate generation",
+    "generation_reconciliation_status": "Cross-source generation comparison or fallback status",
+    "row_status": "Evidence-based row status (active_reported, active_partial, inactive_placeholder, or unknown_status)",
+    "row_status_basis": "Evidence used to assign row_status",
     "nox": "Monthly nitrogen oxides emissions (kg)",
     "sox": "Monthly sulfur oxides emissions (kg)",
     "dust_tsp": "Monthly total suspended particulate emissions (kg)",
+    "pollutant_data_pattern": "Pollutant fields reported on the source row",
     "pollutant_measurement_basis": "Pollutant measurement basis (mass)",
     "nox_unit": "Nitrogen oxides unit (canonical value: kilograms)",
     "sox_unit": "Sulfur oxides unit (canonical value: kilograms)",
@@ -176,6 +194,71 @@ def combine_thermal_datasets(
     )
 
 
+def process_subsidiary_datasets(
+    datasets: list[tuple[DatasetSpec, pd.DataFrame]],
+) -> dict[str, pd.DataFrame]:
+    """Return one validated, unit-standardized dataset per subsidiary source."""
+    return {
+        spec.name: prepare_dataset(data, spec).sort_values(
+            ["date", "plant_name", "plant_number"],
+            na_position="last",
+            ignore_index=True,
+        )
+        for spec, data in datasets
+    }
+
+
+def build_subsidiary_coverage(
+    datasets: dict[str, pd.DataFrame],
+) -> pd.DataFrame:
+    """Summarize field availability so analysts can choose fit-for-purpose sources."""
+    value_columns = (
+        "energy_type",
+        "energy_generated_mwh",
+        "energy_capacity_mw",
+        "nox",
+        "sox",
+        "dust_tsp",
+    )
+    rows: list[dict[str, object]] = []
+    for name, data in datasets.items():
+        dates = pd.to_datetime(data["date"], errors="raise")
+        if "row_status" in data:
+            analysis_rows = ~data["row_status"].eq("inactive_placeholder").fillna(False)
+        else:
+            analysis_rows = pd.Series(True, index=data.index)
+        row: dict[str, object] = {
+            "source_dataset": name,
+            "subsidiary_company": (
+                data["subsidiary_company"].dropna().iloc[0]
+                if data["subsidiary_company"].notna().any()
+                else pd.NA
+            ),
+            "rows": len(data),
+            "analysis_rows": int(analysis_rows.sum()),
+            "inactive_placeholder_rows": int((~analysis_rows).sum()),
+            "start_date": dates.min(),
+            "end_date": dates.max(),
+            "plant_count": data["plant_name"].nunique(dropna=True),
+        }
+        for column in value_columns:
+            count = int(data.loc[analysis_rows, column].notna().sum())
+            row[f"{column}_nonmissing"] = count
+            denominator = int(analysis_rows.sum())
+            row[f"{column}_coverage_pct"] = (
+                round(100 * count / denominator, 2) if denominator else 0.0
+            )
+        rows.append(row)
+    return pd.DataFrame(rows).sort_values("source_dataset", ignore_index=True)
+
+
+def save_subsidiary_datasets(datasets: dict[str, pd.DataFrame], output_dir: Path) -> None:
+    """Write each subsidiary product under a stable source-specific filename."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    for name, data in datasets.items():
+        save_combined(data, output_dir / f"{name}_monthly_generation_emissions.csv")
+
+
 def load_default_datasets() -> list[tuple[DatasetSpec, pd.DataFrame]]:
     """Read every implemented thermal interim dataset."""
     missing = [str(spec.path) for spec in DATASET_SPECS if not spec.path.exists()]
@@ -216,23 +299,33 @@ def save_variable_metadata(metadata: pd.DataFrame, metadata_path: Path) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Combine implemented KEPCO subsidiary monthly datasets and standardize "
-            "pollutant mass to kilograms."
+            "Build individual and combined KEPCO subsidiary monthly datasets and "
+            "standardize pollutant mass to kilograms."
         )
     )
     parser.add_argument("--output-path", type=Path, default=OUTPUT_PATH)
     parser.add_argument("--metadata-path", type=Path, default=METADATA_PATH)
+    parser.add_argument("--subsidiary-output-dir", type=Path, default=SUBSIDIARY_OUTPUT_DIR)
+    parser.add_argument("--coverage-path", type=Path, default=COVERAGE_PATH)
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
-    combined = combine_thermal_datasets(load_default_datasets())
+    inputs = load_default_datasets()
+    subsidiaries = process_subsidiary_datasets(inputs)
+    save_subsidiary_datasets(subsidiaries, args.subsidiary_output_dir)
+    coverage = build_subsidiary_coverage(subsidiaries)
+    save_combined(coverage, args.coverage_path)
+
+    combined = combine_thermal_datasets(inputs)
     save_combined(combined, args.output_path)
     metadata = build_variable_metadata()
     save_variable_metadata(metadata, args.metadata_path)
 
     mass_rows = combined["pollutant_measurement_basis"].eq("mass").sum()
     print(f"Saved {len(combined)} rows to {args.output_path}")
+    print(f"Saved {len(subsidiaries)} subsidiary datasets to {args.subsidiary_output_dir}")
+    print(f"Saved subsidiary coverage to {args.coverage_path}")
     print(f"Saved {len(metadata)} variable labels to {args.metadata_path}")
     print(f"Mass rows standardized to kilograms: {mass_rows}")

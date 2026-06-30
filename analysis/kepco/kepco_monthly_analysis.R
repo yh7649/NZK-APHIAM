@@ -241,11 +241,22 @@ pollutants <- data.frame(
 )
 
 analysis_kepco <- kepco
-analysis_kepco$plant_unit_id <- paste(
-  analysis_kepco$plant_name,
-  ifelse(is.na(analysis_kepco$plant_number), "NA", analysis_kepco$plant_number),
-  analysis_kepco$energy_type,
-  sep = " | "
+if ("row_status" %in% names(analysis_kepco)) {
+  analysis_kepco <- analysis_kepco %>%
+    filter(is.na(row_status) | row_status != "inactive_placeholder")
+}
+fallback_unit_id <- paste(
+    analysis_kepco$plant_name,
+    ifelse(is.na(analysis_kepco$plant_number), "NA", analysis_kepco$plant_number),
+    analysis_kepco$energy_type,
+    sep = " | "
+  )
+analysis_kepco$plant_unit_id <- ifelse(
+  "reporting_unit_id" %in% names(analysis_kepco) &
+    !is.na(analysis_kepco$reporting_unit_id) &
+    analysis_kepco$reporting_unit_id != "",
+  analysis_kepco$reporting_unit_id,
+  fallback_unit_id
 )
 analysis_kepco$energy_type_clean <- ifelse(
   is.na(analysis_kepco$energy_type) | analysis_kepco$energy_type == "",

@@ -6,8 +6,10 @@ import pytest
 import requests
 
 from nzk_aphiam.data.scrape.thermal.southern_power import (
+    annual_generation_scraper,
     emissions_scraper,
     generation_scraper,
+    hourly_generation_scraper,
 )
 
 
@@ -157,6 +159,34 @@ def test_redact_url_hides_service_keys() -> None:
     assert "secret" not in redacted
     assert "other" not in redacted
     assert redacted.count("REDACTED") == 2
+
+
+def test_hourly_generation_splits_long_ranges_into_api_safe_chunks() -> None:
+    assert hourly_generation_scraper.date_chunks("20240101", "20250102") == [
+        ("20240101", "20241230"),
+        ("20241231", "20250102"),
+    ]
+
+
+def test_hourly_generation_build_params_includes_optional_codes() -> None:
+    _, params = hourly_generation_scraper.build_params(
+        "https://example.test/data",
+        "secret",
+        1,
+        100,
+        "20240101",
+        "20240131",
+        "8621",
+        "01",
+    )
+    assert params["strOrgCd"] == "8621"
+    assert params["strHoki"] == "01"
+
+
+def test_annual_generation_parser_validates_schema() -> None:
+    content = "년도,발전원,플랜트,호기,용량,발전량\n2025,석탄,하동,1,500000,1\n".encode()
+    result = annual_generation_scraper.parse_csv(content)
+    assert len(result) == 1
 
 
 def _generation_page(dates: list[str], total_count: int) -> ET.Element:

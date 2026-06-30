@@ -109,7 +109,7 @@ collapsed into generic fossil oil.
 
 ## Column Tiers
 
-The schema is intentionally wide (41 columns in the combined file) because
+The schema is intentionally wide (41 base columns, or 43 after auditing) because
 most of it is provenance and reliability metadata needed to merge five
 incompatible government sources defensibly, not redundant data. If you only
 need the dataset for fuel-type or emission-factor analysis, the columns
@@ -129,8 +129,8 @@ below are grouped by how often you actually need them:
   `alternate_energy_generated_mwh`, `generation_difference_pct`,
   `generation_reconciliation_status`, `pollutant_data_pattern`,
   `reporting_start_date`, `reporting_end_date`, `reporting_window_basis`.
-  After running `make audit-kepco`, each subsidiary's processed file also
-  carries `audit_severity` and `audit_issue_codes` from this tier; see
+  After running `make audit-kepco`, the combined and subsidiary processed files
+  also carry `audit_severity` and `audit_issue_codes` from this tier; see
   [Audit Stage](#audit-stage) below.
 - **Units and encoding** (constant or near-constant within a column;
   consult once, then ignore): `pollutant_measurement_basis`, `nox_unit`,
@@ -277,7 +277,7 @@ generalized from a unit-resolution audit originally written for East-West
 Power only.
 
 It is deliberately non-destructive: it never drops or imputes a row. Instead
-it rewrites each subsidiary's processed CSV in place with two additional
+it rewrites each subsidiary's processed CSV and the final combined CSV with two additional
 columns, `audit_severity` (the worst flag raised against the row, or missing
 if none) and `audit_issue_codes` (every issue code raised, joined with
 `;`), so analysts choose what to exclude with full provenance for the
@@ -288,10 +288,9 @@ Long-format detail per subsidiary — every flagged row with its value,
 threshold, and explanation, plus summary tables — is written to
 `results/tables/{subsidiary}/audit/`. Re-running `combine-kepco` after
 `audit-kepco` rebuilds the subsidiary files from interim data and removes
-the audit columns; re-run `audit-kepco` afterward to restore them. The
-combined `kepco_monthly_generation_emissions.csv` does not currently carry
-the audit columns; only the per-subsidiary files under
-`data/kepco/processed/subsidiaries/` do.
+the audit columns from both subsidiary and combined files; re-run
+`audit-kepco` afterward to restore them. The audit stage also extends the
+combined variable metadata with labels for both audit columns.
 
 ## Analysis Outputs
 

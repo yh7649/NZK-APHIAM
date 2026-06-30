@@ -93,11 +93,25 @@ scrape-southern-power-generation:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southern_power generation
 
 
+## Download Southern Power's independent hourly generation cross-check
+.PHONY: scrape-southern-power-hourly-generation
+scrape-southern-power-hourly-generation:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southern_power hourly-generation
+
+
+## Download Southern Power's annual unit/plant generation validation file
+.PHONY: scrape-southern-power-annual-generation
+scrape-southern-power-annual-generation:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southern_power annual-generation
+
+
 ## Download Southern Power emissions and generation data
 .PHONY: scrape-southern-power
 scrape-southern-power:
 	$(MAKE) scrape-southern-power-emissions
 	$(MAKE) scrape-southern-power-generation
+	$(MAKE) scrape-southern-power-hourly-generation
+	$(MAKE) scrape-southern-power-annual-generation
 
 
 ## Clean Southern Power monthly generation and emissions data
@@ -248,6 +262,26 @@ scrape-cleansys:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.cleansys
 
 
+AIRKOREA_START_YEAR ?= 2001
+AIRKOREA_END_YEAR ?=
+
+
+## Download finalized hourly monitor-level air quality archives from AirKorea
+.PHONY: scrape-airkorea
+scrape-airkorea:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.airkorea --start-year $(AIRKOREA_START_YEAR) $(if $(AIRKOREA_END_YEAR),--end-year $(AIRKOREA_END_YEAR),)
+
+
+HEALTH_START_YEAR ?= 2001
+HEALTH_END_YEAR ?= 2024
+
+
+## Download KOSIS district mortality and population baseline data
+.PHONY: scrape-health
+scrape-health:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.health.kosis --start-year $(HEALTH_START_YEAR) --end-year $(HEALTH_END_YEAR)
+
+
 ## Download ENV-INFO annual power-sector facility air pollutant emissions
 .PHONY: scrape-env-info
 scrape-env-info:
@@ -310,10 +344,14 @@ check-scraper-cli:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.western_power --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southern_power emissions --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southern_power generation --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southern_power hourly-generation --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southern_power annual-generation --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southeast_power --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power emissions --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power generation --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.epsis --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.airkorea --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.health.kosis --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.cleansys --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.env_info --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.crosswalk --help

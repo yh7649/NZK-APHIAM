@@ -11,6 +11,7 @@ granularity and fuel rules are documented in:
 from __future__ import annotations
 
 import argparse
+import calendar
 from pathlib import Path
 import re
 
@@ -20,18 +21,16 @@ from nzk_aphiam.data.clean.thermal.schema import THERMAL_OUTPUT_COLUMNS
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_EMISSIONS_PATH = (
-    PROJECT_ROOT
-    / "data"
-    / "raw"
-    / "southern_power"
-    / "southern_power_air_pollutant_emissions.csv"
+    PROJECT_ROOT / "data" / "raw" / "southern_power" / "southern_power_air_pollutant_emissions.csv"
 )
 DEFAULT_GENERATION_PATH = (
-    PROJECT_ROOT
-    / "data"
-    / "raw"
-    / "southern_power"
-    / "southern_power_daily_generation.csv"
+    PROJECT_ROOT / "data" / "raw" / "southern_power" / "southern_power_daily_generation.csv"
+)
+DEFAULT_HOURLY_GENERATION_PATH = (
+    PROJECT_ROOT / "data" / "raw" / "southern_power" / "southern_power_hourly_generation.csv"
+)
+DEFAULT_ANNUAL_GENERATION_PATH = (
+    PROJECT_ROOT / "data" / "raw" / "southern_power" / "southern_power_annual_generation.csv"
 )
 DEFAULT_OUTPUT_PATH = (
     PROJECT_ROOT
@@ -39,6 +38,13 @@ DEFAULT_OUTPUT_PATH = (
     / "interim"
     / "southern_power"
     / "southern_power_monthly_generation_emissions.csv"
+)
+DEFAULT_ANNUAL_VALIDATION_PATH = (
+    PROJECT_ROOT
+    / "data"
+    / "interim"
+    / "southern_power"
+    / "southern_power_annual_generation_validation.csv"
 )
 
 SUBSIDIARY_COMPANY = "Korea Southern Power"
@@ -61,6 +67,9 @@ GENERATION_COLUMNS = [
     "qvodgen",
     "qvodtrn",
 ]
+GENERATION_REQUIRED_COLUMNS = ["ymd", "ipptnm", "hogi", "qvodgen"]
+ANNUAL_GENERATION_COLUMNS = ["년도", "발전원", "플랜트", "호기", "용량", "발전량"]
+RECONCILIATION_TOLERANCE_PCT = 1.0
 
 SITE_RULES = {
     "한국남부발전㈜하동빛드림본부": ("Hadong", "coal", "unit"),
@@ -107,6 +116,16 @@ def validate_columns(
             f"Unexpected Southern Power {source_name} columns. "
             f"Expected {expected!r}, received {actual!r}."
         )
+
+
+def validate_required_columns(
+    df: pd.DataFrame,
+    required: list[str],
+    source_name: str,
+) -> None:
+    missing = [column for column in required if column not in df.columns]
+    if missing:
+        raise ValueError(f"Southern Power {source_name} is missing columns: {missing!r}")
 
 
 def extract_number(value: object) -> int | None:
@@ -202,22 +221,35 @@ def generation_target(row: pd.Series) -> tuple[str, int | None] | None:
 
 def aggregate_generation(raw: pd.DataFrame) -> pd.DataFrame:
     """Aggregate daily gross generation to the documented monthly granularity."""
-    validate_columns(raw, GENERATION_COLUMNS, "generation")
+    validate_required_columns(raw, GENERATION_REQUIRED_COLUMNS, "generation")
     source = raw.copy()
     targets = source.apply(generation_target, axis=1)
     keep = targets.notna()
     source = source.loc[keep].copy()
     targets = targets.loc[keep]
 
+    if source.empty:
+        return pd.DataFrame(
+            {
+                "date": pd.Series(dtype="datetime64[ns]"),
+                "plant_name": pd.Series(dtype="string"),
+                "plant_number": pd.Series(dtype="Int64"),
+                "energy_generated_mwh": pd.Series(dtype="Float64"),
+                "energy_capacity_mw": pd.Series(dtype="Float64"),
+                "component_count": pd.Series(dtype="Int64"),
+                "generation_days_reported": pd.Series(dtype="Int64"),
+                "generation_days_expected": pd.Series(dtype="Int64"),
+                "generation_coverage_status": pd.Series(dtype="string"),
+            }
+        )
+
     source["plant_name"] = targets.map(lambda value: value[0])
     source["plant_number"] = targets.map(lambda value: value[1])
-    source["date"] = (
-        pd.to_datetime(source["ymd"], format="%Y-%m-%d", errors="raise")
-        .dt.to_period("M")
-        .dt.to_timestamp()
-    )
+    source["source_day"] = pd.to_datetime(source["ymd"], format="%Y-%m-%d", errors="raise")
+    source["date"] = source["source_day"].dt.to_period("M").dt.to_timestamp()
     source["energy_generated_mwh"] = pd.to_numeric(source["qvodgen"], errors="coerce") / 1000
-    source["energy_capacity_mw"] = pd.to_numeric(source["qcapdes"], errors="coerce") / 1000
+    capacity = source["qcapdes"] if "qcapdes" in source else pd.Series(pd.NA, index=source.index)
+    source["energy_capacity_mw"] = pd.to_numeric(capacity, errors="coerce") / 1000
 
     component_month = (
         source.groupby(
@@ -228,6 +260,7 @@ def aggregate_generation(raw: pd.DataFrame) -> pd.DataFrame:
         .agg(
             energy_generated_mwh=("energy_generated_mwh", _sum_with_nulls),
             energy_capacity_mw=("energy_capacity_mw", "max"),
+            generation_days_reported=("source_day", "nunique"),
         )
         .reset_index()
     )
@@ -240,10 +273,22 @@ def aggregate_generation(raw: pd.DataFrame) -> pd.DataFrame:
         .agg(
             energy_generated_mwh=("energy_generated_mwh", _sum_with_nulls),
             energy_capacity_mw=("energy_capacity_mw", _sum_with_nulls),
+            component_count=("hogi", "nunique"),
+            generation_days_reported=("generation_days_reported", "min"),
         )
         .reset_index()
     )
     monthly["plant_number"] = monthly["plant_number"].astype("Int64")
+    monthly["component_count"] = monthly["component_count"].astype("Int64")
+    monthly["generation_days_reported"] = monthly["generation_days_reported"].astype("Int64")
+    monthly["generation_days_expected"] = (
+        monthly["date"]
+        .map(lambda value: calendar.monthrange(value.year, value.month)[1])
+        .astype("Int64")
+    )
+    monthly["generation_coverage_status"] = "partial"
+    complete = monthly["generation_days_reported"].eq(monthly["generation_days_expected"])
+    monthly.loc[complete, "generation_coverage_status"] = "complete"
     return monthly
 
 
@@ -255,26 +300,145 @@ def make_join_key(plant_name: pd.Series, plant_number: pd.Series) -> pd.Series:
 def clean_southern_power(
     emissions_raw: pd.DataFrame,
     generation_raw: pd.DataFrame,
+    hourly_generation_raw: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     """Combine monthly emissions and safely matched monthly generation."""
     emissions = clean_emissions(emissions_raw)
     generation = aggregate_generation(generation_raw)
+    hourly = (
+        aggregate_generation(hourly_generation_raw)
+        if hourly_generation_raw is not None and not hourly_generation_raw.empty
+        else pd.DataFrame()
+    )
     emissions["_join_key"] = make_join_key(emissions["plant_name"], emissions["plant_number"])
     generation["_join_key"] = make_join_key(generation["plant_name"], generation["plant_number"])
+
+    generation = generation.rename(
+        columns={
+            "energy_generated_mwh": "primary_energy_generated_mwh",
+            "component_count": "primary_component_count",
+            "generation_days_reported": "primary_generation_days_reported",
+            "generation_days_expected": "primary_generation_days_expected",
+            "generation_coverage_status": "primary_generation_coverage_status",
+        }
+    )
 
     merged = emissions.merge(
         generation[
             [
                 "date",
                 "_join_key",
-                "energy_generated_mwh",
+                "primary_energy_generated_mwh",
                 "energy_capacity_mw",
+                "primary_component_count",
+                "primary_generation_days_reported",
+                "primary_generation_days_expected",
+                "primary_generation_coverage_status",
             ]
         ],
         on=["date", "_join_key"],
         how="left",
         validate="many_to_one",
     )
+
+    if not hourly.empty:
+        hourly["_join_key"] = make_join_key(hourly["plant_name"], hourly["plant_number"])
+        hourly = hourly.rename(
+            columns={
+                "energy_generated_mwh": "alternate_energy_generated_mwh",
+                "component_count": "alternate_component_count",
+                "generation_days_reported": "alternate_generation_days_reported",
+                "generation_days_expected": "alternate_generation_days_expected",
+                "generation_coverage_status": "alternate_generation_coverage_status",
+            }
+        )
+        merged = merged.merge(
+            hourly[
+                [
+                    "date",
+                    "_join_key",
+                    "alternate_energy_generated_mwh",
+                    "alternate_component_count",
+                    "alternate_generation_days_reported",
+                    "alternate_generation_days_expected",
+                    "alternate_generation_coverage_status",
+                ]
+            ],
+            on=["date", "_join_key"],
+            how="left",
+            validate="many_to_one",
+        )
+    else:
+        for column in [
+            "alternate_energy_generated_mwh",
+            "alternate_component_count",
+            "alternate_generation_days_reported",
+            "alternate_generation_days_expected",
+            "alternate_generation_coverage_status",
+        ]:
+            merged[column] = pd.NA
+
+    primary_present = merged["primary_energy_generated_mwh"].notna()
+    alternate_present = merged["alternate_energy_generated_mwh"].notna()
+    merged["energy_generated_mwh"] = merged["primary_energy_generated_mwh"].combine_first(
+        merged["alternate_energy_generated_mwh"]
+    )
+    merged["generation_source"] = pd.Series("missing", index=merged.index, dtype="string")
+    merged.loc[primary_present, "generation_source"] = "daily_api"
+    merged.loc[~primary_present & alternate_present, "generation_source"] = "hourly_api_fallback"
+    for output, primary, alternate in [
+        ("component_count", "primary_component_count", "alternate_component_count"),
+        (
+            "generation_days_reported",
+            "primary_generation_days_reported",
+            "alternate_generation_days_reported",
+        ),
+        (
+            "generation_days_expected",
+            "primary_generation_days_expected",
+            "alternate_generation_days_expected",
+        ),
+        (
+            "generation_coverage_status",
+            "primary_generation_coverage_status",
+            "alternate_generation_coverage_status",
+        ),
+    ]:
+        merged[output] = merged[primary].combine_first(merged[alternate])
+    merged["generation_coverage_status"] = merged["generation_coverage_status"].fillna("missing")
+
+    both = primary_present & alternate_present
+    denominator = (
+        merged[["primary_energy_generated_mwh", "alternate_energy_generated_mwh"]]
+        .abs()
+        .max(axis=1)
+        .clip(lower=1)
+    )
+    merged["generation_difference_pct"] = (
+        100
+        * (merged["primary_energy_generated_mwh"] - merged["alternate_energy_generated_mwh"]).abs()
+        / denominator
+    ).where(both)
+    merged["generation_reconciliation_status"] = pd.Series(
+        "not_checked", index=merged.index, dtype="string"
+    )
+    merged.loc[~primary_present & alternate_present, "generation_reconciliation_status"] = (
+        "alternate_fill"
+    )
+    merged.loc[both, "generation_reconciliation_status"] = "mismatch"
+    merged.loc[
+        both & merged["generation_difference_pct"].le(RECONCILIATION_TOLERANCE_PCT),
+        "generation_reconciliation_status",
+    ] = "matched"
+
+    def observation_level(plant: str) -> str:
+        if plant in {"Andong", "Hallim", "Namjeju Combined", "Shinsejong"}:
+            return "plant"
+        if plant in {"Busan", "Shin-Incheon", "Yeongwol"}:
+            return "gas_turbine"
+        return "generating_unit"
+
+    merged["observation_level"] = merged["plant_name"].map(observation_level)
 
     cleaned = pd.DataFrame(
         {
@@ -289,6 +453,15 @@ def clean_southern_power(
             "energy_type": merged["energy_type"],
             "energy_generated_mwh": merged["energy_generated_mwh"],
             "energy_capacity_mw": merged["energy_capacity_mw"],
+            "observation_level": merged["observation_level"],
+            "component_count": merged["component_count"],
+            "generation_source": merged["generation_source"],
+            "generation_days_reported": merged["generation_days_reported"],
+            "generation_days_expected": merged["generation_days_expected"],
+            "generation_coverage_status": merged["generation_coverage_status"],
+            "alternate_energy_generated_mwh": merged["alternate_energy_generated_mwh"],
+            "generation_difference_pct": merged["generation_difference_pct"],
+            "generation_reconciliation_status": merged["generation_reconciliation_status"],
             "nox": merged["nox"],
             "sox": merged["sox"],
             "dust_tsp": merged["dust_tsp"],
@@ -306,9 +479,13 @@ def clean_southern_power(
     )
 
     cleaned["plant_number"] = cleaned["plant_number"].astype("Int64")
+    for column in ["component_count", "generation_days_reported", "generation_days_expected"]:
+        cleaned[column] = cleaned[column].astype("Int64")
     for column in [
         "energy_generated_mwh",
         "energy_capacity_mw",
+        "alternate_energy_generated_mwh",
+        "generation_difference_pct",
         "nox",
         "sox",
         "dust_tsp",
@@ -321,6 +498,10 @@ def clean_southern_power(
         "plant_name",
         "subsidiary_company",
         "energy_type",
+        "observation_level",
+        "generation_source",
+        "generation_coverage_status",
+        "generation_reconciliation_status",
         "pollutant_measurement_basis",
         "nox_unit",
         "sox_unit",
@@ -338,6 +519,7 @@ def clean_southern_power(
 def load_and_clean(
     emissions_path: Path,
     generation_path: Path,
+    hourly_generation_path: Path | None = None,
 ) -> pd.DataFrame:
     emissions = pd.read_csv(emissions_path, encoding="utf-8-sig", dtype={"호기": "string"})
     generation = pd.read_csv(
@@ -345,7 +527,85 @@ def load_and_clean(
         encoding="utf-8-sig",
         dtype="string",
     )
-    return clean_southern_power(emissions, generation)
+    hourly = None
+    if hourly_generation_path is not None and hourly_generation_path.exists():
+        hourly = pd.read_csv(hourly_generation_path, encoding="utf-8-sig", dtype="string")
+    return clean_southern_power(emissions, generation, hourly)
+
+
+def build_annual_validation(cleaned: pd.DataFrame, annual_raw: pd.DataFrame) -> pd.DataFrame:
+    """Compare monthly plant-year sums with Southern's official annual file."""
+    validate_columns(annual_raw, ANNUAL_GENERATION_COLUMNS, "annual generation")
+    source = annual_raw.copy()
+
+    def annual_plant(row: pd.Series) -> str | None:
+        plant = str(row["플랜트"])
+        unit = str(row["호기"])
+        fuel = str(row["발전원"])
+        if "하동" in plant:
+            return "Hadong"
+        if "영월" in plant:
+            return "Yeongwol"
+        if "안동" in plant:
+            return "Andong"
+        if "신인천" in plant:
+            return "Shin-Incheon"
+        if "신세종" in plant:
+            return "Shinsejong"
+        if "삼척" in plant:
+            return "Samcheok"
+        if "부산" in plant:
+            return "Busan"
+        if "남제주" in plant:
+            if "한림" in unit:
+                return "Hallim"
+            if "복합" in fuel or "CC" in unit.upper():
+                return "Namjeju Combined"
+            return "Namjeju Steam"
+        return None
+
+    source["plant_name"] = source.apply(annual_plant, axis=1)
+    source = source[source["plant_name"].notna()].copy()
+    source["year"] = pd.to_numeric(source["년도"], errors="raise").astype(int)
+    source["annual_reported_generation_mwh"] = (
+        pd.to_numeric(source["발전량"], errors="coerce") / 1000
+    )
+    annual = source.groupby(["year", "plant_name"], as_index=False).agg(
+        annual_reported_generation_mwh=("annual_reported_generation_mwh", _sum_with_nulls)
+    )
+    monthly = cleaned.copy()
+    monthly["date"] = pd.to_datetime(monthly["date"])
+    monthly["year"] = monthly["date"].dt.year
+    plant_month = monthly.groupby(["year", "plant_name", "date"], as_index=False).agg(
+        monthly_generation_mwh=("energy_generated_mwh", _sum_with_nulls),
+        partial_months=(
+            "generation_coverage_status",
+            lambda values: int(values.ne("complete").any()),
+        ),
+    )
+    monthly = plant_month.groupby(["year", "plant_name"], as_index=False).agg(
+        monthly_generation_mwh=("monthly_generation_mwh", _sum_with_nulls),
+        months_present=("date", "nunique"),
+        partial_months=("partial_months", "sum"),
+    )
+    result = annual.merge(monthly, on=["year", "plant_name"], how="left", validate="one_to_one")
+    denominator = result["annual_reported_generation_mwh"].abs().clip(lower=1)
+    result["difference_pct"] = (
+        100
+        * (result["monthly_generation_mwh"] - result["annual_reported_generation_mwh"]).abs()
+        / denominator
+    )
+    result["validation_status"] = "mismatch"
+    result.loc[result["monthly_generation_mwh"].isna(), "validation_status"] = "monthly_missing"
+    incomplete = result["months_present"].fillna(0).lt(12) | result["partial_months"].fillna(0).gt(
+        0
+    )
+    result.loc[incomplete & result["monthly_generation_mwh"].notna(), "validation_status"] = (
+        "incomplete_monthly_coverage"
+    )
+    matched = ~incomplete & result["difference_pct"].le(RECONCILIATION_TOLERANCE_PCT)
+    result.loc[matched, "validation_status"] = "matched"
+    return result.sort_values(["year", "plant_name"], ignore_index=True)
 
 
 def save_cleaned(df: pd.DataFrame, output_path: Path) -> None:
@@ -353,18 +613,42 @@ def save_cleaned(df: pd.DataFrame, output_path: Path) -> None:
     df.to_csv(output_path, index=False, encoding="utf-8")
 
 
+def read_annual_generation(path: Path) -> pd.DataFrame:
+    """Read the provider file, which has appeared in UTF-8 and CP949 variants."""
+    try:
+        return pd.read_csv(path, encoding="utf-8-sig")
+    except UnicodeDecodeError:
+        return pd.read_csv(path, encoding="cp949")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--emissions-path", type=Path, default=DEFAULT_EMISSIONS_PATH)
     parser.add_argument("--generation-path", type=Path, default=DEFAULT_GENERATION_PATH)
+    parser.add_argument(
+        "--hourly-generation-path", type=Path, default=DEFAULT_HOURLY_GENERATION_PATH
+    )
+    parser.add_argument(
+        "--annual-generation-path", type=Path, default=DEFAULT_ANNUAL_GENERATION_PATH
+    )
+    parser.add_argument(
+        "--annual-validation-path", type=Path, default=DEFAULT_ANNUAL_VALIDATION_PATH
+    )
     parser.add_argument("--output-path", type=Path, default=DEFAULT_OUTPUT_PATH)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    cleaned = load_and_clean(args.emissions_path, args.generation_path)
+    cleaned = load_and_clean(
+        args.emissions_path, args.generation_path, args.hourly_generation_path
+    )
     save_cleaned(cleaned, args.output_path)
+    if args.annual_generation_path.exists():
+        annual_raw = read_annual_generation(args.annual_generation_path)
+        validation = build_annual_validation(cleaned, annual_raw)
+        save_cleaned(validation, args.annual_validation_path)
+        print(f"Saved {len(validation)} annual validation rows to {args.annual_validation_path}")
     matched = cleaned["energy_generated_mwh"].notna().sum()
     print(f"Saved {len(cleaned)} cleaned rows to {args.output_path}")
     print(f"Monthly coverage: {cleaned['date'].min():%Y-%m} to {cleaned['date'].max():%Y-%m}")

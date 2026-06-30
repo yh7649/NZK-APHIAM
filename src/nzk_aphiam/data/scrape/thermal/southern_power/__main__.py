@@ -5,8 +5,10 @@ from collections.abc import Sequence
 import sys
 
 from nzk_aphiam.data.scrape.thermal.southern_power import (
+    annual_generation_scraper,
     emissions_scraper,
     generation_scraper,
+    hourly_generation_scraper,
 )
 
 
@@ -15,7 +17,7 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Download raw Southern Power datasets.")
     parser.add_argument(
         "dataset",
-        choices=("emissions", "generation"),
+        choices=("emissions", "generation", "hourly-generation", "annual-generation"),
         help="Raw dataset to download.",
     )
 
@@ -28,8 +30,12 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     if args.dataset == "emissions":
         emissions_scraper.main(scraper_args)
-    else:
+    elif args.dataset == "generation":
         generation_scraper.main(scraper_args)
+    elif args.dataset == "hourly-generation":
+        hourly_generation_scraper.main(scraper_args)
+    else:
+        annual_generation_scraper.main(scraper_args)
 
 
 if __name__ == "__main__":

@@ -1,8 +1,16 @@
 from __future__ import annotations
 
-import pandas as pd
+from pathlib import Path
 
-from nzk_aphiam.data.audit.thermal.auditor import append_audit_columns, audit_subsidiary
+import pandas as pd
+import pytest
+
+from nzk_aphiam.data.audit.thermal.auditor import (
+    AUDIT_COLUMNS,
+    append_audit_columns,
+    audit_all,
+    audit_subsidiary,
+)
 from nzk_aphiam.data.clean.thermal.schema import COMBINED_THERMAL_OUTPUT_COLUMNS
 
 
@@ -116,3 +124,50 @@ def test_append_audit_columns_handles_no_flags() -> None:
 
     assert pd.isna(result.loc[0, "audit_severity"])
     assert pd.isna(result.loc[0, "audit_issue_codes"])
+
+
+def test_audit_all_rebuilds_final_combined_with_audit_columns(tmp_path: Path) -> None:
+    processed_dir = tmp_path / "processed" / "subsidiaries"
+    results_dir = tmp_path / "results"
+    combined_path = tmp_path / "processed" / "kepco_monthly_generation_emissions.csv"
+    metadata_path = tmp_path / "processed" / "kepco_monthly_generation_emissions_metadata.csv"
+    processed_dir.mkdir(parents=True)
+    metadata_path.parent.mkdir(parents=True, exist_ok=True)
+
+    names = ["second_source", "first_source"]
+    for name, date, generation in [
+        ("second_source", "2025-02-01", -1.0),
+        ("first_source", "2025-01-01", 100.0),
+    ]:
+        data = make_data([make_row(date=date, energy_generated_mwh=generation)])
+        data["source_dataset"] = name
+        data.to_csv(processed_dir / f"{name}_monthly_generation_emissions.csv", index=False)
+
+    pd.DataFrame(
+        {
+            "varname": COMBINED_THERMAL_OUTPUT_COLUMNS,
+            "label": COMBINED_THERMAL_OUTPUT_COLUMNS,
+        }
+    ).to_csv(metadata_path, index=False)
+
+    audit_all(
+        names,
+        processed_dir=processed_dir,
+        results_dir=results_dir,
+        combined_output_path=combined_path,
+        metadata_path=metadata_path,
+    )
+
+    combined = pd.read_csv(combined_path)
+    assert len(combined) == 2
+    assert combined["source_dataset"].tolist() == ["first_source", "second_source"]
+    assert list(combined.columns[-2:]) == AUDIT_COLUMNS
+    assert combined.loc[1, "audit_severity"] == "critical"
+
+    metadata = pd.read_csv(metadata_path)
+    assert metadata["varname"].tolist()[-2:] == AUDIT_COLUMNS
+
+
+def test_audit_subset_cannot_replace_canonical_combined() -> None:
+    with pytest.raises(ValueError, match="subsidiary subset"):
+        audit_all(["eastwest_power"])

@@ -194,6 +194,12 @@ rsconnect/
 *.Rproj.user
 *.nb.html
 
+# Stata
+*.smcl
+*.stpr
+*.dta
+stata.log
+
 # Generated analysis figures
 results/figures/
 
