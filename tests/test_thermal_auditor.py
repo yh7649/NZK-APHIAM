@@ -126,6 +126,66 @@ def test_append_audit_columns_handles_no_flags() -> None:
     assert pd.isna(result.loc[0, "audit_issue_codes"])
 
 
+def make_monthly_series(
+    *,
+    n_months: int,
+    start: str = "2015-01-01",
+    baseline_nox: float = 50.0,
+    shift_nox: float | None = None,
+    shift_months: int = 12,
+) -> list[dict[str, object]]:
+    """Build one unit's monthly rows, optionally shifting `nox` for the tail months."""
+    dates = pd.date_range(start, periods=n_months, freq="MS")
+    rows = []
+    for i, date in enumerate(dates):
+        in_shift = shift_nox is not None and i >= n_months - shift_months
+        rows.append(
+            make_row(
+                date=date.strftime("%Y-%m-%d"),
+                nox=shift_nox if in_shift else baseline_nox,
+            )
+        )
+    return rows
+
+
+def test_recent_shift_high_flagged_against_pre_window_baseline() -> None:
+    rows = make_monthly_series(n_months=40, baseline_nox=50.0, shift_nox=5000.0)
+    result = audit_subsidiary("test", make_data(rows))
+
+    flagged = result.flags[result.flags["issue_code"] == "recent_shift_high_nox_mass"]
+    assert len(flagged) == 12
+    assert (flagged["severity"] == "warning").all()
+    assert flagged["date"].min() == pd.Timestamp("2017-05-01")
+
+
+def test_recent_shift_low_flagged_against_pre_window_baseline() -> None:
+    rows = make_monthly_series(n_months=40, baseline_nox=5000.0, shift_nox=5.0)
+    result = audit_subsidiary("test", make_data(rows))
+
+    flagged = result.flags[result.flags["issue_code"] == "recent_shift_low_nox_mass"]
+    assert len(flagged) == 12
+    assert (flagged["severity"] == "warning").all()
+
+
+def test_recent_shift_not_flagged_without_enough_baseline_history() -> None:
+    # Only 20 months total, so fewer than BASELINE_MIN_MONTHS (24) remain once
+    # the most recent 12 months are excluded as the evaluation window.
+    rows = make_monthly_series(n_months=20, baseline_nox=50.0, shift_nox=5000.0)
+    result = audit_subsidiary("test", make_data(rows))
+
+    codes = set(result.flags["issue_code"]) if not result.flags.empty else set()
+    assert "recent_shift_high_nox_mass" not in codes
+
+
+def test_recent_shift_not_flagged_when_level_is_stable() -> None:
+    rows = make_monthly_series(n_months=36, baseline_nox=50.0, shift_nox=None)
+    result = audit_subsidiary("test", make_data(rows))
+
+    codes = set(result.flags["issue_code"]) if not result.flags.empty else set()
+    assert "recent_shift_high_nox_mass" not in codes
+    assert "recent_shift_low_nox_mass" not in codes
+
+
 def test_audit_all_rebuilds_final_combined_with_audit_columns(tmp_path: Path) -> None:
     processed_dir = tmp_path / "processed" / "subsidiaries"
     results_dir = tmp_path / "results"

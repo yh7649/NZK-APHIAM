@@ -211,12 +211,6 @@ pollutants <- data.frame(
 )
 
 analysis_eastwest <- eastwest
-analysis_eastwest$plant_unit_id <- paste(
-  analysis_eastwest$plant_name,
-  ifelse(is.na(analysis_eastwest$plant_number), "NA", analysis_eastwest$plant_number),
-  analysis_eastwest$energy_type,
-  sep = " | "
-)
 analysis_eastwest$energy_type_clean <- ifelse(
   is.na(analysis_eastwest$energy_type) | analysis_eastwest$energy_type == "",
   "unknown",
@@ -283,29 +277,45 @@ line_colors <- c(
   "#56B4E9", "#CC79A7"
 )
 
+# Pollutant values are excluded from analysis using the Python auditor's own
+# audit_severity/audit_issue_codes (src/nzk_aphiam/data/audit/thermal/auditor.py),
+# not a second, independently computed IQR check. Recomputing the same kind of
+# threshold here in R duplicated logic that already lives in the audited
+# subsidiary file and could silently drift from it.
+#
+# A row is excluded for a given pollutant only when one of that pollutant's
+# own warning-or-critical-tier issue codes is present -- not merely because
+# the row's overall audit_severity (the worst flag across *any* pollutant) is
+# elevated. review-tier flags (e.g. high_X_mass, a one-off outlier against the
+# unit's full history) are left in place; only the higher-confidence codes
+# below are excluded:
+#   - high_<pollutant>_emission_factor (warning)
+#   - recent_shift_high_<pollutant>_mass / recent_shift_low_<pollutant>_mass (warning)
+#   - zero_nox_with_generation / zero_sox_coal_generation / zero_dust_tsp_coal_generation (warning)
+audit_exclusion_pattern <- function(pollutant) {
+  paste0(
+    "high_", pollutant, "_emission_factor",
+    "|recent_shift_(high|low)_", pollutant, "_mass",
+    "|zero_", pollutant, "_(with_generation|coal_generation)"
+  )
+}
+
 outlier_log <- data.frame()
 
 for (i in seq_len(nrow(pollutants))) {
   ef_var <- pollutants$ef[[i]]
   outlier_var <- paste0("high_outlier_", pollutants$pollutant[[i]])
-  analysis_eastwest[[outlier_var]] <- FALSE
 
-  split_values <- split(analysis_eastwest[[ef_var]], analysis_eastwest$plant_unit_id)
-  q1 <- vapply(split_values, quantile, numeric(1), probs = 0.25, na.rm = TRUE)
-  q3 <- vapply(split_values, quantile, numeric(1), probs = 0.75, na.rm = TRUE)
-  n_valid <- vapply(split_values, function(x) sum(!is.na(x)), integer(1))
-  iqr <- q3 - q1
-
-  threshold <- q3 + 3 * iqr
-  id <- analysis_eastwest$plant_unit_id
-  analysis_eastwest[[outlier_var]] <- !is.na(analysis_eastwest[[ef_var]]) &
-    n_valid[id] >= 12 &
-    iqr[id] > 0 &
-    analysis_eastwest[[ef_var]] > threshold[id]
+  issue_codes <- ifelse(
+    is.na(analysis_eastwest$audit_issue_codes), "", analysis_eastwest$audit_issue_codes
+  )
+  analysis_eastwest[[outlier_var]] <- analysis_eastwest$audit_severity %in% c("critical", "warning") &
+    grepl(audit_exclusion_pattern(pollutants$pollutant[[i]]), issue_codes)
 
   flagged <- analysis_eastwest[analysis_eastwest[[outlier_var]], c(
     "source_dataset", "date", "plant_name", "plant_number", "energy_type_clean",
-    "energy_generated_mwh", pollutants$pollutant[[i]], ef_var
+    "energy_generated_mwh", pollutants$pollutant[[i]], ef_var,
+    "audit_severity", "audit_issue_codes"
   )]
 
   if (nrow(flagged) > 0) {
@@ -319,7 +329,7 @@ for (i in seq_len(nrow(pollutants))) {
   analysis_eastwest[[ef_var]][analysis_eastwest[[outlier_var]]] <- NA_real_
 }
 
-save_table(outlier_log, "eastwest_power_ef_outliers_removed.csv")
+save_table(outlier_log, "eastwest_power_audit_excluded.csv")
 
 summarize_vector <- function(x) {
   x <- x[!is.na(x)]
@@ -383,7 +393,7 @@ coverage_by_plant_fuel <- aggregate(
 )
 save_table(coverage_by_plant_fuel, "eastwest_power_ef_coverage_by_plant_fuel.csv")
 
-aggregate_ef <- function(data, group_vars, pollutant) {
+aggregate_ef <- function(data, group_vars, pollutant, min_coverage_pct = 0.5) {
   keep <- !is.na(data[[pollutant]]) &
     !is.na(data$energy_generated_mwh) &
     data$energy_generated_mwh > 0
@@ -398,7 +408,32 @@ aggregate_ef <- function(data, group_vars, pollutant) {
   names(emissions)[ncol(emissions)] <- "emissions_kg"
   names(generation)[ncol(generation)] <- "generation_mwh"
 
+  # Compare surviving (non-excluded) generation to full-fleet generation for
+  # the same group-date. When the audit filter removes most of a fuel type's
+  # or plant's high-output units, the aggregate EF is no longer representative
+  # of the fleet; drop such months rather than let a biased, tiny-sample
+  # average pollute the trend line.
+  all_gen_rows <- data$energy_generated_mwh > 0 & !is.na(data$energy_generated_mwh)
+  total_gen <- aggregate(
+    data$energy_generated_mwh[all_gen_rows],
+    data[all_gen_rows, group_vars, drop = FALSE],
+    sum,
+    na.rm = TRUE
+  )
+  names(total_gen)[ncol(total_gen)] <- "total_generation_mwh"
+
   out <- merge(emissions, generation, by = group_vars, all = TRUE)
+  out <- merge(out, total_gen, by = group_vars, all.x = TRUE)
+  out <- out[
+    !is.na(out$total_generation_mwh) &
+      (out$generation_mwh / out$total_generation_mwh) >= min_coverage_pct,
+  ]
+  out$total_generation_mwh <- NULL
+
+  if (nrow(out) == 0) {
+    return(data.frame())
+  }
+
   out$ef_kg_per_mwh <- out$emissions_kg / out$generation_mwh
   out <- out[order(out$date), ]
 

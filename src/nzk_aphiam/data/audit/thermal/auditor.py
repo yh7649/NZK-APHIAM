@@ -29,6 +29,8 @@ MEASURES = ["energy_generated_mwh", "energy_capacity_mw", "nox", "sox", "dust_ts
 POLLUTANTS = ["nox", "sox", "dust_tsp"]
 SEVERITY_ORDER = {"critical": 0, "warning": 1, "review": 2}
 SELECT_COLUMNS = KEY + ["energy_type", "energy_generated_mwh", "energy_capacity_mw"]
+RECENT_WINDOW_MONTHS = 12
+BASELINE_MIN_MONTHS = 24
 
 SUBSIDIARY_NAMES = [
     "eastwest_power",
@@ -101,6 +103,51 @@ def robust_high_thresholds(data: pd.DataFrame, value: pd.Series) -> pd.Series:
     stats.loc[stats["n"] < 12, "threshold"] = np.nan
     index = pd.MultiIndex.from_frame(data[GROUP_KEY])
     return pd.Series(index.map(stats["threshold"]), index=data.index, dtype=float)
+
+
+def baseline_window_log_thresholds(data: pd.DataFrame, value: pd.Series) -> tuple[pd.Series, pd.Series]:
+    """Return unit-specific high/low thresholds, in log1p space, computed only
+    from each unit's history before its most recent ``RECENT_WINDOW_MONTHS``.
+
+    ``robust_high_thresholds`` mixes the recent window into its own reference
+    population, so once a level shift persists long enough it inflates (or
+    deflates) the very threshold meant to catch it. Excluding the recent
+    window from the reference population keeps the threshold anchored to
+    unaffected history, requiring ``BASELINE_MIN_MONTHS`` of pre-recent-window
+    values before a unit gets a threshold at all.
+
+    Quantiles are computed on ``log1p(value)`` rather than the raw scale.
+    Pollutant mass is strictly positive and right-skewed, so a linear Q1 - 3
+    IQR fence almost always goes negative and gets clipped to zero -- useless
+    for catching a collapse to a small-but-nonzero value. Working in log
+    space keeps the low fence meaningful without an artificial floor (a
+    negative log-space threshold simply means no nonnegative value can ever
+    be low enough to trip it, which is the same effect a zero floor would
+    have). Callers should compare against ``log1p(value)`` directly rather
+    than converting these thresholds back to linear scale, since the round
+    trip through ``expm1(log1p(x))`` is not exact and can spuriously flag a
+    value equal to its own threshold.
+    """
+    cutoff = data["date"].max() - pd.DateOffset(months=RECENT_WINDOW_MONTHS)
+    work = data[GROUP_KEY].copy()
+    work["date"] = data["date"]
+    work["value"] = np.log1p(value)
+    baseline = work.loc[work["date"] < cutoff].dropna(subset=["value"])
+    grouped = baseline.groupby(GROUP_KEY, dropna=False)["value"]
+    stats = grouped.agg(
+        n="count",
+        q1=lambda x: x.quantile(0.25),
+        q3=lambda x: x.quantile(0.75),
+    )
+    iqr = stats["q3"] - stats["q1"]
+    stats["high"] = stats["q3"] + 3 * iqr
+    stats["low"] = stats["q1"] - 3 * iqr
+    insufficient = stats["n"] < BASELINE_MIN_MONTHS
+    stats.loc[insufficient, ["high", "low"]] = np.nan
+    index = pd.MultiIndex.from_frame(data[GROUP_KEY])
+    high = pd.Series(index.map(stats["high"]), index=data.index, dtype=float)
+    low = pd.Series(index.map(stats["low"]), index=data.index, dtype=float)
+    return low, high
 
 
 def audit_subsidiary(name: str, data: pd.DataFrame) -> AuditResult:
@@ -276,6 +323,36 @@ def audit_subsidiary(name: str, data: pd.DataFrame) -> AuditResult:
             "driven by very low generation.",
         )
 
+        recent = data["date"] >= (data["date"].max() - pd.DateOffset(months=RECENT_WINDOW_MONTHS))
+        log_value = np.log1p(data[pollutant])
+        baseline_log_low, baseline_log_high = baseline_window_log_thresholds(data, data[pollutant])
+        add_flags(
+            flags,
+            data,
+            recent & log_value.notna() & log_value.gt(baseline_log_high),
+            f"recent_shift_high_{pollutant}_mass",
+            "warning",
+            pollutant,
+            data[pollutant],
+            "unit's pre-recent-window Q3 + 3 IQR",
+            f"The last {RECENT_WINDOW_MONTHS} months are far above this unit's own history "
+            "from before that window -- a full-history threshold can miss this once the new "
+            "level persists long enough to raise it.",
+        )
+        add_flags(
+            flags,
+            data,
+            recent & active & generation.gt(0) & log_value.notna() & log_value.lt(baseline_log_low),
+            f"recent_shift_low_{pollutant}_mass",
+            "warning",
+            pollutant,
+            data[pollutant],
+            "unit's pre-recent-window Q1 - 3 IQR (log scale)",
+            f"The last {RECENT_WINDOW_MONTHS} months are far below this unit's own history "
+            "from before that window while still actively generating -- could indicate a "
+            "measurement, column-mapping, or reporting break rather than a real emissions drop.",
+        )
+
     flag_data = (
         pd.concat(flags, ignore_index=False)
         if flags
@@ -349,6 +426,20 @@ def audit_subsidiary(name: str, data: pd.DataFrame) -> AuditResult:
                 "check": "all_generation_within_nameplate",
                 "passed": not cf.gt(1).any(),
                 "detail": f"{int(cf.gt(1).sum())} rows above capacity factor 1",
+            },
+            {
+                "check": "no_recent_pollutant_level_shifts",
+                "passed": not flag_data["issue_code"].str.startswith("recent_shift_").any()
+                if not flag_data.empty
+                else True,
+                "detail": (
+                    f"{int(flag_data['issue_code'].str.startswith('recent_shift_').sum())} "
+                    f"flags where the last {RECENT_WINDOW_MONTHS} months differ sharply from "
+                    "each unit's own earlier history"
+                )
+                if not flag_data.empty
+                else f"0 flags where the last {RECENT_WINDOW_MONTHS} months differ sharply "
+                "from each unit's own earlier history",
             },
         ]
     )

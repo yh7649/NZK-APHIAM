@@ -278,10 +278,26 @@ make combine-kepco
 The auditor is implemented in
 `src/nzk_aphiam/data/audit/thermal/auditor.py` and runs the same checks
 (duplicate unit-months, negative values, nameplate violations, zero
-generation, zero pollutants alongside positive generation, and unit-specific
-outlier mass/emission-factor thresholds) across all five subsidiaries,
-generalized from a unit-resolution audit originally written for East-West
-Power only.
+generation, zero pollutants alongside positive generation, unit-specific
+outlier mass/emission-factor thresholds, and a recent-vs-baseline level-shift
+check) across all five subsidiaries, generalized from a unit-resolution audit
+originally written for East-West Power only.
+
+The level-shift check (`recent_shift_high_*`/`recent_shift_low_*`) exists
+because the full-history outlier thresholds have a blind spot: if a unit's
+reporting shifts to a sustained new level (not a one-off spike), enough
+months eventually accumulate at the new level to pull the unit's own
+historical Q1/Q3 toward it, and the threshold stops catching the very rows
+it was meant to catch. This check instead computes each unit's threshold
+only from data before its most recent 12 months, so a sustained shift in
+that window is judged against unaffected history. It requires 24 months of
+pre-window history per unit, and computes quantiles on a log scale so the
+low-side fence stays meaningful for strictly positive, right-skewed
+pollutant data instead of clipping to zero. It is `warning` severity, not
+`critical`, because a detected shift can be a genuine operational change
+(e.g. an SCR/FGD retrofit cutting an emission factor) as easily as a
+reporting problem -- the check flags "statistically different from this
+unit's own history," not "wrong."
 
 It is deliberately non-destructive: it never drops or imputes a row. Instead
 it rewrites each subsidiary's processed CSV and the final combined CSV with two additional
