@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from nzk_aphiam.data.clean.thermal.location_crosswalk import apply_location_crosswalk
 from nzk_aphiam.data.clean.thermal.schema import THERMAL_OUTPUT_COLUMNS
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
@@ -250,7 +251,7 @@ def clean_eastwest_power(raw: pd.DataFrame) -> pd.DataFrame:
     ]:
         cleaned[column] = cleaned[column].astype("string")
 
-    return cleaned
+    return apply_location_crosswalk(cleaned)
 
 
 def load_and_clean(input_path: Path) -> pd.DataFrame:

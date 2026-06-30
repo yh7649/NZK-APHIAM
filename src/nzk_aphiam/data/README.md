@@ -362,13 +362,13 @@ make combine-kepco
 The preferred outputs are one file per subsidiary:
 
 ```text
-data/kepco/processed/subsidiaries/<source>_monthly_generation_emissions.csv
+data/processed/kepco/subsidiaries/<source>_monthly_generation_emissions.csv
 ```
 
 Field completeness for each product is recorded in:
 
 ```text
-data/kepco/processed/subsidiaries/subsidiary_coverage.csv
+data/processed/kepco/subsidiaries/subsidiary_coverage.csv
 ```
 
 Use this table to distinguish full generation-and-emissions panels from
@@ -376,7 +376,7 @@ emissions-only sources. Missing values are preserved rather than imputed. A
 combined backward-compatible output is also written to:
 
 ```text
-data/kepco/processed/kepco_monthly_generation_emissions.csv
+data/processed/kepco/kepco_monthly_generation_emissions.csv
 ```
 
 The dataset description is:
@@ -407,14 +407,15 @@ pollutant concentrations and flue-gas flow.
 
 ## Audit Stage
 
-After `combine-kepco`, audit every subsidiary's processed file for outliers
-and reporting anomalies:
+`combine-kepco` audits every subsidiary's freshly standardized data before
+merging it into the final combined file, so the combined output is always
+analysis-ready -- there is no separate step to remember to run afterward:
 
 ```bash
-make audit-kepco
+make combine-kepco
 ```
 
-or clean, combine, and audit together:
+or, to also re-clean every subsidiary from raw data first:
 
 ```bash
 make reproduce-kepco-monthly
@@ -432,9 +433,9 @@ It never drops or imputes a row. It rewrites each subsidiary's processed CSV
 and the final combined CSV with `audit_severity` (the worst flag raised, or missing) and
 `audit_issue_codes` (every issue code, joined with `;`), and writes
 long-format flag detail and summary tables to
-`results/tables/<subsidiary>/audit/`. Re-running `combine-kepco` after
-`audit-kepco` rebuilds the subsidiary and combined files from interim data and
-removes the audit columns until `audit-kepco` runs again.
+`results/tables/<subsidiary>/audit/`. To re-run just the audit stage without
+recombining (e.g. after changing a threshold but not the data), use
+`make audit-kepco`.
 
 ## South-East Power
 

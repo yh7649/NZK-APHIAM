@@ -507,6 +507,10 @@ for (i in seq_len(nrow(pollutants))) {
 
 
 # ---- Structural Break and Projection -----------------------------------------
+# Paused: holding off on EF break/plateau projections for now (2026-06-30).
+# Wrapped in `if (FALSE)` rather than deleted so this can be re-enabled
+# later without reconstructing it from git history.
+if (FALSE) {
 
 fit_break_projection <- function(
   series,
@@ -770,6 +774,8 @@ for (i in seq_len(nrow(pollutants))) {
 
 projection_summary <- bind_rows(projection_summaries)
 save_table(projection_summary, "annual_break_projection_summary.csv")
+
+} # end paused EF projection block
 
 cat("\nAnnual plant analysis complete.\n")
 cat("Summary tables saved under:", tables_dir, "\n")

@@ -54,7 +54,7 @@ if `"$project_root"' == "" {
 global data_root           "$project_root/data"
 global raw_root            "$data_root/raw"
 global interim_root        "$data_root/interim"
-global kepco_processed_root "$data_root/kepco/processed"
+global kepco_processed_root "$data_root/processed/kepco"
 global results_root        "$project_root/results"
 
 di as text "Project root: $project_root"

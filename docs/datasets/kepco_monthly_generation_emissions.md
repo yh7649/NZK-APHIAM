@@ -17,12 +17,12 @@ pollutant mass emissions for it.
 
 The preferred processed datasets are:
 
-- `data/kepco/processed/subsidiaries/eastwest_power_monthly_generation_emissions.csv`
-- `data/kepco/processed/subsidiaries/western_power_monthly_generation_emissions.csv`
-- `data/kepco/processed/subsidiaries/southern_power_monthly_generation_emissions.csv`
-- `data/kepco/processed/subsidiaries/southeast_power_monthly_generation_emissions.csv`
-- `data/kepco/processed/subsidiaries/midland_power_monthly_generation_emissions.csv`
-- `data/kepco/processed/subsidiaries/subsidiary_coverage.csv`
+- `data/processed/kepco/subsidiaries/eastwest_power_monthly_generation_emissions.csv`
+- `data/processed/kepco/subsidiaries/western_power_monthly_generation_emissions.csv`
+- `data/processed/kepco/subsidiaries/southern_power_monthly_generation_emissions.csv`
+- `data/processed/kepco/subsidiaries/southeast_power_monthly_generation_emissions.csv`
+- `data/processed/kepco/subsidiaries/midland_power_monthly_generation_emissions.csv`
+- `data/processed/kepco/subsidiaries/subsidiary_coverage.csv`
 
 These keep the common schema and kilogram standardization while making each
 source's usable fields and time coverage explicit. The coverage table reports
@@ -31,11 +31,11 @@ each pollutant. Missing source values are not imputed.
 
 The combined dataset remains available for backward compatibility:
 
-- `data/kepco/processed/kepco_monthly_generation_emissions.csv`
+- `data/processed/kepco/kepco_monthly_generation_emissions.csv`
 
 The column metadata file is:
 
-- `data/kepco/processed/kepco_monthly_generation_emissions_metadata.csv`
+- `data/processed/kepco/kepco_monthly_generation_emissions_metadata.csv`
 
 ## Current Coverage
 
@@ -60,7 +60,7 @@ Current-value variables:
 
 A local current-values file may be kept beside the processed data at:
 
-- `data/kepco/processed/README.md`
+- `data/processed/kepco/README.md`
 
 ## Unit of Observation
 
@@ -133,9 +133,9 @@ below are grouped by how often you actually need them:
   `alternate_energy_generated_mwh`, `generation_difference_pct`,
   `generation_reconciliation_status`, `pollutant_data_pattern`,
   `reporting_start_date`, `reporting_end_date`, `reporting_window_basis`.
-  After running `make audit-kepco`, the combined and subsidiary processed files
-  also carry `audit_severity` and `audit_issue_codes` from this tier; see
-  [Audit Stage](#audit-stage) below.
+  The combined and subsidiary processed files also carry `audit_severity`
+  and `audit_issue_codes` from this tier, populated automatically by
+  `combine-kepco`; see [Audit Stage](#audit-stage) below.
 - **Units and encoding** (constant or near-constant within a column;
   consult once, then ignore): `pollutant_measurement_basis`, `nox_unit`,
   `sox_unit`, `dust_tsp_unit`, `emissions_mass_unit`, `operator_category`,
@@ -143,9 +143,12 @@ below are grouped by how often you actually need them:
 - **Source-language reference** (useful for tracing a row back to the
   original filing, rarely used in analysis): `original_korean_plant_name`,
   `original_korean_note`.
-- **Largely unpopulated today** (kept for schema stability if a source ever
-  supplies them): `plant_opening_date`, `plant_closing_date`,
-  `plant_latitude`, `plant_longitude`.
+- **Plant location and dates** (populated for plants matched in
+  `docs/references/crosswalk/plant_location_dates.csv`; blank where the
+  match is unconfirmed or the source roster has no coordinates -- see
+  that file's `match_status` column before assuming a blank means
+  "unknown" versus "not yet looked up"): `plant_opening_date`,
+  `plant_closing_date`, `plant_latitude`, `plant_longitude`.
 
 ## Main Columns
 
@@ -239,6 +242,18 @@ them without deleting source history. Gas-facility rows often report NOx but
 not SOx or dust; pollutant-specific analyses should use each pollutant's own
 nonmissing sample instead of requiring all three.
 
+Each subsidiary cleaner fills `plant_latitude`, `plant_longitude`,
+`plant_opening_date`, and `plant_closing_date` by joining on
+(`subsidiary_company`, `plant_name`) against
+`docs/references/crosswalk/plant_location_dates.csv`, a hand-built crosswalk
+against a teammate-supplied plant roster
+(`docs/references/province_level_power.xlsx`). Coordinates are populated only
+where the roster's identity match is confident (`match_status: matched`);
+plants the roster has no coordinates for, or whose physical identity is
+ambiguous (`match_status: review`) or unconfirmed (`unmatched`), are left
+blank rather than guessed. The join fails loudly if a cleaner ever produces a
+plant the crosswalk has no row for at all.
+
 Subsidiary coverage outputs retain total `rows`, add `analysis_rows` and
 `inactive_placeholder_rows`, and calculate field-coverage percentages over
 `analysis_rows`. Thus source history remains reproducible without allowing
@@ -253,23 +268,12 @@ supports defensible monthly unit-level pollutant imputation.
 
 ## Audit Stage
 
-After `combine-kepco` builds the per-subsidiary processed files, a separate
-auditor checks each one for outliers and reporting anomalies:
+`combine-kepco` audits every subsidiary's freshly standardized data *before*
+merging it into the final combined file, so the file at the canonical output
+path is never in an unaudited state, even momentarily:
 
 ```bash
-python -m nzk_aphiam.data.audit.thermal
-```
-
-or:
-
-```bash
-make audit-kepco
-```
-
-or, to clean, combine, and audit in one step:
-
-```bash
-make reproduce-kepco-monthly
+make combine-kepco
 ```
 
 The auditor is implemented in
@@ -290,11 +294,19 @@ are not re-flagged for zero generation.
 
 Long-format detail per subsidiary — every flagged row with its value,
 threshold, and explanation, plus summary tables — is written to
-`results/tables/{subsidiary}/audit/`. Re-running `combine-kepco` after
-`audit-kepco` rebuilds the subsidiary files from interim data and removes
-the audit columns from both subsidiary and combined files; re-run
-`audit-kepco` afterward to restore them. The audit stage also extends the
-combined variable metadata with labels for both audit columns.
+`results/tables/{subsidiary}/audit/`.
+
+To re-run just the audit stage without recombining (for example, after
+changing an audit threshold but not the underlying data), use:
+
+```bash
+make audit-kepco
+```
+
+This rebuilds the combined file by re-auditing whatever is currently in the
+per-subsidiary processed files; run `combine-kepco` first if you also need
+to refresh those from interim data. The audit stage extends the combined
+variable metadata with labels for both audit columns either way.
 
 ## Analysis Outputs
 
@@ -320,7 +332,8 @@ with a 6-month moving average.
 
 ## Regeneration
 
-From the project root, regenerate the monthly KEPCO processed dataset with:
+From the project root, regenerate the monthly KEPCO processed dataset
+(cleaned, location-enriched, audited, and merged in one step) with:
 
 ```bash
 python -m nzk_aphiam.data.process.thermal
@@ -332,8 +345,14 @@ or:
 make combine-kepco
 ```
 
-Then audit it (see [Audit Stage](#audit-stage)) with `make audit-kepco`, or
-run clean, combine, and audit together with `make reproduce-kepco-monthly`.
+or, to also re-clean every subsidiary from raw data first:
+
+```bash
+make reproduce-kepco-monthly
+```
+
+See [Audit Stage](#audit-stage) if you only need to re-run the audit step
+on its own.
 
 Then rerun the R analysis with:
 
@@ -348,7 +367,7 @@ python - <<'PY'
 import csv
 from collections import Counter
 
-path = "data/kepco/processed/kepco_monthly_generation_emissions.csv"
+path = "data/processed/kepco/kepco_monthly_generation_emissions.csv"
 with open(path, newline="", encoding="utf-8-sig") as f:
     rows = list(csv.DictReader(f))
 

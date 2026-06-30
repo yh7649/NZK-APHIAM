@@ -43,10 +43,10 @@ def test_clean_western_power_standardizes_schema_and_types() -> None:
     assert result.loc[0, "date"] == pd.Timestamp("2025-06-01")
     assert result.loc[0, "plant_name"] == "Taean"
     assert result.loc[0, "plant_number"] == 1
-    assert pd.isna(result.loc[0, "plant_opening_date"])
+    assert result.loc[0, "plant_opening_date"] == pd.Timestamp("1995-01-01")
     assert pd.isna(result.loc[0, "plant_closing_date"])
-    assert pd.isna(result.loc[0, "plant_latitude"])
-    assert pd.isna(result.loc[0, "plant_longitude"])
+    assert result.loc[0, "plant_latitude"] == pytest.approx(36.903)
+    assert result.loc[0, "plant_longitude"] == pytest.approx(126.231)
     assert result.loc[0, "energy_type"] == "coal"
     assert result.loc[0, "reporting_unit_id"] == "western_power:Taean:1호기"
     assert result.loc[0, "reporting_start_date"] == pd.Timestamp("2025-06-01")

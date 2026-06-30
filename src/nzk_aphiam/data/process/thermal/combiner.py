@@ -1,4 +1,10 @@
-"""Build subsidiary-level and combined unit-standardized KEPCO products."""
+"""Build subsidiary-level and combined unit-standardized, audited KEPCO products.
+
+Each subsidiary is cleaned, unit-standardized, and audited for outliers
+before the final combined dataset is built, so the merged file is
+analysis-ready the moment this command finishes -- there is no unaudited
+intermediate state to forget to follow up on.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +15,7 @@ from pathlib import Path
 import pandas as pd
 
 from nzk_aphiam.config.paths import THERMAL_INTERIM_DIR, THERMAL_PROCESSED_DIR
+from nzk_aphiam.data.audit.thermal.auditor import RESULTS_DIR, audit_all
 from nzk_aphiam.data.clean.thermal.schema import (
     COMBINED_THERMAL_OUTPUT_COLUMNS,
     THERMAL_OUTPUT_COLUMNS,
@@ -299,14 +306,16 @@ def save_variable_metadata(metadata: pd.DataFrame, metadata_path: Path) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Build individual and combined KEPCO subsidiary monthly datasets and "
-            "standardize pollutant mass to kilograms."
+            "Build individual KEPCO subsidiary monthly datasets, standardize pollutant "
+            "mass to kilograms, audit each subsidiary for outliers, and merge the "
+            "audited subsidiary data into the final combined dataset."
         )
     )
     parser.add_argument("--output-path", type=Path, default=OUTPUT_PATH)
     parser.add_argument("--metadata-path", type=Path, default=METADATA_PATH)
     parser.add_argument("--subsidiary-output-dir", type=Path, default=SUBSIDIARY_OUTPUT_DIR)
     parser.add_argument("--coverage-path", type=Path, default=COVERAGE_PATH)
+    parser.add_argument("--results-dir", type=Path, default=RESULTS_DIR)
     return parser
 
 
@@ -318,14 +327,30 @@ def main() -> None:
     coverage = build_subsidiary_coverage(subsidiaries)
     save_combined(coverage, args.coverage_path)
 
-    combined = combine_thermal_datasets(inputs)
-    save_combined(combined, args.output_path)
     metadata = build_variable_metadata()
     save_variable_metadata(metadata, args.metadata_path)
 
-    mass_rows = combined["pollutant_measurement_basis"].eq("mass").sum()
-    print(f"Saved {len(combined)} rows to {args.output_path}")
+    # Audit each subsidiary's freshly standardized data and merge the
+    # combined dataset from the audited results, not the raw inputs --
+    # so the file at --output-path is never unaudited, even momentarily.
+    audit_results = audit_all(
+        list(subsidiaries.keys()),
+        processed_dir=args.subsidiary_output_dir,
+        results_dir=args.results_dir,
+        combined_output_path=args.output_path,
+        metadata_path=args.metadata_path,
+    )
+    combined_rows = sum(len(result.audited_data) for result in audit_results.values())
+
     print(f"Saved {len(subsidiaries)} subsidiary datasets to {args.subsidiary_output_dir}")
     print(f"Saved subsidiary coverage to {args.coverage_path}")
     print(f"Saved {len(metadata)} variable labels to {args.metadata_path}")
-    print(f"Mass rows standardized to kilograms: {mass_rows}")
+    print(
+        f"Audited each subsidiary before merging; saved {combined_rows} rows to {args.output_path}"
+    )
+    for name, result in audit_results.items():
+        flagged = result.audited_data["audit_severity"].notna().sum()
+        critical = (
+            int(result.flags["severity"].eq("critical").sum()) if not result.flags.empty else 0
+        )
+        print(f"  {name}: {flagged} flagged ({critical} critical)")

@@ -41,7 +41,7 @@ fleet, a combined-cycle block, or a named plant asset.
 
 The more spatially detailed KEPCO subsidiary dataset is:
 
-- `data/kepco/processed/kepco_monthly_generation_emissions.csv`
+- `data/processed/kepco/kepco_monthly_generation_emissions.csv`
 
 That file has `{monthly_rows}` monthly rows covering `{monthly_start_date}`
 through `{monthly_end_date}` after the workflow is run. It is closer to unit
@@ -222,7 +222,7 @@ with open(
 print(Counter(row["fuel"] or "UNKNOWN" for row in annual))
 
 with open(
-    "data/kepco/processed/kepco_monthly_generation_emissions.csv",
+    "data/processed/kepco/kepco_monthly_generation_emissions.csv",
     newline="",
     encoding="utf-8-sig",
 ) as f:

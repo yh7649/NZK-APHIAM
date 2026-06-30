@@ -87,6 +87,18 @@ date. The builder reads these files directly; changing a decision therefore
 changes a tracked input and its checksum rather than changing an undocumented
 constant in Python.
 
+Plant coordinates and commissioning/retirement dates come from a project
+teammate's secondary roster, preserved as received at
+`docs/references/province_level_power.xlsx` (provenance and known
+limitations documented beside it in
+`docs/references/province_level_power_README.md`). Because it is a
+teammate-compiled secondary dataset rather than an official source, it is
+used as supporting evidence: each KEPCO plant was matched to it by hand, and
+that matching -- including the plants it could not confidently match -- is
+recorded with evidence in
+`docs/references/crosswalk/plant_location_dates.csv`. Cleaners join against
+that crosswalk file, not the roster directly.
+
 ## Derived Data
 
 Interim datasets retain source-specific values and units. The processed KEPCO

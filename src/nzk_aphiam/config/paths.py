@@ -17,10 +17,12 @@ ARCHIVE_PROCESSED_DIR = ARCHIVE_DIR / "processed"
 # CleanSYS TMS (archived project)
 CLEANSYS_DIR = ARCHIVE_RAW_DIR / "cleansys_tms"
 
-# KEPCO subsidiary source files and final processed dataset
-KEPCO_DIR = DATA_DIR / "kepco"
-KEPCO_PROCESSED_DIR = KEPCO_DIR / "processed"
-
+# Three-stage pipeline roots: raw (scraper output), interim (cleaner
+# output), processed (auditor/merger output). Each domain (kepco today;
+# airkorea/health/weather as they're added) gets its own subdirectory under
+# each stage, e.g. data/raw/eastwest_power, data/processed/kepco.
 THERMAL_RAW_DIR = DATA_DIR / "raw"
 THERMAL_INTERIM_DIR = DATA_DIR / "interim"
+PROCESSED_DIR = DATA_DIR / "processed"
+KEPCO_PROCESSED_DIR = PROCESSED_DIR / "kepco"
 THERMAL_PROCESSED_DIR = KEPCO_PROCESSED_DIR

@@ -41,10 +41,10 @@ def test_clean_eastwest_power_standardizes_schema_and_preserves_rows() -> None:
     assert result.loc[0, "date"] == pd.Timestamp("2024-12-01")
     assert result.loc[0, "plant_name"] == "Dangjin"
     assert result.loc[0, "plant_number"] == 1
-    assert pd.isna(result.loc[0, "plant_opening_date"])
+    assert result.loc[0, "plant_opening_date"] == pd.Timestamp("1999-06-01")
     assert pd.isna(result.loc[0, "plant_closing_date"])
-    assert pd.isna(result.loc[0, "plant_latitude"])
-    assert pd.isna(result.loc[0, "plant_longitude"])
+    assert result.loc[0, "plant_latitude"] == pytest.approx(37.057)
+    assert result.loc[0, "plant_longitude"] == pytest.approx(126.509)
     assert result.loc[0, "energy_type"] == "coal"
     assert result.loc[1, "energy_type"] == "natural_gas"
     assert pd.isna(result.loc[0, "sox"])

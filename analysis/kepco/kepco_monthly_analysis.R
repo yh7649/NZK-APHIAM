@@ -738,6 +738,11 @@ for (i in seq_len(nrow(pollutants))) {
   message("Saved figure: ", output_path)
 }
 
+# Paused: holding off on EF break/plateau projections for now (2026-06-30).
+# Wrapped in `if (FALSE)` rather than deleted so this can be re-enabled
+# later without reconstructing it from git history.
+if (FALSE) {
+
 fit_break_projection <- function(
   series,
   label,
@@ -970,6 +975,8 @@ for (i in seq_len(nrow(pollutants))) {
 
 projection_summary <- do.call(rbind, projection_summaries)
 save_table(projection_summary, "kepco_break_projection_summary.csv")
+
+} # end paused EF projection block
 
 cat("\nFast KEPCO analysis complete.\n")
 cat("Summary tables saved under:", tables_dir, "\n")

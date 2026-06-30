@@ -43,7 +43,7 @@ thermal_interim_path <- function(...) {
 }
 
 kepco_processed_path <- function(...) {
-  data_path("kepco", "processed", ...)
+  data_path("processed", "kepco", ...)
 }
 
 thermal_processed_path <- function(...) {
