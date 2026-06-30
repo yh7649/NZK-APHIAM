@@ -143,11 +143,10 @@ below are grouped by how often you actually need them:
 - **Source-language reference** (useful for tracing a row back to the
   original filing, rarely used in analysis): `original_korean_plant_name`,
   `original_korean_note`.
-- **Plant location and dates** (populated for plants matched in
-  `docs/references/crosswalk/plant_location_dates.csv`; blank where the
-  match is unconfirmed or the source roster has no coordinates -- see
-  that file's `match_status` column before assuming a blank means
-  "unknown" versus "not yet looked up"): `plant_opening_date`,
+- **Plant location and dates** (populated for all current plants from
+  `docs/references/crosswalk/plant_location_dates.csv`; the official-source
+  evidence file beside it documents locations that were absent from the
+  teammate roster): `plant_opening_date`,
   `plant_closing_date`, `plant_latitude`, `plant_longitude`.
 
 ## Main Columns
@@ -247,12 +246,12 @@ Each subsidiary cleaner fills `plant_latitude`, `plant_longitude`,
 (`subsidiary_company`, `plant_name`) against
 `docs/references/crosswalk/plant_location_dates.csv`, a hand-built crosswalk
 against a teammate-supplied plant roster
-(`docs/references/province_level_power.xlsx`). Coordinates are populated only
-where the roster's identity match is confident (`match_status: matched`);
-plants the roster has no coordinates for, or whose physical identity is
-ambiguous (`match_status: review`) or unconfirmed (`unmatched`), are left
-blank rather than guessed. The join fails loudly if a cleaner ever produces a
-plant the crosswalk has no row for at all.
+(`docs/references/province_level_power.xlsx`), official operator plant pages,
+and mapped OpenStreetMap plant footprints. The associated
+`plant_location_dates_official_evidence.csv` records the official address and
+URL, coordinate method and map element, and opening-date evidence for every
+plant added during the official-source review. The join fails loudly if a
+cleaner ever produces a plant the crosswalk has no row for at all.
 
 Subsidiary coverage outputs retain total `rows`, add `analysis_rows` and
 `inactive_placeholder_rows`, and calculate field-coverage percentages over

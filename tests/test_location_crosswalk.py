@@ -89,3 +89,29 @@ def test_real_crosswalk_file_loads_and_parses_dates() -> None:
     )
     assert len(crosswalk) == 29
     assert pd.api.types.is_datetime64_any_dtype(crosswalk["plant_opening_date"])
+
+
+def test_real_crosswalk_has_location_and_opening_date_for_every_plant() -> None:
+    crosswalk = load_location_crosswalk()
+    assert (
+        crosswalk[["plant_latitude", "plant_longitude", "plant_opening_date"]].notna().all().all()
+    )
+
+
+def test_official_review_corrections_are_preserved() -> None:
+    crosswalk = load_location_crosswalk().set_index(["subsidiary_company", "plant_name"])
+    assert crosswalk.loc[
+        ("Korea South-East Power", "Bundang"), "plant_opening_date"
+    ] == pd.Timestamp("1993-09-01")
+    assert crosswalk.loc[
+        ("Korea Southern Power", "Namjeju Steam"), "plant_opening_date"
+    ] == pd.Timestamp("2007-03-01")
+    assert crosswalk.loc[
+        ("Korea Southern Power", "Shinsejong"), "plant_opening_date"
+    ] == pd.Timestamp("2024-06-30")
+
+    # These adjacent Incheon plants have often been conflated, but belong to
+    # different operators and have distinct mapped plant footprints.
+    shin_incheon = crosswalk.loc[("Korea Southern Power", "Shin-Incheon")]
+    seoincheon = crosswalk.loc[("Korea Western Power", "Seoincheon")]
+    assert shin_incheon["plant_longitude"] != seoincheon["plant_longitude"]

@@ -1,15 +1,11 @@
 """Fill plant location and commissioning-date columns from the documented crosswalk.
 
 Plant coordinates and opening/closing dates cannot be derived from any
-subsidiary's own API -- they come from a teammate-supplied roster
-(`docs/references/province_level_power.xlsx`), matched by hand to each
-KEPCO plant and recorded with evidence in
-`docs/references/crosswalk/plant_location_dates.csv`. That file is the
-source of truth here, including for the plants it deliberately leaves
-blank: rows marked ``review`` (genuine identity ambiguity, e.g. an old
-plant vs. a similarly-named new one under construction) or ``unmatched``
-(not found in the roster at all) have empty coordinates and dates in the
-crosswalk on purpose, so joining never asserts an unconfirmed location.
+subsidiary's generation/emissions API. They come from a teammate-supplied
+roster (`docs/references/province_level_power.xlsx`) plus official operator
+pages and mapped OpenStreetMap plant footprints. The hand-reviewed result and
+its evidence are recorded under `docs/references/crosswalk/`; the main
+`plant_location_dates.csv` file is the source of truth used by cleaners.
 """
 
 from __future__ import annotations
