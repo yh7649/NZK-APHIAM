@@ -4,8 +4,9 @@
 
 1. Confirm that the working tree is clean and update the version in
    `pyproject.toml` and `CITATION.cff`.
-2. Update `AUTHORS.md`, `docs/project/data_provenance.md`, and the README when contributors,
-   sources, methods, or licensing conditions have changed.
+2. Update `docs/project/authors.md`, `docs/project/data_provenance.md`, and the
+   README when contributors, sources, methods, or licensing conditions have
+   changed.
 3. Run:
 
    ```bash

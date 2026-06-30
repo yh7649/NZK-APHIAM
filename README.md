@@ -17,10 +17,10 @@ the research and released work remains with the human author.
 
 If you use this repository, cite it using [`CITATION.cff`](CITATION.cff).
 GitHub will expose this through its **Cite this repository** interface. See
-[`AUTHORS.md`](AUTHORS.md) for contribution credit,
+[`docs/project/authors.md`](docs/project/authors.md) for contribution credit,
 [`docs/project/data_provenance.md`](docs/project/data_provenance.md) for source-data and licensing
-guidance, and [`RELEASING.md`](RELEASING.md) for tagged releases and Zenodo DOI
-archiving.
+guidance, and [`docs/project/releasing.md`](docs/project/releasing.md) for tagged
+releases and Zenodo DOI archiving.
 
 ## New Team Member Setup
 
@@ -211,11 +211,10 @@ dataset rules, lives in
 
 ```
 ├── CITATION.cff       <- Machine-readable software citation
-├── AUTHORS.md         <- Human authorship and AI-assistance disclosure
-├── docs/project       <- Project-level provenance and governance documentation
-├── RELEASING.md       <- Versioning, GitHub release, and Zenodo instructions
+├── docs/project       <- Authorship, provenance, and release documentation
 ├── LICENSE            <- MIT license for repository software and documentation
 ├── Makefile           <- Reproducible scrape, clean, combine, test, and analysis commands
+├── requirements       <- Python and R dependency lists
 ├── analysis           <- Main R analysis workspace and shared R helpers
 ├── data               <- Local raw, interim, and processed data; ignored by Git
 ├── references         <- Documented mappings, evidence, and source references
