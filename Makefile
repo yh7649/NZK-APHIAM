@@ -116,7 +116,7 @@ clean-thermal:
 	$(MAKE) clean-midland-power
 
 
-## Combine KEPCO monthly generation and emissions data with pollutant mass in kilograms
+## Build per-subsidiary and combined KEPCO monthly datasets with pollutant mass in kilograms
 .PHONY: combine-kepco
 combine-kepco:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.thermal
@@ -125,6 +125,17 @@ combine-kepco:
 ## Backward-compatible alias for the combined KEPCO monthly dataset
 .PHONY: combine-thermal
 combine-thermal: combine-kepco
+
+
+## Audit processed KEPCO subsidiary datasets for outliers (flags rows, never drops them)
+.PHONY: audit-kepco
+audit-kepco:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.audit.thermal
+
+
+## Clean, combine, and audit every implemented KEPCO thermal subsidiary dataset
+.PHONY: reproduce-kepco-monthly
+reproduce-kepco-monthly: clean-thermal combine-kepco audit-kepco
 
 
 ## Download fresh South-East Power raw data

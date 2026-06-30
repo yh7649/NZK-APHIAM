@@ -52,6 +52,75 @@ PLANT_NAMES = {
     "한국동서발전㈜일산발전본부": "Ilsan",
 }
 
+REPORTING_ID_PREFIX = "eastwest_power"
+GENERATION_SOURCE = "eastwest_monthly_combined_source"
+MEASURE_COLUMNS = ["발전량(MWh)", "질소산화물(NOx)", "황산화물(SOx)", "먼지(TSP)"]
+POLLUTANT_COLUMNS = ["질소산화물(NOx)", "황산화물(SOx)", "먼지(TSP)"]
+
+
+def make_reporting_unit_id(plant_name: str, unit_number: int) -> str:
+    """Return a stable ID that preserves the source reporting boundary."""
+    return f"{REPORTING_ID_PREFIX}:{PLANT_NAMES[plant_name]}:{unit_number}"
+
+
+def pollutant_data_pattern(source: pd.DataFrame) -> pd.Series:
+    """Describe reported pollutant fields; source blanks remain missing."""
+    reported = source[POLLUTANT_COLUMNS].notna()
+    labels = {
+        (True, True, True): "nox_sox_dust",
+        (True, True, False): "nox_sox",
+        (True, False, True): "nox_dust",
+        (False, True, True): "sox_dust",
+        (True, False, False): "nox_only",
+        (False, True, False): "sox_only",
+        (False, False, True): "dust_only",
+        (False, False, False): "none",
+    }
+    return reported.apply(lambda row: labels[tuple(row)], axis=1).astype("string")
+
+
+def derive_reporting_windows(source: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+    """Derive the first reported activity month per generating unit.
+
+    The source has no retirement-note column, so the reporting window can only
+    establish a start, never an explicit end.
+    """
+    identity = source["발전소명"].astype(str) + "\x1f" + source["호기"].astype(str)
+    activity = source[MEASURE_COLUMNS].notna().any(axis=1)
+    start = source["_date"].where(activity).groupby(identity).transform("min")
+
+    basis = pd.Series("not_established", index=source.index, dtype="string")
+    basis.loc[start.notna()] = "first_reported_activity"
+    return start, basis
+
+
+def assign_row_status(source: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
+    """Assign conservative row statuses from observed activity, without imputation."""
+    activity = source[MEASURE_COLUMNS].notna().any(axis=1)
+    generation = source["발전량(MWh)"].notna()
+    pollutants = source[POLLUTANT_COLUMNS].notna().any(axis=1)
+
+    identity = source["발전소명"].astype(str) + "\x1f" + source["호기"].astype(str)
+    activity_dates = source["_date"].where(activity)
+    first_activity = activity_dates.groupby(identity).transform("min")
+    before_first_activity = first_activity.notna() & source["_date"].lt(first_activity)
+
+    status = pd.Series("unknown_status", index=source.index, dtype="string")
+    basis = pd.Series("no_generation_or_pollutant_value", index=source.index, dtype="string")
+
+    complete_pair = generation & pollutants
+    status.loc[complete_pair] = "active_reported"
+    basis.loc[complete_pair] = "generation_and_at_least_one_pollutant_reported"
+
+    partial = activity & ~complete_pair
+    status.loc[partial] = "active_partial"
+    basis.loc[partial & generation] = "generation_reported_without_pollutants"
+    basis.loc[partial & pollutants] = "pollutants_reported_without_generation"
+
+    status.loc[before_first_activity] = "inactive_placeholder"
+    basis.loc[before_first_activity] = "before_first_reported_activity"
+    return status, basis
+
 
 def classify_energy_type(plant_name: str, unit_number: int) -> str:
     """Map source plant and unit identifiers to documented primary fuels."""
@@ -85,11 +154,18 @@ def clean_eastwest_power(raw: pd.DataFrame) -> pd.DataFrame:
     validate_source_columns(raw)
     source = raw.copy()
     date = pd.to_datetime(source["날짜"], errors="raise").dt.to_period("M").dt.to_timestamp()
+    source["_date"] = date
     unit_number = pd.to_numeric(source["호기"], errors="raise").astype("Int64")
+
+    for column in MEASURE_COLUMNS + ["발전용량(MW)"]:
+        source[column] = pd.to_numeric(source[column], errors="coerce")
 
     unknown_plants = sorted(set(source["발전소명"].dropna()) - set(PLANT_NAMES))
     if unknown_plants:
         raise ValueError(f"Unknown East-West Power plant names: {unknown_plants}")
+
+    reporting_start, reporting_window_basis = derive_reporting_windows(source)
+    row_status, row_status_basis = assign_row_status(source)
 
     cleaned = pd.DataFrame(
         {
@@ -105,11 +181,26 @@ def clean_eastwest_power(raw: pd.DataFrame) -> pd.DataFrame:
                 classify_energy_type(plant, int(unit))
                 for plant, unit in zip(source["발전소명"], unit_number, strict=True)
             ],
-            "energy_generated_mwh": pd.to_numeric(source["발전량(MWh)"], errors="coerce"),
-            "energy_capacity_mw": pd.to_numeric(source["발전용량(MW)"], errors="coerce"),
-            "nox": pd.to_numeric(source["질소산화물(NOx)"], errors="coerce"),
-            "sox": pd.to_numeric(source["황산화물(SOx)"], errors="coerce"),
-            "dust_tsp": pd.to_numeric(source["먼지(TSP)"], errors="coerce"),
+            "energy_generated_mwh": source["발전량(MWh)"],
+            "energy_capacity_mw": source["발전용량(MW)"],
+            "reporting_unit_id": [
+                make_reporting_unit_id(plant, unit)
+                for plant, unit in zip(source["발전소명"], unit_number, strict=True)
+            ],
+            "reporting_start_date": reporting_start,
+            "reporting_end_date": pd.Series(pd.NaT, index=source.index),
+            "reporting_window_basis": reporting_window_basis,
+            "observation_level": "generating_unit",
+            "generation_source": GENERATION_SOURCE,
+            "generation_coverage_status": source["발전량(MWh)"]
+            .notna()
+            .map({True: "reported", False: "missing"}),
+            "row_status": row_status,
+            "row_status_basis": row_status_basis,
+            "nox": source["질소산화물(NOx)"],
+            "sox": source["황산화물(SOx)"],
+            "dust_tsp": source["먼지(TSP)"],
+            "pollutant_data_pattern": pollutant_data_pattern(source),
             "pollutant_measurement_basis": "mass",
             "nox_unit": "metric_tonnes",
             "sox_unit": "metric_tonnes",
@@ -140,6 +231,14 @@ def clean_eastwest_power(raw: pd.DataFrame) -> pd.DataFrame:
         "plant_name",
         "subsidiary_company",
         "energy_type",
+        "reporting_unit_id",
+        "reporting_window_basis",
+        "observation_level",
+        "generation_source",
+        "generation_coverage_status",
+        "row_status",
+        "row_status_basis",
+        "pollutant_data_pattern",
         "pollutant_measurement_basis",
         "nox_unit",
         "sox_unit",

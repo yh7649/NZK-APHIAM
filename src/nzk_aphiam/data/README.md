@@ -122,8 +122,23 @@ The interim output is:
 data/interim/western_power/western_power_monthly_generation_emissions.csv
 ```
 
-The cleaner retains every source row. Western Power reports pollutant mass in
-metric tonnes and does not report temperature.
+The cleaner retains every source row and never converts a blank pollutant or
+generation value to zero. Western Power reports pollutant mass in metric
+tonnes and does not report temperature.
+
+Western's `호기` field mixes physical generating units with combined-cycle
+blocks and plant-level rows. The cleaner therefore adds a stable
+`reporting_unit_id`, classifies `observation_level`, and does not treat every
+numeric label as a physical unit number. It also assigns conservative
+`row_status` and `row_status_basis` values. Rows before a reporting boundary's
+first observed activity and rows explicitly marked retired (`폐지`) are
+`inactive_placeholder`; other entirely blank rows remain `unknown_status`.
+`pollutant_data_pattern` records which pollutant fields are actually present,
+including the common `nox_only` pattern at gas facilities.
+`reporting_start_date` is deliberately the first month with reported activity,
+not an inferred commissioning date. `reporting_end_date` is populated only
+when the source explicitly gives a retirement date; `reporting_window_basis`
+records that distinction.
 
 The raw source does not include fuel type. The cleaner enriches `energy_type`
 from official Korea Western Power plant and operating-history pages. Mapping
@@ -133,6 +148,15 @@ rules, effective dates, evidence, and source URLs are recorded in
 Pyeongtaek steam units are classified as `oil_and_natural_gas` through February
 2020 and `natural_gas` from March 2020, following the documented start of
 full-LNG operation on February 27, 2020.
+
+Two additional official Western datasets were evaluated as possible gap
+patches. The annual generator-performance file is too coarse for monthly
+imputation. The daily generation file covers Taean units 1–10 from 2019 through
+2023; aggregating it produced 563 overlapping unit-months and no values for a
+blank month in the monthly source. It is therefore validation evidence, not an
+imputation input. CleanSYS and ENV-INFO are annual facility-level emissions
+sources and are likewise retained for validation/crosswalking rather than
+distributed into missing unit-months.
 
 ## East-West Power
 
@@ -154,6 +178,14 @@ official sources are recorded in
 [`docs/references/thermal/eastwest_power_energy_type_mapping.csv`](../../../docs/references/thermal/eastwest_power_energy_type_mapping.csv).
 The scraper also writes the enrichment source URLs into its raw JSON and
 metadata outputs.
+
+Unlike Western, East-West's `호기` field is always a clean numeric unit
+number, so `observation_level` is always `generating_unit` and
+`reporting_unit_id` is built directly from the plant name and unit number.
+The source has no retirement-note column, so `reporting_end_date` is always
+blank and `row_status`/`row_status_basis` can only detect rows before a
+unit's first reported activity (`inactive_placeholder`), not explicit
+retirements.
 
 ## Southern Power
 
@@ -195,6 +227,23 @@ aggregates Samcheok A/B stack rows to generating units and combined-cycle
 components to plant level where a steam turbine is shared. Generation remains
 null where the generation API has no safely matching record; it is not
 fabricated or forward-filled.
+
+Southern also exposes an independent hourly generation API and an annual
+plant/unit generation file. Run `make scrape-southern-power-hourly-generation`
+and `make scrape-southern-power-annual-generation` to acquire them. The cleaner
+uses hourly generation only as a fallback when the primary daily source is
+missing, retains both values when they overlap, and records their percent
+difference and reconciliation status. The hourly service requires separate
+data.go.kr approval.
+
+Monthly output records the physical reporting boundary, contributing component
+count, minimum reported source days across those components, calendar days
+expected, and a `complete`, `partial`, or `missing` coverage flag. The annual
+file is not used to impute months; it produces
+`southern_power_annual_generation_validation.csv` at plant-year level.
+
+Unresolved emissions codes and the requested stack-to-generator crosswalk are
+listed in `docs/references/thermal/southern_power_unresolved_data_request.md`.
 
 ## EPSIS Generator Rosters
 
@@ -301,7 +350,7 @@ All aliases and human-reviewed links are data rather than hidden code:
 Crosswalk `metadata.json` records the SHA-256 checksum of every EPSIS annual
 input, both emissions panels, both reference tables, and the method version.
 
-## Combined Monthly Dataset
+## Processed Monthly Datasets
 
 Combine the interim datasets that currently report compatible monthly
 pollutant mass:
@@ -310,7 +359,21 @@ pollutant mass:
 make combine-kepco
 ```
 
-The processed output is:
+The preferred outputs are one file per subsidiary:
+
+```text
+data/kepco/processed/subsidiaries/<source>_monthly_generation_emissions.csv
+```
+
+Field completeness for each product is recorded in:
+
+```text
+data/kepco/processed/subsidiaries/subsidiary_coverage.csv
+```
+
+Use this table to distinguish full generation-and-emissions panels from
+emissions-only sources. Missing values are preserved rather than imputed. A
+combined backward-compatible output is also written to:
 
 ```text
 data/kepco/processed/kepco_monthly_generation_emissions.csv
@@ -322,7 +385,8 @@ The dataset description is:
 docs/datasets/kepco_monthly_generation_emissions.md
 ```
 
-The command combines East-West, Western, Southern, and South-East Power. It
+The command processes East-West, Western, Southern, South-East, and Midland
+Power independently before producing the combined file. It
 checks every input schema before concatenation, retains generation in MWh and
 capacity in MW where available, and standardizes NOx, SOx, and dust mass to
 kilograms. East-West and Western values are multiplied by 1,000 to convert
@@ -340,6 +404,37 @@ units in quantitative labels.
 
 Midland facility-status rows are included where the source reports stack
 pollutant concentrations and flue-gas flow.
+
+## Audit Stage
+
+After `combine-kepco`, audit every subsidiary's processed file for outliers
+and reporting anomalies:
+
+```bash
+make audit-kepco
+```
+
+or clean, combine, and audit together:
+
+```bash
+make reproduce-kepco-monthly
+```
+
+The auditor (`src/nzk_aphiam/data/audit/thermal/auditor.py`) generalizes a
+unit-resolution audit originally written for East-West Power only so it now
+runs identically across all five subsidiaries' processed files. It checks
+for duplicate unit-months, negative values, nameplate violations, zero
+generation/pollutants where the row is not already an `inactive_placeholder`,
+and unit-specific outlier mass and emission-factor thresholds
+(`Q3 + 3 * IQR`, requiring at least 12 valid unit-months).
+
+It never drops or imputes a row. It rewrites each subsidiary's processed CSV
+in place with `audit_severity` (the worst flag raised, or missing) and
+`audit_issue_codes` (every issue code, joined with `;`), and writes
+long-format flag detail and summary tables to
+`results/tables/<subsidiary>/audit/`. Re-running `combine-kepco` after
+`audit-kepco` rebuilds the subsidiary files from interim data and removes
+the audit columns until `audit-kepco` runs again.
 
 ## South-East Power
 
