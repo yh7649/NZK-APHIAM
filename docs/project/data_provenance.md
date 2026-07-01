@@ -113,6 +113,18 @@ and date evidence are recorded row by row in
 `docs/references/crosswalk/plant_location_dates_official_evidence.csv`.
 Cleaners join against the main crosswalk file, not either source directly.
 
+The cited web evidence is also preserved for offline review. Run
+`make archive-plant-location-references` to create an immutable dated snapshot
+under `data/raw/references/plant_location_dates/`. The archive contains the
+verbatim response body for each unique operator/date page, full JSON geometry
+for each cited OpenStreetMap way, and a manifest with URLs, plant associations,
+retrieval timestamps, byte counts, and SHA-256 checksums. The archiver writes
+transactionally, so a failed request cannot leave a snapshot that appears
+complete. Run `make track-plant-location-references DVC=.venv/bin/dvc` to put
+the archive in the local DVC cache and update the Git-tracked pointer. The
+2026-06-30 archive contains 36 unique sources in 38 files and is referenced by
+`data/raw/references/plant_location_dates.dvc`.
+
 ## Derived Data
 
 Interim datasets retain source-specific values and units. The processed KEPCO

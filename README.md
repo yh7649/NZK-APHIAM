@@ -138,7 +138,10 @@ This is a **networked** workflow: it contacts data.go.kr and subsidiary
 websites and replaces the reproducible raw outputs with a fresh download.
 Midland Power includes both the original monthly APIs and facility-status
 datasets that can derive approximate pollutant mass where stack flow is
-reported. The command stops if any scraper fails. Individual subsidiary,
+reported. Its cleaner aggregates the derived unit/turbine emissions to the
+matching plant/technology subtotal before joining monthly generation, so the
+same generation total is never repeated across components. The command stops
+if any scraper fails. Individual subsidiary,
 facility, and dataset targets are available through `make help`.
 
 Each subsidiary's raw output is written as immutable per-year snapshot files
@@ -152,6 +155,18 @@ make track-kepco-snapshots
 
 See [`docs/project/data_provenance.md`](docs/project/data_provenance.md#raw-snapshot-versioning)
 for how this works and how to add a remote later.
+
+Official webpages and OpenStreetMap geometry supporting the plant location/date
+crosswalk have their own offline archive. Refresh and track it locally with:
+
+```bash
+make archive-plant-location-references PYTHON_INTERPRETER=.venv/bin/python
+make track-plant-location-references DVC=.venv/bin/dvc
+```
+
+The second command updates a small Git-tracked `.dvc` pointer. Once a shared
+DVC remote is configured, `dvc push` publishes the archived source bodies and
+`dvc pull` restores them for a teammate without access to the original sites.
 
 For a fully local check using preserved raw files, run:
 

@@ -1,0 +1,12 @@
+{
+  "snapshot": "source.2026-06-30",
+  "contents": "Verbatim official operator/history HTML and full OpenStreetMap way geometry JSON supporting plant_location_dates_official_evidence.csv",
+  "source_count": 36,
+  "file_count": 38,
+  "size_bytes": 3264896,
+  "manifest_sha256": "e66ea33662874206fbff7fe8c5a04089adcb638d808b92956134ff393b2d12a2",
+  "dvc_pointer": "data/raw/references/plant_location_dates.dvc",
+  "dvc_directory_md5": "12e63078a2ec80941f856365b48020c1.dir",
+  "remote_status": "local_cache_only_no_remote_configured",
+  "restore_after_remote_is_configured": "dvc pull data/raw/references/plant_location_dates.dvc"
+}

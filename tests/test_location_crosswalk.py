@@ -12,6 +12,8 @@ CROSSWALK = pd.DataFrame(
         "plant_name": ["Dangjin", "Honam"],
         "plant_latitude": [37.057, None],
         "plant_longitude": [126.509, None],
+        "plant_province": ["Chungcheongnam-do", None],
+        "plant_district": ["Dangjin-si", None],
         "plant_opening_date": [pd.Timestamp("1999-06-01"), pd.NaT],
         "plant_closing_date": [pd.NaT, pd.NaT],
     }
@@ -28,6 +30,8 @@ def _cleaned_rows() -> pd.DataFrame:
             "plant_name": pd.array(["Dangjin", "Honam"], dtype="string"),
             "plant_latitude": pd.array([None, None], dtype="Float64"),
             "plant_longitude": pd.array([None, None], dtype="Float64"),
+            "plant_province": pd.array([None, None], dtype="string"),
+            "plant_district": pd.array([None, None], dtype="string"),
             "plant_opening_date": pd.to_datetime([None, None]),
             "plant_closing_date": pd.to_datetime([None, None]),
             "value": [1, 2],
@@ -40,6 +44,8 @@ def test_matched_plant_gets_location_filled_in() -> None:
     dangjin = result.loc[result["plant_name"] == "Dangjin"].iloc[0]
     assert dangjin["plant_latitude"] == 37.057
     assert dangjin["plant_longitude"] == 126.509
+    assert dangjin["plant_province"] == "Chungcheongnam-do"
+    assert dangjin["plant_district"] == "Dangjin-si"
     assert dangjin["plant_opening_date"] == pd.Timestamp("1999-06-01")
 
 
@@ -48,6 +54,8 @@ def test_review_status_plant_stays_blank_rather_than_guessed() -> None:
     honam = result.loc[result["plant_name"] == "Honam"].iloc[0]
     assert pd.isna(honam["plant_latitude"])
     assert pd.isna(honam["plant_longitude"])
+    assert pd.isna(honam["plant_province"])
+    assert pd.isna(honam["plant_district"])
     assert pd.isna(honam["plant_opening_date"])
 
 
@@ -55,6 +63,8 @@ def test_result_dtypes_match_the_schema_regardless_of_caller_input_dtype() -> No
     result = apply_location_crosswalk(_cleaned_rows(), CROSSWALK)
     assert result["plant_latitude"].dtype == "Float64"
     assert result["plant_longitude"].dtype == "Float64"
+    assert result["plant_province"].dtype == "string"
+    assert result["plant_district"].dtype == "string"
     assert pd.api.types.is_datetime64_any_dtype(result["plant_opening_date"])
     assert pd.api.types.is_datetime64_any_dtype(result["plant_closing_date"])
 
@@ -84,7 +94,7 @@ def test_plant_missing_from_crosswalk_raises() -> None:
 
 def test_real_crosswalk_file_loads_and_parses_dates() -> None:
     crosswalk = load_location_crosswalk()
-    assert {"subsidiary_company", "plant_name", "plant_latitude", "plant_longitude"}.issubset(
+    assert {"subsidiary_company", "plant_name", "plant_latitude", "plant_longitude", "plant_province", "plant_district"}.issubset(
         crosswalk.columns
     )
     assert len(crosswalk) == 29
@@ -94,7 +104,7 @@ def test_real_crosswalk_file_loads_and_parses_dates() -> None:
 def test_real_crosswalk_has_location_and_opening_date_for_every_plant() -> None:
     crosswalk = load_location_crosswalk()
     assert (
-        crosswalk[["plant_latitude", "plant_longitude", "plant_opening_date"]].notna().all().all()
+        crosswalk[["plant_latitude", "plant_longitude", "plant_province", "plant_district", "plant_opening_date"]].notna().all().all()
     )
 
 

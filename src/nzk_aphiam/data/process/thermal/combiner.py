@@ -46,6 +46,8 @@ VARIABLE_LABELS = {
     "plant_closing_date": "Plant closing date (YYYY-MM-DD)",
     "plant_latitude": "Plant latitude (WGS84 decimal degrees north)",
     "plant_longitude": "Plant longitude (WGS84 decimal degrees east)",
+    "plant_province": "Plant province or metropolitan city (current English name)",
+    "plant_district": "Plant city, county, or autonomous district (current English name)",
     "subsidiary_company": "KEPCO subsidiary company name",
     "energy_type": "Primary energy or fuel type (categorical)",
     "energy_generated_mwh": "Monthly electricity generation (MWh)",

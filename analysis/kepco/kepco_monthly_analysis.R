@@ -202,12 +202,11 @@ print(coverage_by_dataset)
 
 # ---- Fast KEPCO EF diagnostics and projections ------------------------------
 
-# This section mirrors the Taean pilot logic:
+# This section mirrors the audited subsidiary analysis logic:
 #   1. pollutant EF = kg emissions / MWh generation
-#   2. flag high EF outliers within each plant-unit using Q3 + 3*IQR
-#   3. aggregate EF as total valid emissions / total valid generation
-#   4. select a structural break by BIC over candidate monthly breaks
-#   5. project with a pre-break line and a post-break nonzero plateau
+#   2. exclude warning/critical pollutant values using the Python audit fields
+#   3. suppress aggregates with less than 50% surviving generation coverage
+#   4. aggregate EF as total valid emissions / total valid generation
 
 required_r_packages <- c("ggplot2", "dplyr", "tidyr", "readr", "lubridate", "scales", "broom")
 missing_r_packages <- required_r_packages[
@@ -324,43 +323,51 @@ line_colors <- c(
   "#56B4E9", "#CC79A7"
 )
 
-outlier_log <- data.frame()
+# Use the canonical Python audit rather than recomputing a second IQR rule in
+# R. A pollutant is excluded only for its own warning/critical issue codes;
+# review-tier flags remain available for analysis.
+audit_exclusion_pattern <- function(pollutant) {
+  paste0(
+    "high_", pollutant, "_emission_factor",
+    "|recent_shift_(high|low)_", pollutant, "_mass",
+    "|zero_", pollutant, "_(with_generation|coal_generation)"
+  )
+}
+
+audit_exclusion_log <- data.frame()
 
 for (i in seq_len(nrow(pollutants))) {
   ef_var <- pollutants$ef[[i]]
   outlier_var <- paste0("high_outlier_", pollutants$pollutant[[i]])
-  analysis_kepco[[outlier_var]] <- FALSE
 
-  split_values <- split(analysis_kepco[[ef_var]], analysis_kepco$plant_unit_id)
-  q1 <- vapply(split_values, quantile, numeric(1), probs = 0.25, na.rm = TRUE)
-  q3 <- vapply(split_values, quantile, numeric(1), probs = 0.75, na.rm = TRUE)
-  n_valid <- vapply(split_values, function(x) sum(!is.na(x)), integer(1))
-  iqr <- q3 - q1
-
-  threshold <- q3 + 3 * iqr
-  id <- analysis_kepco$plant_unit_id
-  analysis_kepco[[outlier_var]] <- !is.na(analysis_kepco[[ef_var]]) &
-    n_valid[id] >= 12 &
-    iqr[id] > 0 &
-    analysis_kepco[[ef_var]] > threshold[id]
+  issue_codes <- ifelse(
+    is.na(analysis_kepco$audit_issue_codes), "", analysis_kepco$audit_issue_codes
+  )
+  analysis_kepco[[outlier_var]] <-
+    analysis_kepco$audit_severity %in% c("critical", "warning") &
+    grepl(audit_exclusion_pattern(pollutants$pollutant[[i]]), issue_codes)
 
   flagged <- analysis_kepco[analysis_kepco[[outlier_var]], c(
     "source_dataset", "date", "plant_name", "plant_number", "energy_type_clean",
-    "energy_generated_mwh", pollutants$pollutant[[i]], ef_var
+    "energy_generated_mwh", pollutants$pollutant[[i]], ef_var,
+    "audit_severity", "audit_issue_codes"
   )]
 
   if (nrow(flagged) > 0) {
     names(flagged)[names(flagged) == pollutants$pollutant[[i]]] <- "emissions_kg"
     names(flagged)[names(flagged) == ef_var] <- "ef_kg_per_mwh"
     flagged$pollutant <- pollutants$label[[i]]
-    outlier_log <- rbind(outlier_log, flagged)
+    audit_exclusion_log <- rbind(audit_exclusion_log, flagged)
   }
 
   analysis_kepco[[pollutants$pollutant[[i]]]][analysis_kepco[[outlier_var]]] <- NA_real_
   analysis_kepco[[ef_var]][analysis_kepco[[outlier_var]]] <- NA_real_
 }
 
-save_table(outlier_log, "kepco_ef_outliers_removed.csv")
+save_table(audit_exclusion_log, "kepco_audit_excluded.csv")
+# Retain the historical filename for downstream code; its contents now use
+# the canonical audit exclusions rather than a separately computed R rule.
+save_table(audit_exclusion_log, "kepco_ef_outliers_removed.csv")
 
 summarize_vector <- function(x) {
   x <- x[!is.na(x)]
@@ -424,7 +431,7 @@ coverage_by_plant_fuel <- aggregate(
 )
 save_table(coverage_by_plant_fuel, "kepco_ef_coverage_by_plant_fuel.csv")
 
-aggregate_ef <- function(data, group_vars, pollutant) {
+aggregate_ef <- function(data, group_vars, pollutant, min_coverage_pct = 0.5) {
   keep <- !is.na(data[[pollutant]]) &
     !is.na(data$energy_generated_mwh) &
     data$energy_generated_mwh > 0
@@ -439,7 +446,27 @@ aggregate_ef <- function(data, group_vars, pollutant) {
   names(emissions)[ncol(emissions)] <- "emissions_kg"
   names(generation)[ncol(generation)] <- "generation_mwh"
 
+  all_gen_rows <- data$energy_generated_mwh > 0 & !is.na(data$energy_generated_mwh)
+  total_gen <- aggregate(
+    data$energy_generated_mwh[all_gen_rows],
+    data[all_gen_rows, group_vars, drop = FALSE],
+    sum,
+    na.rm = TRUE
+  )
+  names(total_gen)[ncol(total_gen)] <- "total_generation_mwh"
+
   out <- merge(emissions, generation, by = group_vars, all = TRUE)
+  out <- merge(out, total_gen, by = group_vars, all.x = TRUE)
+  out <- out[
+    !is.na(out$total_generation_mwh) &
+      (out$generation_mwh / out$total_generation_mwh) >= min_coverage_pct,
+  ]
+  out$total_generation_mwh <- NULL
+
+  if (nrow(out) == 0) {
+    return(data.frame())
+  }
+
   out$ef_kg_per_mwh <- out$emissions_kg / out$generation_mwh
   out <- out[order(out$date), ]
 
@@ -525,6 +552,49 @@ for (i in seq_len(nrow(pollutants))) {
     paste0(
       "Monthly ", pollutants$label[[i]],
       " emissions factors: selected plants, 6-month moving average"
+    ),
+    outer = TRUE,
+    cex.main = 1.25
+  )
+  par(old_par)
+  dev.off()
+  message("Saved figure: ", output_path)
+
+  output_path <- save_base_png(
+    file.path(
+      "kepco",
+      "selected_plants",
+      "raw",
+      paste0("kepco_selected_plants_", pollutants$pollutant[[i]], "_ef_raw.png")
+    )
+  )
+  old_par <- par(mfrow = c(2, 3), mar = c(3.2, 4.4, 2.4, 1), oma = c(0, 0, 2.5, 0))
+
+  for (plant in selected_plants) {
+    plant_data <- plot_data[plot_data$plant_name == plant, ]
+    plant_data <- plant_data[order(plant_data$date), ]
+    if (nrow(plant_data) == 0) {
+      plot.new()
+      title(main = plant)
+    } else {
+      plot(
+        plant_data$date,
+        plant_data$ef_kg_per_mwh,
+        type = "l",
+        lwd = 1.4,
+        col = "#1F77B4",
+        xlab = "",
+        ylab = paste0(pollutants$label[[i]], " EF, kg/MWh"),
+        main = plant
+      )
+      grid(col = "grey88")
+    }
+  }
+
+  title(
+    paste0(
+      "Monthly ", pollutants$label[[i]],
+      " emissions factors: selected plants, raw data"
     ),
     outer = TRUE,
     cex.main = 1.25
@@ -677,6 +747,51 @@ for (i in seq_len(nrow(pollutants))) {
   dev.off()
   message("Saved figure: ", output_path)
 
+  output_path <- save_base_png(
+    file.path(
+      "kepco",
+      "fuel_type_averages",
+      "raw",
+      paste0("kepco_fuel_type_average_", pollutants$pollutant[[i]], "_ef_raw.png")
+    )
+  )
+  y_range <- range(plot_data$ef_kg_per_mwh, na.rm = TRUE)
+  plot(
+    range(plot_data$date, na.rm = TRUE),
+    y_range,
+    type = "n",
+    xlab = "Month",
+    ylab = paste0(pollutants$label[[i]], " EF, kg/MWh"),
+    main = paste0(
+      "Average monthly ", pollutants$label[[i]],
+      " EF by fuel type, raw data"
+    )
+  )
+  grid(col = "grey88")
+
+  for (j in seq_along(fuels)) {
+    fuel_data <- plot_data[plot_data$energy_type_clean == fuels[[j]], ]
+    fuel_data <- fuel_data[order(fuel_data$date), ]
+    lines(
+      fuel_data$date,
+      fuel_data$ef_kg_per_mwh,
+      col = fuel_colors[[j]],
+      lwd = 1.4
+    )
+  }
+
+  legend(
+    "topright",
+    legend = fuels,
+    col = fuel_colors,
+    lty = 1,
+    lwd = 2,
+    bty = "n",
+    cex = 0.82
+  )
+  dev.off()
+  message("Saved figure: ", output_path)
+
   mass_data <- plot_data[, c("energy_type_clean", "date", "emissions_kg", "generation_mwh")]
   mass_data$emissions_kg_ma6 <- NA_real_
   for (fuel in sort(unique(mass_data$energy_type_clean))) {
@@ -737,6 +852,295 @@ for (i in seq_len(nrow(pollutants))) {
   dev.off()
   message("Saved figure: ", output_path)
 }
+
+# ---- Province-level figures --------------------------------------------------
+
+province_generation <- aggregate(
+  energy_generated_mwh ~ plant_province + date,
+  data = analysis_kepco[!is.na(analysis_kepco$energy_generated_mwh), ],
+  sum,
+  na.rm = TRUE
+)
+province_generation <- province_generation[order(province_generation$date), ]
+province_generation$energy_generated_mwh_ma6 <- NA_real_
+for (province in sort(unique(province_generation$plant_province))) {
+  idx <- which(province_generation$plant_province == province)
+  idx <- idx[order(province_generation$date[idx])]
+  province_generation$energy_generated_mwh_ma6[idx] <- trailing_mean(
+    province_generation$energy_generated_mwh[idx], window = 6
+  )
+}
+save_table(province_generation, "kepco_province_monthly_generation_mwh.csv")
+
+if (nrow(province_generation) > 0) {
+  provinces <- sort(unique(province_generation$plant_province))
+  province_colors <- setNames(
+    grDevices::hcl.colors(length(provinces), palette = "Dark 3"), provinces
+  )
+  output_path <- save_base_png(file.path(
+    "kepco", "province_averages", "raw", "kepco_province_generation_mwh.png"
+  ))
+  plot(
+    range(province_generation$date),
+    range(c(
+      province_generation$energy_generated_mwh,
+      province_generation$energy_generated_mwh_ma6
+    ), na.rm = TRUE),
+    type = "n", xlab = "Month", ylab = "Generation, MWh",
+    main = "Monthly generation by plant province, 6-month moving average"
+  )
+  grid(col = "grey88")
+  for (province in provinces) {
+    x <- province_generation[province_generation$plant_province == province, ]
+    lines(x$date, x$energy_generated_mwh,
+      col = adjustcolor(province_colors[[province]], alpha.f = 0.2), lwd = 0.8)
+    lines(x$date, x$energy_generated_mwh_ma6,
+      col = province_colors[[province]], lwd = 2)
+  }
+  legend("topright", legend = provinces, col = province_colors,
+    lty = 1, lwd = 2, bty = "n", cex = 0.68, ncol = 2)
+  dev.off()
+  message("Saved figure: ", output_path)
+}
+
+for (i in seq_len(nrow(pollutants))) {
+  province_ef <- aggregate_ef(
+    analysis_kepco, c("plant_province", "date"), pollutants$pollutant[[i]]
+  )
+  save_table(
+    province_ef,
+    paste0("kepco_province_monthly_", pollutants$pollutant[[i]], "_ef.csv")
+  )
+  if (nrow(province_ef) == 0) {
+    next
+  }
+
+  provinces <- sort(unique(province_ef$plant_province))
+  province_colors <- setNames(
+    grDevices::hcl.colors(length(provinces), palette = "Dark 3"), provinces
+  )
+
+  output_path <- save_base_png(file.path(
+    "kepco", "province_averages", "ma6",
+    paste0("kepco_province_average_", pollutants$pollutant[[i]], "_ef_ma6.png")
+  ))
+  plot(
+    range(province_ef$date), range(province_ef$ef_kg_per_mwh, na.rm = TRUE),
+    type = "n", xlab = "Month",
+    ylab = paste0(pollutants$label[[i]], " EF, kg/MWh"),
+    main = paste0("Average monthly ", pollutants$label[[i]],
+      " EF by plant province, 6-month moving average")
+  )
+  grid(col = "grey88")
+  for (province in provinces) {
+    x <- province_ef[province_ef$plant_province == province, ]
+    lines(x$date, x$ef_kg_per_mwh,
+      col = adjustcolor(province_colors[[province]], alpha.f = 0.2), lwd = 0.8)
+    lines(x$date, x$ef_ma_kg_per_mwh, col = province_colors[[province]], lwd = 2)
+  }
+  legend("topright", legend = provinces, col = province_colors,
+    lty = 1, lwd = 2, bty = "n", cex = 0.68, ncol = 2)
+  dev.off()
+  message("Saved figure: ", output_path)
+
+  output_path <- save_base_png(file.path(
+    "kepco", "province_averages", "raw",
+    paste0("kepco_province_average_", pollutants$pollutant[[i]], "_ef_raw.png")
+  ))
+  plot(
+    range(province_ef$date), range(province_ef$ef_kg_per_mwh, na.rm = TRUE),
+    type = "n", xlab = "Month",
+    ylab = paste0(pollutants$label[[i]], " EF, kg/MWh"),
+    main = paste0("Average monthly ", pollutants$label[[i]],
+      " EF by plant province, raw data")
+  )
+  grid(col = "grey88")
+  for (province in provinces) {
+    x <- province_ef[province_ef$plant_province == province, ]
+    lines(x$date, x$ef_kg_per_mwh, col = province_colors[[province]], lwd = 1.4)
+  }
+  legend("topright", legend = provinces, col = province_colors,
+    lty = 1, lwd = 2, bty = "n", cex = 0.68, ncol = 2)
+  dev.off()
+  message("Saved figure: ", output_path)
+
+  province_mass <- province_ef[, c(
+    "plant_province", "date", "emissions_kg", "generation_mwh"
+  )]
+  province_mass$emissions_kg_ma6 <- NA_real_
+  for (province in provinces) {
+    idx <- which(province_mass$plant_province == province)
+    idx <- idx[order(province_mass$date[idx])]
+    province_mass$emissions_kg_ma6[idx] <- trailing_mean(
+      province_mass$emissions_kg[idx], window = 6
+    )
+  }
+  save_table(
+    province_mass,
+    paste0("kepco_province_monthly_", pollutants$pollutant[[i]], "_emissions_kg.csv")
+  )
+
+  output_path <- save_base_png(file.path(
+    "kepco", "province_averages", "raw",
+    paste0("kepco_province_", pollutants$pollutant[[i]], "_emissions_kg.png")
+  ))
+  plot(
+    range(province_mass$date),
+    range(c(province_mass$emissions_kg, province_mass$emissions_kg_ma6), na.rm = TRUE),
+    type = "n", xlab = "Month",
+    ylab = paste0(pollutants$label[[i]], " emissions, kg"),
+    main = paste0("Monthly ", pollutants$label[[i]],
+      " mass emissions by plant province, 6-month moving average")
+  )
+  grid(col = "grey88")
+  for (province in provinces) {
+    x <- province_mass[province_mass$plant_province == province, ]
+    lines(x$date, x$emissions_kg,
+      col = adjustcolor(province_colors[[province]], alpha.f = 0.2), lwd = 0.8)
+    lines(x$date, x$emissions_kg_ma6, col = province_colors[[province]], lwd = 2)
+  }
+  legend("topright", legend = provinces, col = province_colors,
+    lty = 1, lwd = 2, bty = "n", cex = 0.68, ncol = 2)
+  dev.off()
+  message("Saved figure: ", output_path)
+}
+
+# Create province-faceted versions at both plant and fuel-type resolution.
+# Free y-scales keep provinces with smaller fleets visible instead of flattening
+# them against the largest generating provinces.
+save_province_faceted_plot <- function(plot, subdir, filename) {
+  output_path <- file.path(figures_dir, "kepco", subdir, filename)
+  dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
+  ggsave(output_path, plot = plot, width = 14, height = 10, units = "in", dpi = 220)
+  message("Saved figure: ", output_path)
+}
+
+build_province_breakdown <- function(group_var, output_stub, group_label) {
+  group_columns <- c("plant_province", group_var, "date")
+  generation_rows <- !is.na(analysis_kepco$energy_generated_mwh)
+  generation <- aggregate(
+    analysis_kepco$energy_generated_mwh[generation_rows],
+    analysis_kepco[generation_rows, group_columns, drop = FALSE],
+    sum,
+    na.rm = TRUE
+  )
+  names(generation)[ncol(generation)] <- "energy_generated_mwh"
+  generation <- generation[order(generation$date), ]
+  generation$energy_generated_mwh_ma6 <- NA_real_
+  generation_groups <- interaction(
+    generation$plant_province, generation[[group_var]], drop = TRUE
+  )
+  for (idx in split(seq_len(nrow(generation)), generation_groups)) {
+    idx <- idx[order(generation$date[idx])]
+    generation$energy_generated_mwh_ma6[idx] <- trailing_mean(
+      generation$energy_generated_mwh[idx], window = 6
+    )
+  }
+  save_table(generation, paste0("kepco_", output_stub, "_monthly_generation_mwh.csv"))
+
+  generation_plot <- ggplot(
+    generation,
+    aes(x = date, group = .data[[group_var]], color = .data[[group_var]])
+  ) +
+    geom_line(aes(y = energy_generated_mwh), alpha = 0.18, linewidth = 0.3) +
+    geom_line(aes(y = energy_generated_mwh_ma6), linewidth = 0.7, na.rm = TRUE) +
+    facet_wrap(~plant_province, scales = "free_y") +
+    labs(
+      title = paste0("Monthly generation by province and ", group_label),
+      subtitle = "Faint lines are raw monthly values; solid lines are 6-month moving averages",
+      x = NULL, y = "Generation, MWh", color = group_label
+    ) +
+    theme_minimal(base_size = 10) +
+    theme(legend.position = "bottom", legend.text = element_text(size = 7))
+  save_province_faceted_plot(
+    generation_plot, output_stub, paste0("kepco_", output_stub, "_generation_mwh.png")
+  )
+
+  for (i in seq_len(nrow(pollutants))) {
+    ef_data <- aggregate_ef(analysis_kepco, group_columns, pollutants$pollutant[[i]])
+    save_table(
+      ef_data,
+      paste0("kepco_", output_stub, "_monthly_", pollutants$pollutant[[i]], "_ef.csv")
+    )
+    if (nrow(ef_data) == 0) {
+      next
+    }
+
+    common_aes <- aes(x = date, group = .data[[group_var]], color = .data[[group_var]])
+    common_theme <- list(
+      facet_wrap(~plant_province, scales = "free_y"),
+      theme_minimal(base_size = 10),
+      theme(legend.position = "bottom", legend.text = element_text(size = 7))
+    )
+
+    raw_plot <- ggplot(ef_data, common_aes) +
+      geom_line(aes(y = ef_kg_per_mwh), linewidth = 0.55, na.rm = TRUE) +
+      common_theme +
+      labs(
+        title = paste0("Monthly ", pollutants$label[[i]], " EF by province and ", group_label),
+        subtitle = "Raw monthly emission factors after canonical audit exclusions",
+        x = NULL, y = paste0(pollutants$label[[i]], " EF, kg/MWh"), color = group_label
+      )
+    save_province_faceted_plot(
+      raw_plot, file.path(output_stub, "raw"),
+      paste0("kepco_", output_stub, "_", pollutants$pollutant[[i]], "_ef_raw.png")
+    )
+
+    ma_plot <- ggplot(ef_data, common_aes) +
+      geom_line(aes(y = ef_kg_per_mwh), alpha = 0.15, linewidth = 0.3, na.rm = TRUE) +
+      geom_line(aes(y = ef_ma_kg_per_mwh), linewidth = 0.7, na.rm = TRUE) +
+      common_theme +
+      labs(
+        title = paste0("Monthly ", pollutants$label[[i]], " EF by province and ", group_label),
+        subtitle = "Solid lines are 6-month moving averages",
+        x = NULL, y = paste0(pollutants$label[[i]], " EF, kg/MWh"), color = group_label
+      )
+    save_province_faceted_plot(
+      ma_plot, file.path(output_stub, "ma6"),
+      paste0("kepco_", output_stub, "_", pollutants$pollutant[[i]], "_ef_ma6.png")
+    )
+
+    mass_data <- ef_data[, c(
+      "plant_province", group_var, "date", "emissions_kg", "generation_mwh"
+    )]
+    mass_data$emissions_kg_ma6 <- NA_real_
+    mass_groups <- interaction(
+      mass_data$plant_province, mass_data[[group_var]], drop = TRUE
+    )
+    for (idx in split(seq_len(nrow(mass_data)), mass_groups)) {
+      idx <- idx[order(mass_data$date[idx])]
+      mass_data$emissions_kg_ma6[idx] <- trailing_mean(
+        mass_data$emissions_kg[idx], window = 6
+      )
+    }
+    save_table(
+      mass_data,
+      paste0(
+        "kepco_", output_stub, "_monthly_", pollutants$pollutant[[i]],
+        "_emissions_kg.csv"
+      )
+    )
+
+    mass_plot <- ggplot(mass_data, common_aes) +
+      geom_line(aes(y = emissions_kg), alpha = 0.15, linewidth = 0.3, na.rm = TRUE) +
+      geom_line(aes(y = emissions_kg_ma6), linewidth = 0.7, na.rm = TRUE) +
+      common_theme +
+      labs(
+        title = paste0(
+          "Monthly ", pollutants$label[[i]], " emissions by province and ", group_label
+        ),
+        subtitle = "Solid lines are 6-month moving averages",
+        x = NULL, y = paste0(pollutants$label[[i]], " emissions, kg"), color = group_label
+      )
+    save_province_faceted_plot(
+      mass_plot, file.path(output_stub, "raw"),
+      paste0("kepco_", output_stub, "_", pollutants$pollutant[[i]], "_emissions_kg.png")
+    )
+  }
+}
+
+build_province_breakdown("plant_name", "province_by_plant", "plant")
+build_province_breakdown("energy_type_clean", "province_by_fuel_type", "fuel type")
 
 # Paused: holding off on EF break/plateau projections for now (2026-06-30).
 # Wrapped in `if (FALSE)` rather than deleted so this can be re-enabled

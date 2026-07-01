@@ -8,6 +8,10 @@ import pytest
 from nzk_aphiam.data.scrape.health.kosis import scraper
 
 
+def test_parser_defaults_to_all_datasets() -> None:
+    assert scraper.build_parser().parse_args([]).datasets == []
+
+
 def test_build_params_uses_year_chunks_and_all_required_dimensions() -> None:
     params = scraper.build_params(scraper.DATASETS["cause-deaths"], 2024, "secret")
 
@@ -78,6 +82,7 @@ def test_population_table_uses_total_population_item_without_sex_dimension() -> 
 
     assert dataset.item_id == "T20"
     assert dataset.dimensions == ("ALL",)
+    assert dataset.first_year == 2011
 
 
 def test_validate_payload_surfaces_kosis_error() -> None:

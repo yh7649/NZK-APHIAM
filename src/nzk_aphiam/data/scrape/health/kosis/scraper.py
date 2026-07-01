@@ -169,7 +169,9 @@ DATASETS = {
         table_id="DT_1B040A3",
         title="KOSIS monthly resident population by district and sex",
         period="M",
-        first_year=1992,
+        # This table advertises annual history from 1992, but its monthly
+        # series returns KOSIS error 30 before 2011.
+        first_year=2011,
         item_id="T20",
         dimensions=("ALL",),
         output_columns=(
@@ -427,7 +429,7 @@ def scrape(
     """Collect selected public-health tables and write a provenance manifest."""
     if start_year > end_year:
         raise ValueError("start_year must not be after end_year.")
-    selected = list(DATASETS) if "all" in dataset_keys else dataset_keys
+    selected = list(DATASETS) if not dataset_keys or "all" in dataset_keys else dataset_keys
     unknown = sorted(set(selected).difference(DATASETS))
     if unknown:
         raise ValueError(f"Unknown KOSIS health dataset(s): {', '.join(unknown)}")
@@ -478,8 +480,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "datasets",
         nargs="*",
-        choices=[*DATASETS, "all"],
-        default=["all"],
+        default=[],
+        metavar="DATASET",
         help="Datasets to collect; defaults to all.",
     )
     parser.add_argument("--start-year", type=int, default=DEFAULT_START_YEAR)

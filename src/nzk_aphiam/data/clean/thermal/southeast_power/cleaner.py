@@ -36,6 +36,9 @@ DEFAULT_INPUT_PATH = (
     / "southeast_power"
     / "southeast_power_daily_air_pollutant_emissions.csv"
 )
+DEFAULT_GENERATION_INPUT_PATH = (
+    PROJECT_ROOT / "data" / "raw" / "southeast_power" / "southeast_power_monthly_generation.csv"
+)
 DEFAULT_OUTPUT_PATH = (
     PROJECT_ROOT
     / "data"
@@ -46,6 +49,16 @@ DEFAULT_OUTPUT_PATH = (
 
 SUBSIDIARY_COMPANY = "Korea South-East Power"
 SOURCE_COLUMNS = ["사업소", "호기", "일자", "SOX", "NOX", "먼지", "산소", "유량", "온도"]
+GENERATION_SOURCE_COLUMNS = [
+    "사업소",
+    "호기",
+    "일자",
+    "용량(MW)",
+    "발전량(MWh)",
+    "열효율(%)",
+    "이용률(%)",
+    "발전원",
+]
 FIVE_MINUTE_PERIODS_PER_DAY = 288
 MOLAR_VOLUME_LITERS_PER_MOL = 22.4
 SOX_MOLECULAR_WEIGHT_GRAMS = 64
@@ -58,7 +71,8 @@ DERIVATION_NOTE = (
     "workbook/clarification was used only to verify the formulas, not as cleaner "
     "input: gas kg = ppm * flow_sm3 * molecular_weight / (22.4 * 1,000,000) "
     "* 288; dust kg = mg_per_sm3 * flow_sm3 / 1,000,000 * 288, excluding dust "
-    "concentration rows >30 mg/Sm3. Numeric unit rows combine A/B labels."
+    "concentration rows >30 mg/Sm3. Emissions stacks are aggregated to the "
+    "crosswalked KOEN monthly generation unit before joining generation."
 )
 PLANT_NAMES = {
     "분당": "Bundang",
@@ -67,6 +81,33 @@ PLANT_NAMES = {
     "영동": "Yeongdong",
     "영흥": "Yeongheung",
 }
+ENERGY_TYPES = {
+    "석탄": "coal",
+    "국내탄": "coal",
+    "복합": "natural_gas",
+    "바이오매스": "biomass",
+    "중유": "oil",
+    "기타": "other",
+}
+GENERATION_SOURCE = "southeast_monthly_generation"
+REPORTING_ID_PREFIX = "southeast_power"
+
+
+def generation_unit_identity(plant: object, unit: object, emissions: bool) -> str | None:
+    """Crosswalk emissions stack labels and generation labels to one unit key."""
+    if pd.isna(plant) or pd.isna(unit):
+        return None
+    plant_text, unit_text = str(plant).strip(), str(unit).strip()
+    if emissions:
+        if plant_text == "여수" and unit_text == "-":
+            return "2"
+        number = extract_unit_number(unit_text)
+        if number is None:
+            return None
+        return f"CG{number}" if plant_text == "분당" else str(number)
+    if plant_text == "분당":
+        return unit_text if re.fullmatch(r"CG[1-8]", unit_text) else None
+    return unit_text if re.fullmatch(r"\d+", unit_text) else None
 
 
 def validate_source_columns(df: pd.DataFrame) -> None:
@@ -115,7 +156,17 @@ def build_daily_derived_mass(source: pd.DataFrame) -> pd.DataFrame:
                 errors="raise",
             ),
             "plant_name": source["사업소"].map(PLANT_NAMES),
-            "plant_number": source["호기"].map(extract_unit_number),
+            "generation_unit": [
+                generation_unit_identity(plant, unit, emissions=True)
+                for plant, unit in zip(source["사업소"], source["호기"], strict=True)
+            ],
+            "plant_number": [
+                int(identity.removeprefix("CG")) if identity else None
+                for identity in (
+                    generation_unit_identity(plant, unit, emissions=True)
+                    for plant, unit in zip(source["사업소"], source["호기"], strict=True)
+                )
+            ],
             # Gas conversion follows KOEN's confirmed chemistry, then scales
             # the daily-average five-minute value to a full day.
             "nox": (
@@ -158,6 +209,7 @@ def aggregate_monthly_mass(daily: pd.DataFrame) -> pd.DataFrame:
         "date",
         "plant_name",
         "plant_number",
+        "generation_unit",
         "original_korean_plant_name",
     ]
     monthly = (
@@ -173,34 +225,121 @@ def aggregate_monthly_mass(daily: pd.DataFrame) -> pd.DataFrame:
         .sort_values(["date", "plant_name", "original_korean_unit_name"], ignore_index=True)
     )
 
+    monthly["component_count"] = monthly["original_korean_unit_name"].str.count("; ") + 1
+    return monthly
+
+
+def clean_generation(generation_raw: pd.DataFrame) -> pd.DataFrame:
+    """Normalize KOEN generation and retain units represented by emissions."""
+    if list(generation_raw.columns) != GENERATION_SOURCE_COLUMNS:
+        raise ValueError(
+            "Unexpected South-East Power generation columns. "
+            f"Expected {GENERATION_SOURCE_COLUMNS!r}, received {list(generation_raw.columns)!r}."
+        )
+    source = generation_raw[generation_raw["사업소"].isin(PLANT_NAMES)].copy()
+    source["generation_unit"] = [
+        generation_unit_identity(plant, unit, emissions=False)
+        for plant, unit in zip(source["사업소"], source["호기"], strict=True)
+    ]
+    source = source.dropna(subset=["generation_unit"])
+    source["date"] = pd.to_datetime(source["일자"].astype("string"), format="%Y%m")
+    if source.duplicated(["date", "사업소", "generation_unit"]).any():
+        raise ValueError("South-East Power generation contains duplicate unit months.")
+    source["energy_generated_mwh"] = pd.to_numeric(source["발전량(MWh)"], errors="coerce")
+    source["energy_capacity_mw"] = pd.to_numeric(source["용량(MW)"], errors="coerce")
+    source["energy_type"] = source["발전원"].map(ENERGY_TYPES)
+    unknown = sorted(source.loc[source["energy_type"].isna(), "발전원"].dropna().unique())
+    if unknown:
+        raise ValueError(f"Unknown South-East Power generation energy types: {unknown}")
+    return source[
+        [
+            "date",
+            "사업소",
+            "generation_unit",
+            "energy_generated_mwh",
+            "energy_capacity_mw",
+            "energy_type",
+            "호기",
+        ]
+    ].rename(columns={"사업소": "original_korean_plant_name", "호기": "generation_unit_label"})
+
+
+def pollutant_pattern(data: pd.DataFrame) -> pd.Series:
+    reported = data[["nox", "sox", "dust_tsp"]].notna()
+    labels = {
+        (True, True, True): "nox_sox_dust",
+        (True, True, False): "nox_sox",
+        (True, False, True): "nox_dust",
+        (False, True, True): "sox_dust",
+        (True, False, False): "nox_only",
+        (False, True, False): "sox_only",
+        (False, False, True): "dust_only",
+        (False, False, False): "none",
+    }
+    return reported.apply(lambda row: labels[tuple(row)], axis=1).astype("string")
+
+
+def assemble_cleaned(monthly: pd.DataFrame, generation_raw: pd.DataFrame) -> pd.DataFrame:
+    generation = clean_generation(generation_raw)
+    joined = monthly.merge(
+        generation,
+        on=["date", "original_korean_plant_name", "generation_unit"],
+        how="left",
+        validate="one_to_one",
+    )
+    missing_generation = joined["energy_generated_mwh"].isna()
+    first_activity = (
+        joined["date"]
+        .groupby([joined["original_korean_plant_name"], joined["generation_unit"]])
+        .transform("min")
+    )
     cleaned = pd.DataFrame(
         {
-            "date": monthly["date"],
-            "plant_name": monthly["plant_name"],
-            "plant_number": monthly["plant_number"],
-            "plant_opening_date": pd.Series(pd.NaT, index=monthly.index),
-            "plant_closing_date": pd.Series(pd.NaT, index=monthly.index),
-            "plant_latitude": pd.Series(pd.NA, index=monthly.index, dtype="Float64"),
-            "plant_longitude": pd.Series(pd.NA, index=monthly.index, dtype="Float64"),
+            "date": joined["date"],
+            "plant_name": joined["plant_name"],
+            "plant_number": joined["plant_number"],
+            "plant_opening_date": pd.Series(pd.NaT, index=joined.index),
+            "plant_closing_date": pd.Series(pd.NaT, index=joined.index),
+            "plant_latitude": pd.Series(pd.NA, index=joined.index, dtype="Float64"),
+            "plant_longitude": pd.Series(pd.NA, index=joined.index, dtype="Float64"),
             "subsidiary_company": SUBSIDIARY_COMPANY,
-            "energy_type": pd.Series(pd.NA, index=monthly.index, dtype="string"),
-            "energy_generated_mwh": pd.Series(pd.NA, index=monthly.index, dtype="Float64"),
-            "energy_capacity_mw": pd.Series(pd.NA, index=monthly.index, dtype="Float64"),
-            "nox": monthly["nox"],
-            "sox": monthly["sox"],
-            "dust_tsp": monthly["dust_tsp"],
+            "energy_type": joined["energy_type"],
+            "energy_generated_mwh": joined["energy_generated_mwh"],
+            "energy_capacity_mw": joined["energy_capacity_mw"],
+            "reporting_unit_id": REPORTING_ID_PREFIX
+            + ":"
+            + joined["original_korean_plant_name"].astype("string")
+            + ":"
+            + joined["generation_unit"].astype("string"),
+            "reporting_start_date": first_activity,
+            "reporting_end_date": pd.Series(pd.NaT, index=joined.index),
+            "reporting_window_basis": "first_derived_emissions_activity",
+            "observation_level": "generating_unit",
+            "component_count": joined["component_count"],
+            "generation_source": GENERATION_SOURCE,
+            "generation_coverage_status": missing_generation.map(
+                {True: "missing", False: "reported"}
+            ),
+            "row_status": missing_generation.map(
+                {True: "active_partial", False: "active_reported"}
+            ),
+            "row_status_basis": missing_generation.map(
+                {
+                    True: "derived_pollutants_without_matching_generation",
+                    False: "generation_and_derived_pollutants_reported",
+                }
+            ),
+            "nox": joined["nox"],
+            "sox": joined["sox"],
+            "dust_tsp": joined["dust_tsp"],
+            "pollutant_data_pattern": pollutant_pattern(joined),
             "pollutant_measurement_basis": "mass",
             "nox_unit": "kilograms",
             "sox_unit": "kilograms",
             "dust_tsp_unit": "kilograms",
             "emissions_mass_unit": "kilograms",
-            "oxygen": pd.Series(pd.NA, index=monthly.index, dtype="Float64"),
-            "oxygen_unit": pd.Series(pd.NA, index=monthly.index, dtype="string"),
-            "flue_gas_flow": pd.Series(pd.NA, index=monthly.index, dtype="Float64"),
-            "flue_gas_flow_unit": pd.Series(pd.NA, index=monthly.index, dtype="string"),
-            "temperature_celsius": pd.Series(pd.NA, index=monthly.index, dtype="Float64"),
-            "original_korean_plant_name": monthly["original_korean_plant_name"],
-            "original_korean_unit_name": monthly["original_korean_unit_name"],
+            "original_korean_plant_name": joined["original_korean_plant_name"],
+            "original_korean_unit_name": joined["original_korean_unit_name"],
             "original_korean_note": DERIVATION_NOTE,
         },
         columns=THERMAL_OUTPUT_COLUMNS,
@@ -209,8 +348,8 @@ def aggregate_monthly_mass(daily: pd.DataFrame) -> pd.DataFrame:
     return cleaned
 
 
-def clean_southeast_power(raw: pd.DataFrame) -> pd.DataFrame:
-    """Return inferred monthly pollutant mass in the shared thermal schema."""
+def clean_southeast_power(raw: pd.DataFrame, generation_raw: pd.DataFrame) -> pd.DataFrame:
+    """Join monthly generation to inferred pollutant mass at unit level."""
     validate_source_columns(raw)
     source = raw.copy()
 
@@ -219,7 +358,8 @@ def clean_southeast_power(raw: pd.DataFrame) -> pd.DataFrame:
         raise ValueError(f"Unknown South-East Power plant names: {unknown_plants}")
 
     daily = build_daily_derived_mass(source)
-    cleaned = aggregate_monthly_mass(daily)
+    monthly = aggregate_monthly_mass(daily)
+    cleaned = assemble_cleaned(monthly, generation_raw)
 
     cleaned["plant_number"] = cleaned["plant_number"].astype("Int64")
     for column in [
@@ -253,12 +393,18 @@ def clean_southeast_power(raw: pd.DataFrame) -> pd.DataFrame:
     ]:
         cleaned[column] = cleaned[column].astype("string")
 
-    return apply_location_crosswalk(cleaned)
+    cleaned["component_count"] = cleaned["component_count"].astype("Int64")
+    return apply_location_crosswalk(cleaned).sort_values(
+        ["date", "plant_name", "plant_number"], ignore_index=True
+    )
 
 
-def load_and_clean(input_path: Path) -> pd.DataFrame:
+def load_and_clean(input_path: Path, generation_input_path: Path) -> pd.DataFrame:
     raw = pd.read_csv(input_path, encoding="utf-8-sig", dtype={"호기": "string"})
-    return clean_southeast_power(raw)
+    generation_raw = pd.read_csv(
+        generation_input_path, encoding="utf-8-sig", dtype={"호기": "string"}
+    )
+    return clean_southeast_power(raw, generation_raw)
 
 
 def save_cleaned(df: pd.DataFrame, output_path: Path) -> None:
@@ -269,17 +415,21 @@ def save_cleaned(df: pd.DataFrame, output_path: Path) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input-path", type=Path, default=DEFAULT_INPUT_PATH)
+    parser.add_argument(
+        "--generation-input-path", type=Path, default=DEFAULT_GENERATION_INPUT_PATH
+    )
     parser.add_argument("--output-path", type=Path, default=DEFAULT_OUTPUT_PATH)
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    cleaned = load_and_clean(args.input_path)
+    cleaned = load_and_clean(args.input_path, args.generation_input_path)
     save_cleaned(cleaned, args.output_path)
     print(f"Saved {len(cleaned)} cleaned rows to {args.output_path}")
     print(f"Monthly coverage: {cleaned['date'].min():%Y-%m} to {cleaned['date'].max():%Y-%m}")
-    print("Derived SOx/NOx/dust mass using KOEN's confirmed 5-minute average basis.")
+    matched = cleaned["energy_generated_mwh"].notna().sum()
+    print(f"Matched monthly generation for {matched}/{len(cleaned)} unit rows.")
 
 
 if __name__ == "__main__":

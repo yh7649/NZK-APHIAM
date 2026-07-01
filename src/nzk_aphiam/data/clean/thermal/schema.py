@@ -8,6 +8,8 @@ THERMAL_OUTPUT_COLUMNS = [
     "plant_closing_date",
     "plant_latitude",
     "plant_longitude",
+    "plant_province",
+    "plant_district",
     "subsidiary_company",
     "energy_type",
     "energy_generated_mwh",

@@ -1,8 +1,23 @@
-# NZK-APHIAM East-West Power monthly analysis workspace
+# NZK-APHIAM KEPCO subsidiary monthly analysis workspace
 #
 # Open NZK-APHIAM.Rproj, then work through this script interactively.
-# Python owns data cleaning. Run `make clean-eastwest-power` before using
-# this file whenever the interim dataset changes.
+# Python owns data cleaning and auditing. Before using this file, run the
+# cleaner for the subsidiary you want:
+#
+#   make clean-<subsidiary>      (e.g. make clean-eastwest-power)
+#   make combine-kepco           (re-standardises and re-audits all subsidiaries)
+#
+# Set the two parameters below, then source this script.
+
+# ---- Parameters (set these before sourcing) ----------------------------------
+
+# Snake-case name matching the processed CSV prefix and results subdirectory.
+# One of: eastwest_power | western_power | southern_power |
+#         southeast_power | midland_power
+subsidiary_name  <- "eastwest_power"
+
+# Human-readable label used in plot titles.
+subsidiary_label <- "East-West Power"
 
 # ---- Setup -------------------------------------------------------------------
 
@@ -13,14 +28,15 @@ options(
   scipen = 999
 )
 
-eastwest_csv <- kepco_processed_path(
-  "subsidiaries", "eastwest_power_monthly_generation_emissions.csv"
+make_target   <- paste0("clean-", gsub("_", "-", subsidiary_name))
+subsidiary_csv <- kepco_processed_path(
+  "subsidiaries", paste0(subsidiary_name, "_monthly_generation_emissions.csv")
 )
 
-figures_dir <- results_path("figures")
-tables_dir <- results_path("tables", "eastwest_power")
+figures_dir <- results_path("figures", "kepco_subsidiaries")
+tables_dir  <- results_path("tables", subsidiary_name)
 objects_dir <- results_path("objects")
-models_dir <- results_path("models")
+models_dir  <- results_path("models")
 
 for (directory in c(figures_dir, tables_dir, objects_dir, models_dir)) {
   dir.create(directory, recursive = TRUE, showWarnings = FALSE)
@@ -83,34 +99,34 @@ save_model <- function(model, filename) {
 
 # ---- Load and validate --------------------------------------------------------
 
-if (!file.exists(eastwest_csv)) {
+if (!file.exists(subsidiary_csv)) {
   stop(
     "Required processed file is missing:\n",
-    eastwest_csv,
-    "\nRun `make clean-eastwest-power` first.",
+    subsidiary_csv,
+    "\nRun `make ", make_target, "` first.",
     call. = FALSE
   )
 }
 
-eastwest <- read.csv(
-  eastwest_csv,
+sub_data <- read.csv(
+  subsidiary_csv,
   na.strings = c("", "NA"),
   check.names = FALSE,
   stringsAsFactors = FALSE
 )
-eastwest$date <- as.Date(eastwest$date)
-eastwest$plant_opening_date <- as.Date(eastwest$plant_opening_date)
-eastwest$plant_closing_date <- as.Date(eastwest$plant_closing_date)
+sub_data$date              <- as.Date(sub_data$date)
+sub_data$plant_opening_date <- as.Date(sub_data$plant_opening_date)
+sub_data$plant_closing_date <- as.Date(sub_data$plant_closing_date)
 
-if (!all(eastwest$observation_frequency == "monthly")) {
+if (!all(sub_data$observation_frequency == "monthly")) {
   stop("The processed dataset contains non-monthly observations.", call. = FALSE)
 }
 
-if (!all(eastwest$pollutant_measurement_basis == "mass")) {
+if (!all(sub_data$pollutant_measurement_basis == "mass")) {
   stop("The processed dataset contains non-mass pollutant observations.", call. = FALSE)
 }
 
-mass_units <- unique(na.omit(eastwest$emissions_mass_unit))
+mass_units <- unique(na.omit(sub_data$emissions_mass_unit))
 if (!identical(mass_units, "kilograms")) {
   stop("Pollutant mass is not consistently standardized to kilograms.", call. = FALSE)
 }
@@ -118,32 +134,33 @@ if (!identical(mass_units, "kilograms")) {
 
 # ---- Analysis variables -------------------------------------------------------
 
-eastwest$year <- as.integer(format(eastwest$date, "%Y"))
-eastwest$month <- as.integer(format(eastwest$date, "%m"))
+sub_data$year  <- as.integer(format(sub_data$date, "%Y"))
+sub_data$month <- as.integer(format(sub_data$date, "%m"))
 
-eastwest$nox_kg_per_mwh <- with(
-  eastwest,
+sub_data$nox_kg_per_mwh <- with(
+  sub_data,
   ifelse(energy_generated_mwh > 0, nox / energy_generated_mwh, NA_real_)
 )
-eastwest$sox_kg_per_mwh <- with(
-  eastwest,
+sub_data$sox_kg_per_mwh <- with(
+  sub_data,
   ifelse(energy_generated_mwh > 0, sox / energy_generated_mwh, NA_real_)
 )
-eastwest$dust_tsp_kg_per_mwh <- with(
-  eastwest,
+sub_data$dust_tsp_kg_per_mwh <- with(
+  sub_data,
   ifelse(energy_generated_mwh > 0, dust_tsp / energy_generated_mwh, NA_real_)
 )
 
 
 # ---- Workspace overview -------------------------------------------------------
 
-cat("Rows:", format(nrow(eastwest), big.mark = ","), "\n")
-cat("Date range:", format(min(eastwest$date)), "to", format(max(eastwest$date)), "\n")
-cat("Plants:", length(unique(eastwest$plant_name)), "\n\n")
+cat("Subsidiary:", subsidiary_label, "\n")
+cat("Rows:", format(nrow(sub_data), big.mark = ","), "\n")
+cat("Date range:", format(min(sub_data$date)), "to", format(max(sub_data$date)), "\n")
+cat("Plants:", length(unique(sub_data$plant_name)), "\n\n")
 
 coverage_by_dataset <- aggregate(
   date ~ source_dataset,
-  data = eastwest,
+  data = sub_data,
   FUN = function(x) paste(min(x), max(x), sep = " to ")
 )
 print(coverage_by_dataset)
@@ -152,19 +169,19 @@ print(coverage_by_dataset)
 # ---- Manual analysis starts here ---------------------------------------------
 
 # Useful first checks:
-# View(eastwest)
-# summary(eastwest)
-# table(eastwest$source_dataset, useNA = "ifany")
-# table(eastwest$energy_type, useNA = "ifany")
+# View(sub_data)
+# summary(sub_data)
+# table(sub_data$source_dataset, useNA = "ifany")
+# table(sub_data$energy_type, useNA = "ifany")
 #
 # Save examples:
 # save_table(coverage_by_dataset, "coverage_by_dataset.csv")
-# save_analysis_object(eastwest, "eastwest_analysis_data.rds")
+# save_analysis_object(sub_data, paste0(subsidiary_name, "_analysis_data.rds"))
 # save_model(your_model, "your_model.rds")
 #
 # With ggplot2:
 # library(ggplot2)
-# generation_plot <- ggplot(eastwest, aes(date, energy_generated_mwh)) +
+# generation_plot <- ggplot(sub_data, aes(date, energy_generated_mwh)) +
 #   geom_line(aes(color = plant_name), na.rm = TRUE) +
 #   labs(x = NULL, y = "Monthly electricity generation (MWh)")
 # save_figure("monthly_generation.png", generation_plot)
@@ -172,15 +189,18 @@ print(coverage_by_dataset)
 
 # ---- Fast EF diagnostics and projections -------------------------------------
 
-# This section mirrors the Taean pilot logic:
+# Steps:
 #   1. pollutant EF = kg emissions / MWh generation
-#   2. flag high EF outliers within each plant-unit using Q3 + 3*IQR
-#   3. aggregate EF as total valid emissions / total valid generation
-#   4. select a structural break by BIC over candidate monthly breaks
-#   5. project with a pre-break line and a post-break nonzero plateau
+#   2. exclude flagged rows using the Python auditor's audit_severity/
+#      audit_issue_codes columns (warning- and critical-tier codes only)
+#   3. suppress fuel-type/plant aggregates where surviving generation falls
+#      below min_coverage_pct of the full fleet for that group-month
+#   4. aggregate EF as total valid emissions / total valid generation
+#   5. select a structural break by BIC over candidate monthly breaks
+#   6. project with a pre-break line and a post-break nonzero plateau
 
 required_r_packages <- c("ggplot2", "dplyr", "tidyr", "readr", "lubridate", "scales", "broom")
-missing_r_packages <- required_r_packages[
+missing_r_packages  <- required_r_packages[
   !vapply(required_r_packages, requireNamespace, logical(1), quietly = TRUE)
 ]
 
@@ -205,16 +225,16 @@ suppressPackageStartupMessages({
 
 pollutants <- data.frame(
   pollutant = c("sox", "nox", "dust_tsp"),
-  ef = c("sox_kg_per_mwh", "nox_kg_per_mwh", "dust_tsp_kg_per_mwh"),
-  label = c("SOx", "NOx", "TSP"),
+  ef        = c("sox_kg_per_mwh", "nox_kg_per_mwh", "dust_tsp_kg_per_mwh"),
+  label     = c("SOx", "NOx", "TSP"),
   stringsAsFactors = FALSE
 )
 
-analysis_eastwest <- eastwest
-analysis_eastwest$energy_type_clean <- ifelse(
-  is.na(analysis_eastwest$energy_type) | analysis_eastwest$energy_type == "",
+analysis_sub <- sub_data
+analysis_sub$energy_type_clean <- ifelse(
+  is.na(analysis_sub$energy_type) | analysis_sub$energy_type == "",
   "unknown",
-  analysis_eastwest$energy_type
+  analysis_sub$energy_type
 )
 
 format_month_label <- function(x) {
@@ -280,15 +300,14 @@ line_colors <- c(
 # Pollutant values are excluded from analysis using the Python auditor's own
 # audit_severity/audit_issue_codes (src/nzk_aphiam/data/audit/thermal/auditor.py),
 # not a second, independently computed IQR check. Recomputing the same kind of
-# threshold here in R duplicated logic that already lives in the audited
+# threshold here in R would duplicate logic that already lives in the audited
 # subsidiary file and could silently drift from it.
 #
 # A row is excluded for a given pollutant only when one of that pollutant's
 # own warning-or-critical-tier issue codes is present -- not merely because
 # the row's overall audit_severity (the worst flag across *any* pollutant) is
-# elevated. review-tier flags (e.g. high_X_mass, a one-off outlier against the
-# unit's full history) are left in place; only the higher-confidence codes
-# below are excluded:
+# elevated. review-tier flags (e.g. high_X_mass) are left in place; only the
+# higher-confidence codes below are excluded:
 #   - high_<pollutant>_emission_factor (warning)
 #   - recent_shift_high_<pollutant>_mass / recent_shift_low_<pollutant>_mass (warning)
 #   - zero_nox_with_generation / zero_sox_coal_generation / zero_dust_tsp_coal_generation (warning)
@@ -303,16 +322,16 @@ audit_exclusion_pattern <- function(pollutant) {
 outlier_log <- data.frame()
 
 for (i in seq_len(nrow(pollutants))) {
-  ef_var <- pollutants$ef[[i]]
+  ef_var     <- pollutants$ef[[i]]
   outlier_var <- paste0("high_outlier_", pollutants$pollutant[[i]])
 
   issue_codes <- ifelse(
-    is.na(analysis_eastwest$audit_issue_codes), "", analysis_eastwest$audit_issue_codes
+    is.na(analysis_sub$audit_issue_codes), "", analysis_sub$audit_issue_codes
   )
-  analysis_eastwest[[outlier_var]] <- analysis_eastwest$audit_severity %in% c("critical", "warning") &
+  analysis_sub[[outlier_var]] <- analysis_sub$audit_severity %in% c("critical", "warning") &
     grepl(audit_exclusion_pattern(pollutants$pollutant[[i]]), issue_codes)
 
-  flagged <- analysis_eastwest[analysis_eastwest[[outlier_var]], c(
+  flagged <- analysis_sub[analysis_sub[[outlier_var]], c(
     "source_dataset", "date", "plant_name", "plant_number", "energy_type_clean",
     "energy_generated_mwh", pollutants$pollutant[[i]], ef_var,
     "audit_severity", "audit_issue_codes"
@@ -320,16 +339,16 @@ for (i in seq_len(nrow(pollutants))) {
 
   if (nrow(flagged) > 0) {
     names(flagged)[names(flagged) == pollutants$pollutant[[i]]] <- "emissions_kg"
-    names(flagged)[names(flagged) == ef_var] <- "ef_kg_per_mwh"
+    names(flagged)[names(flagged) == ef_var]                    <- "ef_kg_per_mwh"
     flagged$pollutant <- pollutants$label[[i]]
     outlier_log <- rbind(outlier_log, flagged)
   }
 
-  analysis_eastwest[[pollutants$pollutant[[i]]]][analysis_eastwest[[outlier_var]]] <- NA_real_
-  analysis_eastwest[[ef_var]][analysis_eastwest[[outlier_var]]] <- NA_real_
+  analysis_sub[[pollutants$pollutant[[i]]]][analysis_sub[[outlier_var]]] <- NA_real_
+  analysis_sub[[ef_var]][analysis_sub[[outlier_var]]]                    <- NA_real_
 }
 
-save_table(outlier_log, "eastwest_power_audit_excluded.csv")
+save_table(outlier_log, paste0(subsidiary_name, "_audit_excluded.csv"))
 
 summarize_vector <- function(x) {
   x <- x[!is.na(x)]
@@ -341,57 +360,61 @@ summarize_vector <- function(x) {
   }
 
   c(
-    n = length(x),
-    mean = mean(x),
-    sd = ifelse(length(x) > 1, sd(x), NA_real_),
-    min = min(x),
-    p25 = unname(quantile(x, 0.25)),
+    n      = length(x),
+    mean   = mean(x),
+    sd     = ifelse(length(x) > 1, sd(x), NA_real_),
+    min    = min(x),
+    p25    = unname(quantile(x, 0.25)),
     median = median(x),
-    p75 = unname(quantile(x, 0.75)),
-    max = max(x)
+    p75    = unname(quantile(x, 0.75)),
+    max    = max(x)
   )
 }
 
 summary_rows <- list()
-for (energy_type in sort(unique(analysis_eastwest$energy_type_clean))) {
-  rows <- analysis_eastwest$energy_type_clean == energy_type
+for (energy_type in sort(unique(analysis_sub$energy_type_clean))) {
+  rows <- analysis_sub$energy_type_clean == energy_type
 
   for (i in seq_len(nrow(pollutants))) {
-    stats <- summarize_vector(analysis_eastwest[[pollutants$ef[[i]]]][rows])
-    gen_valid <- analysis_eastwest$energy_generated_mwh[rows &
-                                                          !is.na(analysis_eastwest[[pollutants$pollutant[[i]]]]) &
-                                                          analysis_eastwest$energy_generated_mwh > 0]
-    emissions_valid <- analysis_eastwest[[pollutants$pollutant[[i]]]][rows &
-                                                                        !is.na(analysis_eastwest[[pollutants$pollutant[[i]]]]) &
-                                                                        analysis_eastwest$energy_generated_mwh > 0]
+    stats      <- summarize_vector(analysis_sub[[pollutants$ef[[i]]]][rows])
+    gen_valid  <- analysis_sub$energy_generated_mwh[
+      rows &
+        !is.na(analysis_sub[[pollutants$pollutant[[i]]]]) &
+        analysis_sub$energy_generated_mwh > 0
+    ]
+    emissions_valid <- analysis_sub[[pollutants$pollutant[[i]]]][
+      rows &
+        !is.na(analysis_sub[[pollutants$pollutant[[i]]]]) &
+        analysis_sub$energy_generated_mwh > 0
+    ]
 
     summary_rows[[length(summary_rows) + 1]] <- data.frame(
       energy_type = energy_type,
-      pollutant = pollutants$label[[i]],
+      pollutant   = pollutants$label[[i]],
       t(stats),
-      total_generation_mwh = sum(gen_valid, na.rm = TRUE),
-      total_emissions_kg = sum(emissions_valid, na.rm = TRUE),
+      total_generation_mwh  = sum(gen_valid, na.rm = TRUE),
+      total_emissions_kg    = sum(emissions_valid, na.rm = TRUE),
       aggregate_ef_kg_per_mwh = sum(emissions_valid, na.rm = TRUE) /
         sum(gen_valid, na.rm = TRUE),
-      row.names = NULL,
+      row.names   = NULL,
       check.names = FALSE
     )
   }
 }
 
 summary_by_fuel <- do.call(rbind, summary_rows)
-save_table(summary_by_fuel, "eastwest_power_pollutant_summary_by_fuel.csv")
+save_table(summary_by_fuel, paste0(subsidiary_name, "_pollutant_summary_by_fuel.csv"))
 
 coverage_by_plant_fuel <- aggregate(
   date ~ plant_name + energy_type_clean,
-  data = analysis_eastwest[
-    !is.na(analysis_eastwest$nox_kg_per_mwh) |
-      !is.na(analysis_eastwest$sox_kg_per_mwh) |
-      !is.na(analysis_eastwest$dust_tsp_kg_per_mwh),
+  data = analysis_sub[
+    !is.na(analysis_sub$nox_kg_per_mwh) |
+      !is.na(analysis_sub$sox_kg_per_mwh) |
+      !is.na(analysis_sub$dust_tsp_kg_per_mwh),
   ],
   FUN = function(x) paste(min(x), max(x), sep = " to ")
 )
-save_table(coverage_by_plant_fuel, "eastwest_power_ef_coverage_by_plant_fuel.csv")
+save_table(coverage_by_plant_fuel, paste0(subsidiary_name, "_ef_coverage_by_plant_fuel.csv"))
 
 aggregate_ef <- function(data, group_vars, pollutant, min_coverage_pct = 0.5) {
   keep <- !is.na(data[[pollutant]]) &
@@ -403,9 +426,9 @@ aggregate_ef <- function(data, group_vars, pollutant, min_coverage_pct = 0.5) {
     return(data.frame())
   }
 
-  emissions <- aggregate(x[[pollutant]], x[group_vars], sum, na.rm = TRUE)
+  emissions  <- aggregate(x[[pollutant]], x[group_vars], sum, na.rm = TRUE)
   generation <- aggregate(x$energy_generated_mwh, x[group_vars], sum, na.rm = TRUE)
-  names(emissions)[ncol(emissions)] <- "emissions_kg"
+  names(emissions)[ncol(emissions)]   <- "emissions_kg"
   names(generation)[ncol(generation)] <- "generation_mwh"
 
   # Compare surviving (non-excluded) generation to full-fleet generation for
@@ -443,7 +466,7 @@ aggregate_ef <- function(data, group_vars, pollutant, min_coverage_pct = 0.5) {
 
 for (i in seq_len(nrow(pollutants))) {
   plot_data <- aggregate_ef(
-    analysis_eastwest,
+    analysis_sub,
     c("plant_name", "date"),
     pollutants$pollutant[[i]]
   )
@@ -459,9 +482,9 @@ for (i in seq_len(nrow(pollutants))) {
   )
   plant_stats <- data.frame(
     plant_name = plant_stats$plant_name,
-    n = plant_stats$ef_kg_per_mwh[, "n"],
-    max = plant_stats$ef_kg_per_mwh[, "max"],
-    sd = plant_stats$ef_kg_per_mwh[, "sd"]
+    n          = plant_stats$ef_kg_per_mwh[, "n"],
+    max        = plant_stats$ef_kg_per_mwh[, "max"],
+    sd         = plant_stats$ef_kg_per_mwh[, "sd"]
   )
   plant_stats <- plant_stats[
     plant_stats$n >= 24 &
@@ -469,7 +492,7 @@ for (i in seq_len(nrow(pollutants))) {
       plant_stats$sd > 0 &
       plant_stats$max > 0,
   ]
-  plant_stats <- plant_stats[order(-plant_stats$n, plant_stats$plant_name), ]
+  plant_stats    <- plant_stats[order(-plant_stats$n, plant_stats$plant_name), ]
   selected_plants <- plant_stats$plant_name[seq_len(min(6, nrow(plant_stats)))]
 
   if (length(selected_plants) == 0) {
@@ -480,10 +503,10 @@ for (i in seq_len(nrow(pollutants))) {
 
   output_path <- save_base_png(
     file.path(
-      "eastwest_power",
+      subsidiary_name,
       "selected_plants",
       "ma6",
-      paste0("eastwest_power_selected_plants_", pollutants$pollutant[[i]], "_ef_ma6.png")
+      paste0(subsidiary_name, "_selected_plants_", pollutants$pollutant[[i]], "_ef_ma6.png")
     )
   )
   old_par <- par(mfrow = c(2, 3), mar = c(3.2, 4.4, 2.4, 1), oma = c(0, 0, 2.5, 0))
@@ -499,8 +522,8 @@ for (i in seq_len(nrow(pollutants))) {
         plant_data$date,
         plant_data$ef_kg_per_mwh,
         type = "l",
-        lwd = 0.9,
-        col = adjustcolor("#1F77B4", alpha.f = 0.28),
+        lwd  = 0.9,
+        col  = adjustcolor("#1F77B4", alpha.f = 0.28),
         xlab = "",
         ylab = paste0(pollutants$label[[i]], " EF, kg/MWh"),
         main = plant
@@ -520,7 +543,50 @@ for (i in seq_len(nrow(pollutants))) {
       "Monthly ", pollutants$label[[i]],
       " emissions factors: selected plants, 6-month moving average"
     ),
-    outer = TRUE,
+    outer    = TRUE,
+    cex.main = 1.25
+  )
+  par(old_par)
+  dev.off()
+  message("Saved figure: ", output_path)
+
+  output_path <- save_base_png(
+    file.path(
+      subsidiary_name,
+      "selected_plants",
+      "raw",
+      paste0(subsidiary_name, "_selected_plants_", pollutants$pollutant[[i]], "_ef_raw.png")
+    )
+  )
+  old_par <- par(mfrow = c(2, 3), mar = c(3.2, 4.4, 2.4, 1), oma = c(0, 0, 2.5, 0))
+
+  for (plant in selected_plants) {
+    plant_data <- plot_data[plot_data$plant_name == plant, ]
+    plant_data <- plant_data[order(plant_data$date), ]
+    if (nrow(plant_data) == 0) {
+      plot.new()
+      title(main = plant)
+    } else {
+      plot(
+        plant_data$date,
+        plant_data$ef_kg_per_mwh,
+        type = "l",
+        lwd  = 1.4,
+        col  = "#1F77B4",
+        xlab = "",
+        ylab = paste0(pollutants$label[[i]], " EF, kg/MWh"),
+        main = plant
+      )
+      grid(col = "grey88")
+    }
+  }
+
+  title(
+    paste0(
+      "Monthly ", pollutants$label[[i]],
+      " emissions factors: selected plants, raw data"
+    ),
+    outer    = TRUE,
     cex.main = 1.25
   )
   par(old_par)
@@ -530,7 +596,7 @@ for (i in seq_len(nrow(pollutants))) {
 
 generation_by_fuel <- aggregate(
   energy_generated_mwh ~ energy_type_clean + date,
-  data = analysis_eastwest[!is.na(analysis_eastwest$energy_generated_mwh), ],
+  data    = analysis_sub[!is.na(analysis_sub$energy_generated_mwh), ],
   sum,
   na.rm = TRUE
 )
@@ -544,18 +610,18 @@ for (fuel in sort(unique(generation_by_fuel$energy_type_clean))) {
     window = 6
   )
 }
-save_table(generation_by_fuel, "eastwest_power_fuel_type_monthly_generation_mwh.csv")
+save_table(generation_by_fuel, paste0(subsidiary_name, "_fuel_type_monthly_generation_mwh.csv"))
 
 if (nrow(generation_by_fuel) > 0) {
   output_path <- save_base_png(
     file.path(
-      "eastwest_power",
+      subsidiary_name,
       "fuel_type_averages",
       "raw",
-      "eastwest_power_fuel_type_generation_mwh.png"
+      paste0(subsidiary_name, "_fuel_type_generation_mwh.png")
     )
   )
-  fuels <- sort(unique(generation_by_fuel$energy_type_clean))
+  fuels       <- sort(unique(generation_by_fuel$energy_type_clean))
   fuel_colors <- rep(line_colors, length.out = length(fuels))
   y_range <- range(
     c(generation_by_fuel$energy_generated_mwh, generation_by_fuel$energy_generated_mwh_ma6),
@@ -567,7 +633,7 @@ if (nrow(generation_by_fuel) > 0) {
     type = "n",
     xlab = "Month",
     ylab = "Generation, MWh",
-    main = "East-West Power: monthly generation by fuel type, 6-month moving average"
+    main = paste0(subsidiary_label, ": monthly generation by fuel type, 6-month moving average")
   )
   grid(col = "grey88")
 
@@ -591,11 +657,11 @@ if (nrow(generation_by_fuel) > 0) {
   legend(
     "topright",
     legend = fuels,
-    col = fuel_colors,
-    lty = 1,
-    lwd = 2,
-    bty = "n",
-    cex = 0.82
+    col    = fuel_colors,
+    lty    = 1,
+    lwd    = 2,
+    bty    = "n",
+    cex    = 0.82
   )
   dev.off()
   message("Saved figure: ", output_path)
@@ -604,14 +670,14 @@ if (nrow(generation_by_fuel) > 0) {
 fuel_time_series <- list()
 for (i in seq_len(nrow(pollutants))) {
   plot_data <- aggregate_ef(
-    analysis_eastwest,
+    analysis_sub,
     c("energy_type_clean", "date"),
     pollutants$pollutant[[i]]
   )
   fuel_time_series[[pollutants$pollutant[[i]]]] <- plot_data
   save_table(
     plot_data,
-    paste0("eastwest_power_fuel_type_monthly_", pollutants$pollutant[[i]], "_ef.csv")
+    paste0(subsidiary_name, "_fuel_type_monthly_", pollutants$pollutant[[i]], "_ef.csv")
   )
 
   if (nrow(plot_data) == 0) {
@@ -620,13 +686,13 @@ for (i in seq_len(nrow(pollutants))) {
 
   output_path <- save_base_png(
     file.path(
-      "eastwest_power",
+      subsidiary_name,
       "fuel_type_averages",
       "ma6",
-      paste0("eastwest_power_fuel_type_average_", pollutants$pollutant[[i]], "_ef_ma6.png")
+      paste0(subsidiary_name, "_fuel_type_average_", pollutants$pollutant[[i]], "_ef_ma6.png")
     )
   )
-  fuels <- sort(unique(plot_data$energy_type_clean))
+  fuels       <- sort(unique(plot_data$energy_type_clean))
   fuel_colors <- rep(line_colors, length.out = length(fuels))
   y_range <- range(plot_data$ef_kg_per_mwh, na.rm = TRUE)
   plot(
@@ -636,7 +702,7 @@ for (i in seq_len(nrow(pollutants))) {
     xlab = "Month",
     ylab = paste0(pollutants$label[[i]], " EF, kg/MWh"),
     main = paste0(
-      "East-West Power: average monthly ", pollutants$label[[i]],
+      subsidiary_label, ": average monthly ", pollutants$label[[i]],
       " EF by fuel type, 6-month moving average"
     )
   )
@@ -662,11 +728,56 @@ for (i in seq_len(nrow(pollutants))) {
   legend(
     "topright",
     legend = fuels,
-    col = fuel_colors,
-    lty = 1,
-    lwd = 2,
-    bty = "n",
-    cex = 0.82
+    col    = fuel_colors,
+    lty    = 1,
+    lwd    = 2,
+    bty    = "n",
+    cex    = 0.82
+  )
+  dev.off()
+  message("Saved figure: ", output_path)
+
+  output_path <- save_base_png(
+    file.path(
+      subsidiary_name,
+      "fuel_type_averages",
+      "raw",
+      paste0(subsidiary_name, "_fuel_type_average_", pollutants$pollutant[[i]], "_ef_raw.png")
+    )
+  )
+  y_range <- range(plot_data$ef_kg_per_mwh, na.rm = TRUE)
+  plot(
+    range(plot_data$date, na.rm = TRUE),
+    y_range,
+    type = "n",
+    xlab = "Month",
+    ylab = paste0(pollutants$label[[i]], " EF, kg/MWh"),
+    main = paste0(
+      subsidiary_label, ": average monthly ", pollutants$label[[i]],
+      " EF by fuel type, raw data"
+    )
+  )
+  grid(col = "grey88")
+
+  for (j in seq_along(fuels)) {
+    fuel_data <- plot_data[plot_data$energy_type_clean == fuels[[j]], ]
+    fuel_data <- fuel_data[order(fuel_data$date), ]
+    lines(
+      fuel_data$date,
+      fuel_data$ef_kg_per_mwh,
+      col = fuel_colors[[j]],
+      lwd = 1.4
+    )
+  }
+
+  legend(
+    "topright",
+    legend = fuels,
+    col    = fuel_colors,
+    lty    = 1,
+    lwd    = 2,
+    bty    = "n",
+    cex    = 0.82
   )
   dev.off()
   message("Saved figure: ", output_path)
@@ -680,15 +791,15 @@ for (i in seq_len(nrow(pollutants))) {
   }
   save_table(
     mass_data,
-    paste0("eastwest_power_fuel_type_monthly_", pollutants$pollutant[[i]], "_emissions_kg.csv")
+    paste0(subsidiary_name, "_fuel_type_monthly_", pollutants$pollutant[[i]], "_emissions_kg.csv")
   )
 
   output_path <- save_base_png(
     file.path(
-      "eastwest_power",
+      subsidiary_name,
       "fuel_type_averages",
       "raw",
-      paste0("eastwest_power_fuel_type_", pollutants$pollutant[[i]], "_emissions_kg.png")
+      paste0(subsidiary_name, "_fuel_type_", pollutants$pollutant[[i]], "_emissions_kg.png")
     )
   )
   y_range <- range(c(mass_data$emissions_kg, mass_data$emissions_kg_ma6), na.rm = TRUE)
@@ -698,7 +809,10 @@ for (i in seq_len(nrow(pollutants))) {
     type = "n",
     xlab = "Month",
     ylab = paste0(pollutants$label[[i]], " emissions, kg"),
-    main = paste0("East-West Power: monthly ", pollutants$label[[i]], " mass emissions by fuel type, 6-month moving average")
+    main = paste0(
+      subsidiary_label, ": monthly ", pollutants$label[[i]],
+      " mass emissions by fuel type, 6-month moving average"
+    )
   )
   grid(col = "grey88")
 
@@ -722,19 +836,19 @@ for (i in seq_len(nrow(pollutants))) {
   legend(
     "topright",
     legend = fuels,
-    col = fuel_colors,
-    lty = 1,
-    lwd = 2,
-    bty = "n",
-    cex = 0.82
+    col    = fuel_colors,
+    lty    = 1,
+    lwd    = 2,
+    bty    = "n",
+    cex    = 0.82
   )
   dev.off()
   message("Saved figure: ", output_path)
 }
 
-# Paused: holding off on EF break/plateau projections for now (2026-06-30).
-# Wrapped in `if (FALSE)` rather than deleted so this can be re-enabled
-# later without reconstructing it from git history.
+# Paused: holding off on EF break/plateau projections until the full merged
+# dataset is ready. Wrapped in `if (FALSE)` so this can be re-enabled without
+# reconstructing it from git history.
 if (FALSE) {
 
 fit_break_projection <- function(
@@ -742,9 +856,9 @@ fit_break_projection <- function(
     label,
     group_label,
     output_stub,
-    value_col = "ef_kg_per_mwh",
+    value_col    = "ef_kg_per_mwh",
     series_label = "cleaned monthly EF",
-    figure_subdir = file.path("eastwest_power", "projections", "cleaned_monthly")
+    figure_subdir = file.path(subsidiary_name, "projections", "cleaned_monthly")
 ) {
   series <- series[order(series$date), ]
   series$ef_kg_per_mwh <- series[[value_col]]
@@ -755,14 +869,14 @@ fit_break_projection <- function(
   }
 
   first_date <- min(series$date)
-  last_date <- max(series$date)
+  last_date  <- max(series$date)
   all_months <- data.frame(date = project_month_sequence(first_date))
   model_data <- merge(all_months, series[, c("date", "ef_kg_per_mwh")], by = "date", all.x = TRUE)
   model_data$observed <- model_data$date <= last_date & !is.na(model_data$ef_kg_per_mwh)
-  model_data$t <- month_index(model_data$date) - month_index(first_date)
+  model_data$t        <- month_index(model_data$date) - month_index(first_date)
 
-  break_min <- as.Date("2016-01-01")
-  break_max <- as.Date("2022-12-01")
+  break_min  <- as.Date("2016-01-01")
+  break_max  <- as.Date("2022-12-01")
   candidates <- seq(break_min, break_max, by = "month")
   candidates <- candidates[candidates > min(series$date) & candidates < max(series$date)]
 
@@ -770,13 +884,13 @@ fit_break_projection <- function(
 
   for (break_date in candidates) {
     break_date <- as.Date(break_date, origin = "1970-01-01")
-    pre_n <- sum(model_data$observed & model_data$date < break_date)
+    pre_n  <- sum(model_data$observed & model_data$date < break_date)
     post_n <- sum(model_data$observed & model_data$date >= break_date)
 
     if (pre_n >= 24 && post_n >= 24) {
       observed_rows <- model_data$observed
       t_pre <- ifelse(model_data$date < break_date, model_data$t, 0)
-      post <- model_data$date >= break_date
+      post  <- model_data$date >= break_date
 
       fit <- try(
         lm(model_data$ef_kg_per_mwh[observed_rows] ~
@@ -786,17 +900,17 @@ fit_break_projection <- function(
 
       if (!inherits(fit, "try-error")) {
         rss <- sum(residuals(fit)^2)
-        n <- length(residuals(fit))
-        k <- length(coef(fit))
+        n   <- length(residuals(fit))
+        k   <- length(coef(fit))
         bic <- n * log(rss / n) + k * log(n)
         break_results <- rbind(
           break_results,
           data.frame(
-            pollutant = label,
-            group = group_label,
+            pollutant  = label,
+            group      = group_label,
             break_date = break_date,
-            rss = rss,
-            bic = bic
+            rss        = rss,
+            bic        = bic
           )
         )
       }
@@ -807,9 +921,9 @@ fit_break_projection <- function(
     return(NULL)
   }
 
-  best <- break_results[which.min(break_results$bic), ]
+  best       <- break_results[which.min(break_results$bic), ]
   break_date <- as.Date(best$break_date)
-  model_data$post <- model_data$date >= break_date
+  model_data$post  <- model_data$date >= break_date
   model_data$t_pre <- ifelse(model_data$date < break_date, model_data$t, 0)
 
   fit_two_period <- lm(
@@ -818,32 +932,27 @@ fit_break_projection <- function(
   )
   model_data$two_period_hat <- predict(fit_two_period, newdata = model_data)
 
-  post_values <- model_data$ef_kg_per_mwh[model_data$observed & model_data$date >= break_date]
-  post_median <- median(post_values, na.rm = TRUE)
-  post_p10 <- unname(quantile(post_values, 0.10, na.rm = TRUE))
+  post_values       <- model_data$ef_kg_per_mwh[model_data$observed & model_data$date >= break_date]
+  post_median       <- median(post_values, na.rm = TRUE)
+  post_p10          <- unname(quantile(post_values, 0.10, na.rm = TRUE))
   model_data$post_median_hat <- ifelse(
     model_data$observed,
     model_data$ef_kg_per_mwh,
     post_median
   )
-  model_data$two_period_hat[!model_data$observed &
-                              model_data$two_period_hat < post_p10] <- post_p10
+  model_data$two_period_hat[
+    !model_data$observed & model_data$two_period_hat < post_p10
+  ] <- post_p10
 
-  chow_fit <- lm(
-    ef_kg_per_mwh ~ t * post,
-    data = model_data[model_data$observed, ]
-  )
-  reduced_fit <- lm(
-    ef_kg_per_mwh ~ t,
-    data = model_data[model_data$observed, ]
-  )
-  chow_test <- anova(reduced_fit, chow_fit)
-  p_value <- chow_test$`Pr(>F)`[2]
+  chow_fit    <- lm(ef_kg_per_mwh ~ t * post, data = model_data[model_data$observed, ])
+  reduced_fit <- lm(ef_kg_per_mwh ~ t,         data = model_data[model_data$observed, ])
+  chow_test   <- anova(reduced_fit, chow_fit)
+  p_value     <- chow_test$`Pr(>F)`[2]
 
   output_path <- save_base_png(
     file.path(
       figure_subdir,
-      paste0("eastwest_power_projection_", output_stub, "_", clean_filename(label), "_break_plateau.png")
+      paste0(subsidiary_name, "_projection_", output_stub, "_", clean_filename(label), "_break_plateau.png")
     )
   )
   plot(
@@ -852,8 +961,8 @@ fit_break_projection <- function(
     type = "n",
     xlab = "Month",
     ylab = paste0(label, " EF, kg/MWh"),
-    main = paste0("East-West Power — ", group_label, " ", label, " EF projection"),
-    sub = paste0(
+    main = paste0(subsidiary_label, " — ", group_label, " ", label, " EF projection"),
+    sub  = paste0(
       series_label,
       "; linear before break, nonzero plateau after break; break = ",
       format_month_label(break_date)
@@ -866,17 +975,17 @@ fit_break_projection <- function(
     col = "#1E88FF",
     lwd = 1.8
   )
-  lines(model_data$date, model_data$two_period_hat, col = "#D81B60", lwd = 2, lty = 2)
-  lines(model_data$date, model_data$post_median_hat, col = "#D81B60", lwd = 2, lty = 3)
+  lines(model_data$date, model_data$two_period_hat,   col = "#D81B60", lwd = 2, lty = 2)
+  lines(model_data$date, model_data$post_median_hat,  col = "#D81B60", lwd = 2, lty = 3)
   abline(v = break_date, lty = 2, lwd = 1.5)
-  abline(v = last_date, lty = 3, lwd = 1.5)
+  abline(v = last_date,  lty = 3, lwd = 1.5)
   legend(
     "topright",
     legend = c("Observed", "Two-period: linear then flat", "Post-break median plateau"),
-    col = c("#1E88FF", "#D81B60", "#D81B60"),
-    lty = c(1, 2, 3),
-    lwd = c(2, 2, 2),
-    bty = "n"
+    col    = c("#1E88FF", "#D81B60", "#D81B60"),
+    lty    = c(1, 2, 3),
+    lwd    = c(2, 2, 2),
+    bty    = "n"
   )
   dev.off()
   message("Saved figure: ", output_path)
@@ -884,37 +993,37 @@ fit_break_projection <- function(
   projection_table <- model_data[, c(
     "date", "observed", "ef_kg_per_mwh", "two_period_hat", "post_median_hat"
   )]
-  projection_table$pollutant <- label
-  projection_table$group <- group_label
+  projection_table$pollutant  <- label
+  projection_table$group      <- group_label
   projection_table$break_date <- break_date
   save_table(
     projection_table,
-    paste0("eastwest_power_projection_", output_stub, "_", clean_filename(label), ".csv")
+    paste0(subsidiary_name, "_projection_", output_stub, "_", clean_filename(label), ".csv")
   )
 
   data.frame(
-    pollutant = label,
-    group = group_label,
-    break_date = break_date,
-    break_label = format_month_label(break_date),
-    bic = best$bic,
-    rss = best$rss,
-    post_median_plateau = post_median,
-    post_p10_floor = post_p10,
-    chow_style_p_value = p_value,
-    last_observed_date = last_date,
-    last_observed_ef = tail(series$ef_kg_per_mwh[!is.na(series$ef_kg_per_mwh)], 1),
-    projected_2050_two_period = tail(model_data$two_period_hat, 1),
+    pollutant               = label,
+    group                   = group_label,
+    break_date              = break_date,
+    break_label             = format_month_label(break_date),
+    bic                     = best$bic,
+    rss                     = best$rss,
+    post_median_plateau     = post_median,
+    post_p10_floor          = post_p10,
+    chow_style_p_value      = p_value,
+    last_observed_date      = last_date,
+    last_observed_ef        = tail(series$ef_kg_per_mwh[!is.na(series$ef_kg_per_mwh)], 1),
+    projected_2050_two_period  = tail(model_data$two_period_hat, 1),
     projected_2050_post_median = tail(model_data$post_median_hat, 1),
-    series = series_label,
-    row.names = NULL
+    series                  = series_label,
+    row.names               = NULL
   )
 }
 
 projection_summaries <- list()
 
 for (i in seq_len(nrow(pollutants))) {
-  all_series <- aggregate_ef(analysis_eastwest, "date", pollutants$pollutant[[i]])
+  all_series <- aggregate_ef(analysis_sub, "date", pollutants$pollutant[[i]])
   result <- fit_break_projection(
     all_series,
     pollutants$label[[i]],
@@ -930,9 +1039,9 @@ for (i in seq_len(nrow(pollutants))) {
     pollutants$label[[i]],
     "All fuels",
     "all_fuels_ma6",
-    value_col = "ef_ma_kg_per_mwh",
+    value_col    = "ef_ma_kg_per_mwh",
     series_label = "6-month moving average EF",
-    figure_subdir = file.path("eastwest_power", "projections", "ma6")
+    figure_subdir = file.path(subsidiary_name, "projections", "ma6")
   )
   if (!is.null(result)) {
     projection_summaries[[length(projection_summaries) + 1]] <- result
@@ -956,9 +1065,9 @@ for (i in seq_len(nrow(pollutants))) {
       pollutants$label[[i]],
       paste0(fuel, ", 6-month MA"),
       paste0(clean_filename(fuel), "_ma6"),
-      value_col = "ef_ma_kg_per_mwh",
+      value_col    = "ef_ma_kg_per_mwh",
       series_label = "6-month moving average EF",
-      figure_subdir = file.path("eastwest_power", "projections", "ma6")
+      figure_subdir = file.path(subsidiary_name, "projections", "ma6")
     )
 
     if (!is.null(result)) {
@@ -968,10 +1077,10 @@ for (i in seq_len(nrow(pollutants))) {
 }
 
 projection_summary <- do.call(rbind, projection_summaries)
-save_table(projection_summary, "eastwest_power_break_projection_summary.csv")
+save_table(projection_summary, paste0(subsidiary_name, "_break_projection_summary.csv"))
 
 } # end paused EF projection block
 
-cat("\nEast-West Power analysis complete.\n")
+cat("\n", subsidiary_label, " analysis complete.\n", sep = "")
 cat("Summary tables saved under:", tables_dir, "\n")
 cat("Figures saved under:", figures_dir, "\n")

@@ -1,0 +1,6 @@
+outs:
+- md5: 12e63078a2ec80941f856365b48020c1.dir
+  size: 3264896
+  nfiles: 38
+  hash: md5
+  path: plant_location_dates

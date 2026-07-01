@@ -32,3 +32,8 @@ THERMAL_PROCESSED_DIR = KEPCO_PROCESSED_DIR
 WEATHER_RAW_DIR = DATA_DIR / "raw" / "weather" / "kma"
 WEATHER_INTERIM_DIR = DATA_DIR / "interim" / "weather" / "kma"
 WEATHER_PROCESSED_DIR = PROCESSED_DIR / "weather" / "kma"
+
+# AirKorea station registry and year-specific station-location crosswalk.
+AIRKOREA_RAW_DIR = DATA_DIR / "raw" / "airkorea"
+AIRKOREA_STATION_RAW_DIR = AIRKOREA_RAW_DIR / "stations"
+AIRKOREA_INTERIM_DIR = DATA_DIR / "interim" / "air_quality"

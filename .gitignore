@@ -1,5 +1,13 @@
-# Data
-/data/
+# Data (raw/derived payloads live outside Git; selected DVC pointers are allowed)
+/data/*
+!/data/raw/
+/data/raw/*
+!/data/raw/references/
+/data/raw/references/*
+!/data/raw/references/plant_location_dates.dvc
+
+# IDE
+.vscode/
 
 # vim
 *.swp
@@ -219,6 +227,5 @@ __pycache__/
 .venv/
 venv/
 .DS_Store
-data/raw/
 data/interim/
 data/processed/

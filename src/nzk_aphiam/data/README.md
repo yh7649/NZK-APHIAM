@@ -444,6 +444,7 @@ CSV export form:
 
 ```bash
 make scrape-southeast-power
+make scrape-southeast-power-generation
 make clean-southeast-power
 ```
 
@@ -482,8 +483,20 @@ molecular weight of `46`, reported concentrations are already corrected to 6%
 standard oxygen, and numeric units combine A/B stack labels (for example,
 Samcheonpo 3 = 3A + 3B). Dust concentration rows above `30 mg/Sm3` are excluded
 from dust mass because they match invalid/non-operating measurement patterns
-and otherwise overstate KOEN annual dust mass by about threefold. Generation,
-capacity, and fuel type remain null.
+and otherwise overstate KOEN annual dust mass by about threefold.
+
+Monthly unit-level generation is sourced from KOEN's public generation export,
+which is also registered as data.go.kr OpenAPI dataset `15120379`. The scraper
+preserves yearly source CSV responses and writes the combined normalized file:
+
+```text
+data/raw/southeast_power/southeast_power_monthly_generation.csv
+```
+
+The cleaner crosswalks Bundang emissions units 1--8 to generation units
+CG1--CG8, maps Yeosu's unlabeled `-` stack to unit 2, combines Samcheonpo A/B
+stack labels at numbered-unit level, and joins generation only after emissions
+have been aggregated to that boundary.
 
 ## Midland Power
 

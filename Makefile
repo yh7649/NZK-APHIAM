@@ -5,6 +5,7 @@
 PROJECT_NAME = NZK-APHIAM
 PYTHON_VERSION = 3.11
 PYTHON_INTERPRETER = python
+DVC ?= dvc
 
 #################################################################################
 # COMMANDS                                                                      #
@@ -130,6 +131,12 @@ clean-thermal:
 	$(MAKE) clean-midland-power
 
 
+## Build KEPCO subsidiaries monthly generation and capacity panel (no emissions)
+.PHONY: build-generation-panel
+build-generation-panel:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.clean.thermal.generation_panel
+
+
 ## Build, audit, and merge per-subsidiary KEPCO monthly datasets (pollutant mass in kilograms)
 .PHONY: combine-kepco
 combine-kepco:
@@ -156,6 +163,15 @@ reproduce-kepco-monthly: clean-thermal combine-kepco
 .PHONY: scrape-southeast-power
 scrape-southeast-power:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southeast_power
+	$(MAKE) scrape-southeast-power-generation-fresh
+
+.PHONY: scrape-southeast-power-generation-fresh
+scrape-southeast-power-generation-fresh:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southeast_power.generation_scraper
+
+.PHONY: scrape-southeast-power-generation
+scrape-southeast-power-generation:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southeast_power.generation_scraper --reuse-existing-source
 
 
 ## Clean South-East Power daily pollutant measurements
@@ -234,7 +250,7 @@ scrape-thermal:
 ## remote with `dvc remote add` before `dvc push` can share them with a teammate)
 .PHONY: track-kepco-snapshots
 track-kepco-snapshots:
-	dvc add \
+	$(DVC) add \
 		data/raw/eastwest_power \
 		data/raw/western_power \
 		data/raw/southern_power \
@@ -313,8 +329,22 @@ process-kma-weather:
 ## Version KMA annual raw snapshots with local DVC
 .PHONY: track-kma-snapshots
 track-kma-snapshots:
-	dvc add data/raw/weather/kma
+	$(DVC) add data/raw/weather/kma
 	@echo "KMA snapshots staged for git (review with 'git status', then commit)."
+
+
+## Archive official plant-location/date evidence for offline reproducibility
+.PHONY: archive-plant-location-references
+archive-plant-location-references:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.references.plant_location_dates
+
+
+## Store the archived reference snapshot in the local DVC cache
+.PHONY: track-plant-location-references
+track-plant-location-references:
+	$(DVC) add data/raw/references/plant_location_dates
+	@echo "Reference archive stored in the local DVC cache."
+	@echo "Commit data/raw/references/plant_location_dates.dvc; run dvc push after adding a remote."
 
 
 HEALTH_START_YEAR ?= 2001
@@ -392,6 +422,7 @@ check-scraper-cli:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southern_power hourly-generation --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southern_power annual-generation --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southeast_power --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southeast_power.generation_scraper --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power emissions --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power generation --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.epsis --help

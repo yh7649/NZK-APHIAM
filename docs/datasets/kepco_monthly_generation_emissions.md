@@ -113,7 +113,7 @@ collapsed into generic fossil oil.
 
 ## Column Tiers
 
-The schema is intentionally wide (41 base columns, or 43 after auditing) because
+The schema is intentionally wide (43 base columns, or 45 after auditing) because
 most of it is provenance and reliability metadata needed to merge five
 incompatible government sources defensibly, not redundant data. If you only
 need the dataset for fuel-type or emission-factor analysis, the columns
@@ -148,6 +148,9 @@ below are grouped by how often you actually need them:
   evidence file beside it documents locations that were absent from the
   teammate roster): `plant_opening_date`,
   `plant_closing_date`, `plant_latitude`, `plant_longitude`.
+  The coordinate-derived administrative fields are `plant_province` and
+  `plant_district`; their reviewed plant mapping is stored in
+  `docs/references/crosswalk/plant_geography.csv`.
 
 ## Main Columns
 
@@ -161,6 +164,8 @@ below are grouped by how often you actually need them:
 - `plant_closing_date`: plant closing date.
 - `plant_latitude`: plant latitude in WGS84 decimal degrees.
 - `plant_longitude`: plant longitude in WGS84 decimal degrees.
+- `plant_province`: current English province or metropolitan-city name.
+- `plant_district`: current English city, county, or autonomous-district name.
 - `subsidiary_company`: KEPCO subsidiary company name.
 - `energy_type`: cleaned primary energy or fuel type.
 - `energy_generated_mwh`: monthly electricity generation in MWh.
@@ -223,10 +228,24 @@ boundary cannot be mapped defensibly to individual turbine components. Missing
 daily generation may be filled only from Southern's independent hourly API;
 annual totals are validation evidence and are never distributed across months.
 
+South-East Power pollutant mass is derived from daily concentration and stack
+flow, then aggregated to the matching unit before joining KOEN's monthly
+unit-level generation and capacity. Samcheonpo A/B stack components are joined
+to their numbered generator only after aggregation; Bundang units 1--8 map to
+CG1--CG8, and Yeosu's unlabeled second stack maps to generator 2. This avoids
+repeating one generator's MWh across multiple emissions stacks.
+
 East-West and Western source values are converted from metric tonnes to
 kilograms by multiplying by `1,000`. Southern and South-East values are already
-reported in kilograms. Midland contributes facility-status rows where usable
-mass-related information is available in the processed pipeline.
+reported in kilograms. For Midland, the Incheon, Jeju, Sejong, and Seocheon
+facility-status sources contain pollutant concentrations and stack flow. The
+cleaner derives approximate row-level pollutant mass, aggregates component
+turbines/units to the monthly plant/technology boundary reported by Midland's
+generation API, and joins generation and capacity at that boundary. This
+supports emission-factor analysis without duplicating a plant subtotal across
+its component turbines. Boryeong, Seoul, and Shin-Boryeong remain raw-only
+because their facility endpoints expose TMS instrument diagnostics rather than
+the pollutant-concentration and stack-flow fields required for mass derivation.
 
 Oxygen, flue-gas flow, and temperature are not included in this processed
 monthly mass dataset because they are not consistently populated across the

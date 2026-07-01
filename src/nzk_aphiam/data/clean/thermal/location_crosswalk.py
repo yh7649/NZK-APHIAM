@@ -18,16 +18,24 @@ PROJECT_ROOT = Path(__file__).resolve().parents[5]
 DEFAULT_CROSSWALK_PATH = (
     PROJECT_ROOT / "docs" / "references" / "crosswalk" / "plant_location_dates.csv"
 )
+DEFAULT_GEOGRAPHY_PATH = (
+    PROJECT_ROOT / "docs" / "references" / "crosswalk" / "plant_geography.csv"
+)
 LOCATION_COLUMNS = [
     "plant_latitude",
     "plant_longitude",
+    "plant_province",
+    "plant_district",
     "plant_opening_date",
     "plant_closing_date",
 ]
 JOIN_KEY = ["subsidiary_company", "plant_name"]
 
 
-def load_location_crosswalk(path: Path = DEFAULT_CROSSWALK_PATH) -> pd.DataFrame:
+def load_location_crosswalk(
+    path: Path = DEFAULT_CROSSWALK_PATH,
+    geography_path: Path = DEFAULT_GEOGRAPHY_PATH,
+) -> pd.DataFrame:
     """Load the documented plant location/date crosswalk."""
     crosswalk = pd.read_csv(path, encoding="utf-8-sig")
     crosswalk["plant_opening_date"] = pd.to_datetime(
@@ -35,6 +43,13 @@ def load_location_crosswalk(path: Path = DEFAULT_CROSSWALK_PATH) -> pd.DataFrame
     )
     crosswalk["plant_closing_date"] = pd.to_datetime(
         crosswalk["plant_closing_date"], errors="raise"
+    )
+    geography = pd.read_csv(geography_path, encoding="utf-8-sig")
+    crosswalk = crosswalk.merge(
+        geography[[*JOIN_KEY, "plant_province", "plant_district"]],
+        on=JOIN_KEY,
+        how="left",
+        validate="one_to_one",
     )
     return crosswalk[[*JOIN_KEY, *LOCATION_COLUMNS]]
 
@@ -81,6 +96,8 @@ def apply_location_crosswalk(
     # when in their own dtype-casting sequence they call this.
     joined["plant_latitude"] = joined["plant_latitude"].astype("Float64")
     joined["plant_longitude"] = joined["plant_longitude"].astype("Float64")
+    joined["plant_province"] = joined["plant_province"].astype("string")
+    joined["plant_district"] = joined["plant_district"].astype("string")
     joined["plant_opening_date"] = pd.to_datetime(joined["plant_opening_date"])
     joined["plant_closing_date"] = pd.to_datetime(joined["plant_closing_date"])
 
