@@ -6,6 +6,9 @@ PROJECT_NAME = NZK-APHIAM
 PYTHON_VERSION = 3.11
 PYTHON_INTERPRETER = python
 DVC ?= dvc
+EVENT ?= example_event
+ASCM_INPUT ?= data/interim/synthetic_control/$(EVENT)_hourly.csv
+ASCM_HOURLY ?= data/interim/synthetic_control/$(EVENT)_hourly_normalized.csv
 
 #################################################################################
 # COMMANDS                                                                      #
@@ -28,6 +31,24 @@ requirements-r:
 ## Install Python and R dependencies
 .PHONY: requirements-all
 requirements-all: requirements requirements-r
+
+
+## Normalize hourly monitor pollution with rmweather
+.PHONY: ascm-normalize
+ascm-normalize:
+	Rscript analysis/R/synthetic_control/normalize_weather.R $(ASCM_INPUT) $(ASCM_HOURLY)
+
+
+## Screen donors and build the weekly synthetic-control panel
+.PHONY: ascm-panel
+ascm-panel:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.modeling.synthetic_control --config configs/plant_events/$(EVENT).yml --hourly $(ASCM_HOURLY)
+
+
+## Fit ridge-augmented synthetic control (one pollutant per event panel)
+.PHONY: ascm-estimate
+ascm-estimate:
+	Rscript analysis/R/synthetic_control/run_augsynth.R data/processed/synthetic_control/$(EVENT)_weekly.csv results/models/synthetic_control/$(EVENT)
 
 
 
@@ -131,10 +152,16 @@ clean-thermal:
 	$(MAKE) clean-midland-power
 
 
-## Build KEPCO subsidiaries monthly generation and capacity panel (no emissions)
+## Build KEPCO subsidiaries and KHNP monthly generation and capacity panel (no emissions)
 .PHONY: build-generation-panel
 build-generation-panel:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.clean.thermal.generation_panel
+
+
+## Download KHNP rolling daily generation data and retain monthly source snapshots
+.PHONY: scrape-khnp-generation
+scrape-khnp-generation:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.khnp --overwrite
 
 
 ## Build, audit, and merge per-subsidiary KEPCO monthly datasets (pollutant mass in kilograms)

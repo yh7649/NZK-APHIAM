@@ -5,3 +5,5 @@ readr
 lubridate
 scales
 broom
+rmweather
+augsynth

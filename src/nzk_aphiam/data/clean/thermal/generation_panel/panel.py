@@ -32,12 +32,14 @@ import pandas as pd
 from nzk_aphiam.data.clean.thermal.eastwest_power.cleaner import (
     load_and_clean as _ew_load_and_clean,
 )
-from nzk_aphiam.data.clean.thermal.western_power.cleaner import (
-    load_and_clean as _wp_load_and_clean,
-)
 from nzk_aphiam.data.clean.thermal.southern_power.cleaner import (
     SITE_RULES as _SP_SITE_RULES,
+)
+from nzk_aphiam.data.clean.thermal.southern_power.cleaner import (
     aggregate_generation as _sp_aggregate_generation,
+)
+from nzk_aphiam.data.clean.thermal.western_power.cleaner import (
+    load_and_clean as _wp_load_and_clean,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
@@ -77,6 +79,10 @@ DEFAULT_SE_GENERATION_INPUT = (
 DEFAULT_MP_GENERATION_INPUT = (
     PROJECT_ROOT / "data" / "raw" / "midland_power"
     / "midland_power_monthly_generation.csv"
+)
+DEFAULT_KHNP_GENERATION_INPUT = (
+    PROJECT_ROOT / "data" / "raw" / "khnp"
+    / "khnp_daily_generation.csv"
 )
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "processed" / "kepco" / "generation"
 
@@ -303,6 +309,89 @@ def build_midland_generation(generation_path: Path) -> pd.DataFrame:
     )
 
 
+# ---- Korea Hydro & Nuclear Power ------------------------------------------
+
+_KHNP_ENERGY_TYPES: dict[str, str] = {
+    "원자력": "nuclear",
+    "수력": "hydro",
+    "양수": "pumped_storage",
+    "태양광": "renewable",
+    "풍력": "renewable",
+    "신재생": "renewable",
+}
+_KHNP_PLANT_NAMES: dict[str, str] = {
+    "고리": "Kori",
+    "신고리": "Shin-Kori",
+    "새울": "Saeul",
+    "월성": "Wolsong",
+    "신월성": "Shin-Wolsong",
+    "한빛": "Hanbit",
+    "한울": "Hanul",
+    "신한울": "Shin-Hanul",
+    "화천": "Hwacheon",
+    "춘천": "Chuncheon",
+    "의암": "Uiam",
+    "청평": "Cheongpyeong",
+    "팔당": "Paldang",
+    "괴산": "Goesan",
+    "칠보": "Chilbo",
+    "보성강": "Boseonggang",
+    "강림": "Gangnim",
+    "무주양수": "Muju Pumped Storage",
+    "예천양수": "Yecheon Pumped Storage",
+    "삼랑진양수": "Samrangjin Pumped Storage",
+    "청평양수": "Cheongpyeong Pumped Storage",
+    "양양양수": "Yangyang Pumped Storage",
+    "청송양수": "Cheongsong Pumped Storage",
+    "산청양수": "Sancheong Pumped Storage",
+}
+
+
+def build_khnp_generation(generation_path: Path) -> pd.DataFrame:
+    """Aggregate KHNP's daily hourly generator records into monthly MWh."""
+    raw = pd.read_csv(generation_path, encoding="utf-8-sig", dtype="string")
+    hour_columns = [column for column in raw if column.startswith("qt_")]
+    required = {"tradeDt", "genCd", "genNm", "resourceType"}
+    missing = required - set(raw.columns)
+    if missing or not hour_columns:
+        detail = sorted(missing) if missing else ["qt_<hour> fields"]
+        raise ValueError(f"KHNP generation CSV is missing required columns: {detail}")
+
+    source = raw[raw["resourceType"].isin(_KHNP_ENERGY_TYPES)].copy()
+    if source.empty:
+        return pd.DataFrame(columns=GENERATION_PANEL_COLUMNS)
+    source["date"] = pd.to_datetime(source["tradeDt"], format="%Y%m%d").dt.to_period("M").dt.start_time
+    # The qt_* fields are hourly energy in kWh; sum them and convert to MWh.
+    source["daily_mwh"] = (
+        source[hour_columns].apply(pd.to_numeric, errors="coerce").sum(axis=1, min_count=1)
+        / 1000
+    )
+    keys = ["date", "genCd", "genNm", "resourceType"]
+    monthly = source.groupby(keys, as_index=False, dropna=False)["daily_mwh"].sum(min_count=1)
+
+    korean_name = monthly["genNm"].astype("string")
+    base_name = korean_name.str.replace(r"#\d+$", "", regex=True)
+    translated = base_name.map(_KHNP_PLANT_NAMES)
+    plant_name = translated.fillna(korean_name).astype("string")
+    plant_number = korean_name.str.extract(r"#(\d+)$", expand=False).astype("Int64")
+    return pd.DataFrame(
+        {
+            "date": monthly["date"],
+            "subsidiary_company": "Korea Hydro & Nuclear Power",
+            "plant_name": plant_name,
+            "plant_number": plant_number,
+            "reporting_unit_id": ("khnp:" + monthly["genCd"].astype("string")),
+            "observation_level": "generating_unit",
+            "energy_type": monthly["resourceType"].map(_KHNP_ENERGY_TYPES).astype("string"),
+            "energy_generated_mwh": monthly["daily_mwh"].astype("Float64"),
+            "energy_capacity_mw": pd.array([pd.NA] * len(monthly), dtype="Float64"),
+            "component_count": pd.array([1] * len(monthly), dtype="Int64"),
+            "original_korean_name": korean_name,
+        },
+        columns=GENERATION_PANEL_COLUMNS,
+    )
+
+
 # ---- Panel builder ---------------------------------------------------------
 
 def build_panel(
@@ -311,6 +400,7 @@ def build_panel(
     sp_generation_input: Path = DEFAULT_SP_GENERATION_INPUT,
     se_generation_input: Path = DEFAULT_SE_GENERATION_INPUT,
     mp_generation_input: Path = DEFAULT_MP_GENERATION_INPUT,
+    khnp_generation_input: Path = DEFAULT_KHNP_GENERATION_INPUT,
 ) -> dict[str, pd.DataFrame]:
     """Return per-subsidiary DataFrames keyed by slug name."""
     return {
@@ -319,6 +409,7 @@ def build_panel(
         "southern_power": build_southern_generation(sp_generation_input),
         "southeast_power": build_southeast_generation(se_generation_input),
         "midland_power": build_midland_generation(mp_generation_input),
+        "khnp": build_khnp_generation(khnp_generation_input),
     }
 
 
@@ -344,6 +435,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sp-generation-input", type=Path, default=DEFAULT_SP_GENERATION_INPUT)
     parser.add_argument("--se-generation-input", type=Path, default=DEFAULT_SE_GENERATION_INPUT)
     parser.add_argument("--mp-generation-input", type=Path, default=DEFAULT_MP_GENERATION_INPUT)
+    parser.add_argument("--khnp-generation-input", type=Path, default=DEFAULT_KHNP_GENERATION_INPUT)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     return parser.parse_args()
 
@@ -357,6 +449,7 @@ def main() -> None:
         sp_generation_input=args.sp_generation_input,
         se_generation_input=args.se_generation_input,
         mp_generation_input=args.mp_generation_input,
+        khnp_generation_input=args.khnp_generation_input,
     )
     save_panel(frames, args.output_dir)
 

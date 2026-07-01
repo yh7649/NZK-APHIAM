@@ -1,0 +1,24 @@
+# Template only: replace every example identifier, coordinate, and date with verified evidence.
+event_id: example_event
+plant_id: example_plant
+event_date: "2019-06-03"
+plant:
+  latitude: 36.9000
+  longitude: 126.2500
+pollutants: [SO2]
+treated_monitor_ids: ["REPLACE_ME"]
+pre_period:
+  start: "2017-06-05"
+  end: "2019-06-02"
+post_period:
+  start: "2019-06-03"
+  end: "2021-06-06"
+minimum_weekly_hours: 120
+treated_monitor_rules:
+  maximum_distance_km: 50
+donor_rules:
+  minimum_distance_from_target_km: 75
+  maximum_target_exposure: 0.01
+  minimum_pre_weeks: 104
+  maximum_missing_pre_fraction: 0.20
+  same_monitor_type: true

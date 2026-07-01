@@ -1147,17 +1147,18 @@ build_province_breakdown("energy_type_clean", "province_by_fuel_type", "fuel typ
 
 # Estimate the EF for a hypothetical ("overnight") plant from the observed
 # plants matching any combination of fuel, province, subsidiary, or other
-# columns over the latest six months with valid data by default. Plant EFs are
-# calculated first and then weighted by each plant's valid generation.
-# Algebraically this is total emissions / total generation, but retaining the
-# plant rows makes the contributing evidence transparent.
+# columns over up to the latest 12 months with valid data by default. Cohorts
+# with shorter histories use every available month in that window, reported in
+# `months_covered`. Plant EFs are calculated first and then weighted by each
+# plant's valid generation. Algebraically this is total emissions / total
+# generation, but retaining the plant rows makes the evidence transparent.
 estimate_ef <- function(
   data,
   pollutant,
   filters = list(),
   start_date = NULL,
   end_date = NULL,
-  recent_months = 6,
+  recent_months = 12,
   min_coverage_pct = 0.5
 ) {
   if (!pollutant %in% pollutants$pollutant) {
@@ -1211,6 +1212,7 @@ estimate_ef <- function(
   selected <- selected[valid, , drop = FALSE]
 
   if (nrow(selected) == 0 || total_generation <= 0) return(NULL)
+  months_covered <- length(unique(selected$date))
 
   plant_emissions <- aggregate(
     selected[[pollutant]],
@@ -1249,6 +1251,7 @@ estimate_ef <- function(
       plant_count = nrow(plant_estimates),
       valid_generation_mwh = valid_generation,
       generation_coverage_pct = coverage_pct,
+      months_covered = months_covered,
       start_date = if (nrow(selected)) min(selected$date) else as.Date(NA),
       end_date = if (nrow(selected)) max(selected$date) else as.Date(NA),
       filter = if (length(filters)) paste(
@@ -1337,12 +1340,15 @@ overnight_ef_table_figure <- ggplot(
   labs(
     title = "Overnight plant emission factors by province and fuel type",
     subtitle = paste0(
-      "Generation-weighted estimates from each cohort's most recent six months; ",
+      "Generation-weighted estimates using up to each cohort's most recent 12 months; ",
       "— indicates insufficient data"
     ),
     x = "Fuel type",
     y = NULL,
-    caption = "Values are kilograms of pollutant per MWh of electricity generated."
+    caption = paste0(
+      "Values are kilograms of pollutant per MWh of electricity generated. ",
+      "Shorter histories use all available months."
+    )
   ) +
   theme_minimal(base_size = 11) +
   theme(
