@@ -500,7 +500,68 @@ def process(
     partial = path.with_suffix(".json.part")
     partial.write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     partial.replace(path)
+
+    save_local_readme(build_local_readme(outputs, start_year, end_year), output_dir / "README.md")
     return outputs
+
+
+def build_local_readme(
+    outputs: list[dict[str, object]], start_year: int, end_year: int
+) -> str:
+    """Render current-value coverage matching the placeholders in
+    docs/datasets/kma_weather.md, so the local snapshot tracks whatever this
+    processing run just produced.
+    """
+    by_dataset: dict[str, dict[str, object]] = {}
+    for item in outputs:
+        entry = by_dataset.setdefault(str(item["dataset"]), {"rows": 0, "years": set()})
+        entry["rows"] += item["rows"]
+        entry["years"].add(item["year"])
+
+    lines = []
+    for dataset in sorted(by_dataset):
+        entry = by_dataset[dataset]
+        years = sorted(entry["years"])
+        year_range = f"{years[0]}-{years[-1]}" if years else "none"
+        lines.append(f"- `{dataset}`: `{entry['rows']:,}` rows across {year_range}")
+
+    return f"""# KMA Weather Dataset: Current Local Values
+
+This local file records the current generated values for the partitioned
+outputs under `data/processed/weather/kma/`.
+
+The tracked dataset description is:
+
+- `docs/datasets/kma_weather.md`
+
+This folder is ignored by git, so these values are local snapshots. Running
+`make process-kma-weather` regenerates this file every time it regenerates
+the dataset, so it should never go stale relative to the data actually on
+disk. This snapshot reflects the last processed range, `{start_year}-{end_year}`;
+existing years outside that range keep their own annual files but are not
+recounted here unless reprocessed.
+
+## Current Coverage
+
+Rows by processed dataset (summed across annual partitions from this run):
+
+{chr(10).join(lines)}
+
+## Refresh
+
+These values are written automatically by:
+
+```bash
+make process-kma-weather
+```
+"""
+
+
+def save_local_readme(readme_text: str, readme_path: Path) -> None:
+    """Write the local current-values README, replacing it atomically."""
+    partial = readme_path.with_suffix(".md.part")
+    partial.write_text(readme_text, encoding="utf-8")
+    partial.replace(readme_path)
 
 
 def build_parser() -> argparse.ArgumentParser:

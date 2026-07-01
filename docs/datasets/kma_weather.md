@@ -61,6 +61,22 @@ Processed annual partitions under `data/processed/weather/kma/` include
 `stability_indices`, `upper_air_dispersion`, and, when downloaded,
 `profiler_wind`.
 
+## Current Coverage
+
+Coverage values are defined by the generated outputs after a team member runs
+`make process-kma-weather`. They are intentionally not hard-coded here because
+adding a year or the Wind Profiler batch changes them.
+
+Current-value variables:
+
+- `{rows_by_dataset}`: total rows and the processed year range for each of
+  `station_history`, `surface_hourly`, `radiosonde_profile`,
+  `stability_indices`, `upper_air_dispersion`, and `profiler_wind`
+
+A local current-values file may be kept beside the processed data at:
+
+- `data/processed/weather/kma/README.md`
+
 ## Derived fields
 
 Surface KST timestamps are retained and also converted to UTC. Upper-air data

@@ -60,13 +60,14 @@ def _match_identity(row: pd.Series, registry: pd.DataFrame) -> dict[str, object]
 
     if coordinate is None and row["station_name_key"] and row["address_key"]:
         same_name = registry[registry["station_name_key"] == row["station_name_key"]]
-        candidates = same_name[
-            same_name["address_key"].map(
+        address_contains = same_name["address_key"].map(
                 lambda value: (
                     bool(value) and (value in row["address_key"] or row["address_key"] in value)
                 )
-            )
-        ]
+            ).astype(bool)
+        # `.loc` keeps this as a row selection even when `same_name` is empty;
+        # `frame[empty_object_series]` can otherwise be treated as a column selector.
+        candidates = same_name.loc[address_contains]
         coordinate = _one_coordinate(candidates)
         method = "name_address_containment"
         confidence = "high"

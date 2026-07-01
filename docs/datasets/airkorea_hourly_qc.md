@@ -61,3 +61,28 @@ than being treated as spatially unsupported sensor failures.
 Weather normalization is intentionally outside this module. It should consume
 the QC output later and write a separate
 `air_quality_monthly_weather_normalized.parquet` sensitivity dataset.
+
+## Current Coverage
+
+Coverage values are defined by the generated outputs after a team member runs
+the pipeline. They are intentionally not hard-coded here because processing a
+different year or pollutant range changes them.
+
+Current-value variables:
+
+- `{hourly_rows}`: rows in `air_quality_hourly_qc.parquet`
+- `{hourly_date_range}`: first and last observation datetime
+- `{monitor_count}`: distinct `monitor_id` values
+- `{monitor_year_count}`: distinct monitor-year rows in the station crosswalk,
+  and how many resolved to coordinates
+- `{pollutant_counts}`: hourly row counts by `pollutant`
+- `{qc_status_counts}`: hourly row counts by `qc_status`
+- `{monthly_row_counts}`: row counts for the raw and QC monthly aggregates
+
+A local current-values file may be kept beside the processed data at:
+
+- `data/processed/air_quality/README.md`
+
+Because the QC command accepts `--years` and `--pollutants` filters, this
+local file only reflects whichever run last wrote it; it is not necessarily a
+full-history snapshot unless the pipeline was run over every year.

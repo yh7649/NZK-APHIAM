@@ -58,7 +58,8 @@ Current-value variables:
 - `{nonmissing_value_counts}`: non-missing counts for generation, capacity,
   NOx, SOx, and dust/TSP
 
-A local current-values file may be kept beside the processed data at:
+A local current-values file is written automatically by `make combine-kepco`
+(and refreshed by `make audit-kepco`) beside the processed data at:
 
 - `data/processed/kepco/README.md`
 
@@ -394,43 +395,11 @@ Then rerun the R analysis with:
 Rscript analysis/kepco/kepco_monthly_analysis.R
 ```
 
-For a quick local summary:
+For a quick local summary, read the local current-values file that
+`combine-kepco`/`audit-kepco` regenerate automatically:
 
 ```bash
-python - <<'PY'
-import csv
-from collections import Counter
-
-path = "data/processed/kepco/kepco_monthly_generation_emissions.csv"
-with open(path, newline="", encoding="utf-8-sig") as f:
-    rows = list(csv.DictReader(f))
-
-unit_reporting = {
-    (
-        row["source_dataset"],
-        row["plant_name"],
-        row["plant_number"],
-        row["original_korean_unit_name"],
-    )
-    for row in rows
-}
-numeric_units = {
-    (row["source_dataset"], row["plant_name"], row["plant_number"])
-    for row in rows
-    if row["plant_number"]
-}
-
-print("rows:", len(rows))
-print("date range:", min(row["date"] for row in rows), "to", max(row["date"] for row in rows))
-print("plants:", len({row["plant_name"] for row in rows}))
-print("unit/reporting identities:", len(unit_reporting))
-print("numeric unit identities:", len(numeric_units))
-print("source datasets:", Counter(row["source_dataset"] for row in rows))
-print("subsidiaries:", Counter(row["subsidiary_company"] for row in rows))
-print("energy types:", Counter(row["energy_type"] or "unknown" for row in rows))
-for col in ["energy_generated_mwh", "energy_capacity_mw", "nox", "sox", "dust_tsp"]:
-    print(f"{col} non-missing:", sum(bool(row[col]) for row in rows))
-PY
+cat data/processed/kepco/README.md
 ```
 
 ## Notes

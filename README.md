@@ -200,6 +200,15 @@ and invalid or incomplete ZIPs are rejected. No data.go.kr API key is needed:
 the downloader uses AirKorea's public finalized-data archive rather than the
 recent, provisional real-time API.
 
+Run the QC pipeline over the downloaded archives with:
+
+```bash
+python -m nzk_aphiam.air_quality --years 2021 2022
+```
+
+See [`docs/datasets/airkorea_hourly_qc.md`](docs/datasets/airkorea_hourly_qc.md)
+for the QC methodology, station-crosswalk logic, coverage, and output schema.
+
 ## KMA Weather and Dispersion Features
 
 Create a KMA API Hub account, activate the ASOS, radiosonde, radiosonde

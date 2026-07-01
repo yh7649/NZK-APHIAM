@@ -4,12 +4,32 @@ import numpy as np
 import pandas as pd
 
 from nzk_aphiam.air_quality.anomaly_model import ModelConfig
+from nzk_aphiam.air_quality.features import add_temporal_and_lag_features
 from nzk_aphiam.air_quality.pipeline import (
     AirQualityQCPipeline,
     monthly_aggregates,
     standardize_airkorea_frame,
 )
 from nzk_aphiam.air_quality.qc_rules import RuleConfig, apply_rule_flags
+
+
+def test_optional_coordinates_with_pandas_na_are_numeric_for_modeling() -> None:
+    frame = pd.DataFrame(
+        {
+            "monitor_id": ["a", "a"],
+            "datetime": pd.to_datetime(["2022-01-01 00:00", "2022-01-01 01:00"]),
+            "pollutant": ["NO2", "NO2"],
+            "value_raw": [0.01, 0.02],
+            "flag_missing": [False, False],
+            "flag_impossible": [False, False],
+            "latitude": [pd.NA, 37.0],
+            "longitude": [pd.NA, 127.0],
+        }
+    )
+    featured, numeric, _ = add_temporal_and_lag_features(frame)
+    assert "latitude" in numeric
+    assert featured["latitude"].dtype == float
+    assert featured["longitude"].dtype == float
 
 
 def test_standardize_airkorea_frame_preserves_raw_values() -> None:

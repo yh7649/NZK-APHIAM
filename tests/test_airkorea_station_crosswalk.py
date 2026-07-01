@@ -7,6 +7,30 @@ from nzk_aphiam.air_quality.station_crosswalk import (
     add_station_coordinates,
     build_station_crosswalk,
 )
+
+
+def test_unmatched_station_does_not_drop_registry_coordinate_columns():
+    hourly = pd.DataFrame(
+        {
+            "monitor_id": ["historic-only"],
+            "datetime": pd.to_datetime(["2010-01-01 01:00"]),
+            "station_name": ["없는측정소"],
+            "address": ["과거주소"],
+        }
+    )
+    registry = pd.DataFrame(
+        {
+            "station_name": ["현재측정소"],
+            "address": ["현재주소"],
+            "latitude": [37.0],
+            "longitude": [127.0],
+        }
+    )
+
+    crosswalk = build_station_crosswalk(hourly, registry)
+
+    assert crosswalk.loc[0, "coordinate_match_method"] == "unmatched"
+    assert crosswalk.loc[0, "coordinate_match_confidence"] == "unresolved"
 from nzk_aphiam.data.scrape.airkorea import stations
 
 

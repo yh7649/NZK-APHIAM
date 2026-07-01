@@ -30,5 +30,8 @@ def add_temporal_and_lag_features(
 
     for optional in ("latitude", "longitude", "temperature", "humidity", "wind_speed", "pressure"):
         if optional in result.columns:
+            # Crosswalk misses use pandas.NA, which otherwise leaves an object
+            # column that scikit-learn's numeric imputer cannot convert.
+            result[optional] = pd.to_numeric(result[optional], errors="coerce").astype(float)
             numeric.append(optional)
     return result.sort_index(), numeric, ["monitor_id"]

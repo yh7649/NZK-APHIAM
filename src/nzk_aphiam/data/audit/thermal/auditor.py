@@ -649,6 +649,18 @@ def main() -> None:
     combined_rows = sum(len(result.audited_data) for result in results.values())
     print(f"combined: saved {combined_rows:,} audited rows to {args.combined_output_path}")
 
+    # Import here, not at module level: combiner.py imports from this module,
+    # so importing it back at the top would be circular.
+    from nzk_aphiam.data.process.thermal.combiner import build_local_readme, save_local_readme
+
+    coverage_path = args.processed_dir / "subsidiary_coverage.csv"
+    if coverage_path.exists():
+        coverage = pd.read_csv(coverage_path)
+        combined = pd.read_csv(args.combined_output_path, low_memory=False)
+        readme_path = args.combined_output_path.parent / "README.md"
+        save_local_readme(build_local_readme(combined, coverage), readme_path)
+        print(f"Refreshed local current-values README at {readme_path}")
+
 
 if __name__ == "__main__":
     main()

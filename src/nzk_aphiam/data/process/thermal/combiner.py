@@ -305,6 +305,149 @@ def save_variable_metadata(metadata: pd.DataFrame, metadata_path: Path) -> None:
     metadata.to_csv(metadata_path, index=False)
 
 
+def build_local_readme(combined: pd.DataFrame, coverage: pd.DataFrame) -> str:
+    """Render current-value coverage matching the placeholders in
+    docs/datasets/kepco_monthly_generation_emissions.md, so the local snapshot
+    tracks whatever combine-kepco just produced.
+    """
+    dates = pd.to_datetime(combined["date"], errors="raise")
+    unit_reporting = combined[
+        ["source_dataset", "plant_name", "plant_number", "original_korean_unit_name"]
+    ].drop_duplicates()
+    numeric_units = combined.loc[
+        combined["plant_number"].notna(),
+        ["source_dataset", "plant_name", "plant_number"],
+    ].drop_duplicates()
+
+    def counts_block(column: str) -> str:
+        counts = combined[column].fillna("unknown").value_counts()
+        return "\n".join(f"- `{name}`: `{count:,}`" for name, count in counts.items())
+
+    coordinates = combined[["plant_name", "plant_latitude", "plant_longitude"]].dropna(
+        subset=["plant_latitude", "plant_longitude"]
+    )
+    distinct_pairs = coordinates.drop_duplicates(["plant_latitude", "plant_longitude"])
+    total_rows = len(combined)
+
+    def field_coverage_line(label: str, column: str) -> str:
+        count = int(combined[column].notna().sum())
+        return f"- {label}: `{count:,}` of `{total_rows:,}` rows (`{100 * count / total_rows:.0f}%`)"
+
+    subsidiary_lines = []
+    for _, row in coverage.sort_values("source_dataset").iterrows():
+        parts = [
+            f"{row['energy_type_coverage_pct']:.2f}% fuel"
+            if row["energy_type_coverage_pct"] != 100
+            else None,
+            f"{row['energy_generated_mwh_coverage_pct']:.2f}% generation"
+            if row["energy_generated_mwh_coverage_pct"] != 100
+            else None,
+            f"{row['energy_capacity_mw_coverage_pct']:.2f}% capacity"
+            if row["energy_capacity_mw_coverage_pct"] != 100
+            else None,
+            f"{row['nox_coverage_pct']:.2f}% NOx",
+            f"{row['sox_coverage_pct']:.2f}% SOx",
+            f"{row['dust_tsp_coverage_pct']:.2f}% dust/TSP",
+        ]
+        detail = ", ".join(part for part in parts if part)
+        placeholder_note = (
+            f" and {row['inactive_placeholder_rows']:,} inactive placeholders excluded"
+            if row["inactive_placeholder_rows"]
+            else ""
+        )
+        subsidiary_lines.append(
+            f"- {row['subsidiary_company']}: `{row['rows']:,}` rows"
+            f"{placeholder_note}; {detail}."
+        )
+
+    return f"""# KEPCO Monthly Dataset: Current Local Values
+
+This local file records the current generated values for:
+
+- `kepco_monthly_generation_emissions.csv`
+- `kepco_monthly_generation_emissions_metadata.csv`
+- `subsidiaries/*_monthly_generation_emissions.csv`
+- `subsidiaries/subsidiary_coverage.csv`
+
+The tracked dataset description is:
+
+- `docs/datasets/kepco_monthly_generation_emissions.md`
+
+This folder is ignored by git, so these values are local snapshots. `make
+combine-kepco` regenerates this file every time it regenerates the dataset, so
+it should never go stale relative to the data actually on disk.
+
+## Current Coverage
+
+- Rows: `{total_rows:,}`
+- Date range: `{dates.min().date()}` to `{dates.max().date()}`
+- Plants: `{combined["plant_name"].nunique():,}`
+- Unit/reporting identities: `{len(unit_reporting):,}`
+- Numeric unit identities: `{len(numeric_units):,}`
+
+Rows by source dataset:
+
+{counts_block("source_dataset")}
+
+Rows by KEPCO subsidiary:
+
+{counts_block("subsidiary_company")}
+
+Rows by cleaned fuel/energy type:
+
+{counts_block("energy_type")}
+
+Non-missing value counts:
+
+- `energy_generated_mwh`: `{int(combined["energy_generated_mwh"].notna().sum()):,}`
+- `energy_capacity_mw`: `{int(combined["energy_capacity_mw"].notna().sum()):,}`
+- `nox`: `{int(combined["nox"].notna().sum()):,}`
+- `sox`: `{int(combined["sox"].notna().sum()):,}`
+- `dust_tsp`: `{int(combined["dust_tsp"].notna().sum()):,}`
+
+## Plant Locations and Dates
+
+Every current row is joined to the reviewed plant crosswalk before the
+subsidiary datasets are combined and audited. The merged dataset includes
+`plant_latitude`, `plant_longitude`, `plant_province`, `plant_district`,
+`plant_opening_date`, and `plant_closing_date`.
+
+{field_coverage_line("Coordinates", "plant_latitude")}
+{field_coverage_line("Province", "plant_province")}
+{field_coverage_line("District", "plant_district")}
+{field_coverage_line("Opening date", "plant_opening_date")}
+{field_coverage_line("Closing date", "plant_closing_date")}
+- Distinct coordinate pairs: `{len(distinct_pairs):,}` across `{combined["plant_name"].nunique():,}` plant names
+
+The source crosswalk is
+`docs/references/crosswalk/plant_location_dates.csv`; reviewed administrative
+geography is in `docs/references/crosswalk/plant_geography.csv`.
+
+## Subsidiary Products
+
+The preferred analysis inputs are the five files under `subsidiaries/`. Their
+core-field coverage is summarized in `subsidiaries/subsidiary_coverage.csv`.
+
+{chr(10).join(subsidiary_lines)}
+
+## Refresh
+
+These values are written automatically by:
+
+```bash
+make combine-kepco
+```
+"""
+
+
+def save_local_readme(readme_text: str, readme_path: Path) -> None:
+    """Write the local current-values README, replacing it atomically."""
+    readme_path.parent.mkdir(parents=True, exist_ok=True)
+    partial = readme_path.with_suffix(".md.part")
+    partial.write_text(readme_text, encoding="utf-8")
+    partial.replace(readme_path)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
@@ -318,6 +461,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--subsidiary-output-dir", type=Path, default=SUBSIDIARY_OUTPUT_DIR)
     parser.add_argument("--coverage-path", type=Path, default=COVERAGE_PATH)
     parser.add_argument("--results-dir", type=Path, default=RESULTS_DIR)
+    parser.add_argument("--readme-path", type=Path, default=None)
     return parser
 
 
@@ -343,6 +487,10 @@ def main() -> None:
         metadata_path=args.metadata_path,
     )
     combined_rows = sum(len(result.audited_data) for result in audit_results.values())
+
+    readme_path = args.readme_path or args.output_path.parent / "README.md"
+    combined = pd.read_csv(args.output_path, low_memory=False)
+    save_local_readme(build_local_readme(combined, coverage), readme_path)
 
     print(f"Saved {len(subsidiaries)} subsidiary datasets to {args.subsidiary_output_dir}")
     print(f"Saved subsidiary coverage to {args.coverage_path}")

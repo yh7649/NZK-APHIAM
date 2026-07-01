@@ -67,7 +67,9 @@ def _parse_airkorea_datetime(values: pd.Series) -> pd.Series:
     return parsed_compact.where(compact, parsed_other)
 
 
-def standardize_airkorea_frame(frame: pd.DataFrame) -> pd.DataFrame:
+def standardize_airkorea_frame(
+    frame: pd.DataFrame, selected_pollutants: set[str] | None = None
+) -> pd.DataFrame:
     """Convert common Korean/English AirKorea wide columns to the canonical long schema."""
     original = {_clean_label(column): column for column in frame.columns}
 
@@ -94,6 +96,17 @@ def standardize_airkorea_frame(frame: pd.DataFrame) -> pd.DataFrame:
                 break
     if not pollutant_columns:
         raise ValueError("AirKorea workbook contains no recognized pollutant columns")
+    if selected_pollutants is not None:
+        pollutant_columns = {
+            column: pollutant
+            for column, pollutant in pollutant_columns.items()
+            if pollutant in selected_pollutants
+        }
+        if not pollutant_columns:
+            raise ValueError(
+                f"AirKorea workbook contains none of the requested pollutants: "
+                f"{sorted(selected_pollutants)}"
+            )
 
     identity = [datetime_column, station or station_name]
     optional_aliases = {
@@ -122,7 +135,9 @@ def standardize_airkorea_frame(frame: pd.DataFrame) -> pd.DataFrame:
     return long.drop(columns="source_pollutant")
 
 
-def read_airkorea_zip(path: Path) -> pd.DataFrame:
+def read_airkorea_zip(
+    path: Path, selected_pollutants: set[str] | None = None
+) -> pd.DataFrame:
     """Read every XLSX member from an annual AirKorea ZIP without altering the archive."""
     frames: list[pd.DataFrame] = []
     with TemporaryDirectory(prefix="airkorea_") as temporary, ZipFile(path) as archive:
@@ -131,7 +146,12 @@ def read_airkorea_zip(path: Path) -> pd.DataFrame:
                 continue
             extracted = Path(archive.extract(member, temporary))
             raw = pd.read_excel(extracted)
-            standardized = standardize_airkorea_frame(raw)
+            try:
+                standardized = standardize_airkorea_frame(raw, selected_pollutants)
+            except ValueError as error:
+                if selected_pollutants is not None and "none of the requested pollutants" in str(error):
+                    continue
+                raise
             standardized["source_archive"] = path.name
             standardized["source_member"] = member.filename
             frames.append(standardized)
@@ -168,12 +188,19 @@ class AirQualityQCPipeline:
 
     def run(self, hourly: pd.DataFrame) -> pd.DataFrame:
         """Run rule QC, RF residual detection, and spatial confirmation."""
-        checked = apply_rule_flags(hourly, self.rule_config)
-        featured, numeric, categorical = add_temporal_and_lag_features(checked)
-        predicted = add_oof_predictions(featured, numeric, categorical, self.model_config)
-        result = add_spatial_support(
-            predicted, self.radius_km, self.spatial_support_z, self.minimum_neighbors
-        )
+        # Every downstream operation is pollutant-specific. Processing these
+        # independent groups sequentially avoids retaining several copies of a
+        # multi-million-row annual frame without changing model folds or flags.
+        parts: list[pd.DataFrame] = []
+        for pollutant, group in hourly.groupby("pollutant", sort=False, observed=True):
+            checked = apply_rule_flags(group.copy(), self.rule_config)
+            featured, numeric, categorical = add_temporal_and_lag_features(checked)
+            predicted = add_oof_predictions(featured, numeric, categorical, self.model_config)
+            spatially_checked = add_spatial_support(
+                predicted, self.radius_km, self.spatial_support_z, self.minimum_neighbors
+            )
+            parts.append(spatially_checked)
+        result = pd.concat(parts).sort_index(kind="stable")
         hard_invalid = result["flag_missing"] | result["flag_impossible"]
         unsupported_anomaly = (
             result["flag_ml"]
@@ -225,11 +252,99 @@ def monthly_aggregates(hourly_qc: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFr
     return raw, qc
 
 
+def build_local_readme(
+    hourly_qc: pd.DataFrame,
+    raw_monthly: pd.DataFrame,
+    qc_monthly: pd.DataFrame,
+    crosswalk: pd.DataFrame,
+    years: list[int] | None,
+    pollutants: set[str] | None,
+) -> str:
+    """Render current-value coverage matching the placeholders in
+    docs/datasets/airkorea_hourly_qc.md, so the local snapshot tracks whatever
+    the QC command just produced.
+    """
+    total_hours = len(hourly_qc)
+    datetimes = hourly_qc["datetime"]
+    qc_counts = hourly_qc["qc_status"].value_counts()
+    pollutant_counts = hourly_qc["pollutant"].value_counts()
+    resolved_monitor_years = crosswalk["latitude"].notna().sum()
+    scope = (
+        f"This snapshot only reflects `--years {' '.join(map(str, sorted(years)))}`"
+        if years
+        else "This snapshot reflects every archive in the input directory"
+    )
+    if pollutants:
+        scope += f", filtered to `--pollutants {' '.join(sorted(pollutants))}`"
+    scope += " for the run that produced it; rerun without a filter for the full dataset's values."
+
+    return f"""# AirKorea Hourly QC Dataset: Current Local Values
+
+This local file records the current generated values for:
+
+- `data/interim/air_quality/air_quality_hourly_qc.parquet`
+- `data/interim/air_quality/airkorea_station_crosswalk.csv`
+- `data/processed/air_quality/air_quality_monthly_raw.parquet`
+- `data/processed/air_quality/air_quality_monthly_qc.parquet`
+
+The tracked dataset description is:
+
+- `docs/datasets/airkorea_hourly_qc.md`
+
+This folder is ignored by git, so these values are local snapshots. Running
+`python -m nzk_aphiam.air_quality` regenerates this file every time it
+regenerates the dataset, so it should never go stale relative to the data
+actually on disk. {scope}
+
+## Current Coverage
+
+- Hourly rows: `{total_hours:,}`
+- Date range: `{datetimes.min()}` to `{datetimes.max()}`
+- Monitors: `{hourly_qc["monitor_id"].nunique():,}`
+- Monitor-years in crosswalk: `{len(crosswalk):,}` (`{resolved_monitor_years:,}` resolved to coordinates)
+
+Hourly rows by pollutant:
+
+{chr(10).join(f"- `{name}`: `{count:,}`" for name, count in pollutant_counts.items())}
+
+Hourly rows by QC status:
+
+{chr(10).join(f"- `{name}`: `{count:,}`" for name, count in qc_counts.items())}
+
+Monthly aggregates:
+
+- Raw monthly rows: `{len(raw_monthly):,}`
+- QC monthly rows: `{len(qc_monthly):,}`
+
+## Refresh
+
+These values are written automatically by:
+
+```bash
+python -m nzk_aphiam.air_quality --years <years>
+```
+"""
+
+
+def save_local_readme(readme_text: str, readme_path: Path) -> None:
+    """Write the local current-values README, replacing it atomically."""
+    readme_path.parent.mkdir(parents=True, exist_ok=True)
+    partial = readme_path.with_suffix(".md.part")
+    partial.write_text(readme_text, encoding="utf-8")
+    partial.replace(readme_path)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run auditable QC on AirKorea hourly archives.")
     parser.add_argument("--input-dir", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--years", type=int, nargs="+")
+    parser.add_argument(
+        "--pollutants",
+        nargs="+",
+        choices=sorted(set(POLLUTANT_ALIASES.values())),
+        help="Optionally process only selected canonical pollutants to bound memory use.",
+    )
     parser.add_argument("--interim-dir", type=Path, default=DEFAULT_INTERIM)
     parser.add_argument("--processed-dir", type=Path, default=DEFAULT_PROCESSED)
     parser.add_argument("--station-registry", type=Path, default=DEFAULT_STATION_REGISTRY)
@@ -249,7 +364,11 @@ def main() -> None:
         ]
     if not archives:
         parser.error("No complete ZIP archives matched the requested input")
-    hourly = pd.concat([read_airkorea_zip(path) for path in archives], ignore_index=True)
+    selected_pollutants = set(args.pollutants) if args.pollutants else None
+    hourly = pd.concat(
+        [read_airkorea_zip(path, selected_pollutants) for path in archives],
+        ignore_index=True,
+    )
     if args.refresh_stations or not args.station_registry.exists():
         registry = fetch_registry(get_api_key())
         save_registry(registry, args.station_registry, overwrite=args.station_registry.exists())
@@ -266,6 +385,11 @@ def main() -> None:
     output.to_parquet(args.interim_dir / "air_quality_hourly_qc.parquet", index=False)
     raw_monthly.to_parquet(args.processed_dir / "air_quality_monthly_raw.parquet", index=False)
     qc_monthly.to_parquet(args.processed_dir / "air_quality_monthly_qc.parquet", index=False)
+
+    readme_text = build_local_readme(
+        output, raw_monthly, qc_monthly, crosswalk, args.years, selected_pollutants
+    )
+    save_local_readme(readme_text, args.processed_dir / "README.md")
 
 
 if __name__ == "__main__":
