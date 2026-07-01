@@ -46,6 +46,7 @@ save_figure <- function(
   ...
 ) {
   output_path <- file.path(figures_dir, filename)
+  dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
 
   if (!is.null(plot) && requireNamespace("ggplot2", quietly = TRUE)) {
     ggplot2::ggsave(
@@ -1141,6 +1142,348 @@ build_province_breakdown <- function(group_var, output_stub, group_label) {
 
 build_province_breakdown("plant_name", "province_by_plant", "plant")
 build_province_breakdown("energy_type_clean", "province_by_fuel_type", "fuel type")
+
+# ---- Generation-weighted EF point estimates ---------------------------------
+
+# Estimate the EF for a hypothetical ("overnight") plant from the observed
+# plants matching any combination of fuel, province, subsidiary, or other
+# columns over the latest six months with valid data by default. Plant EFs are
+# calculated first and then weighted by each plant's valid generation.
+# Algebraically this is total emissions / total generation, but retaining the
+# plant rows makes the contributing evidence transparent.
+estimate_ef <- function(
+  data,
+  pollutant,
+  filters = list(),
+  start_date = NULL,
+  end_date = NULL,
+  recent_months = 6,
+  min_coverage_pct = 0.5
+) {
+  if (!pollutant %in% pollutants$pollutant) {
+    stop("pollutant must be one of: ", paste(pollutants$pollutant, collapse = ", "))
+  }
+  if (length(recent_months) != 1 || is.na(recent_months) ||
+      recent_months < 1 || recent_months != as.integer(recent_months)) {
+    stop("recent_months must be a positive whole number")
+  }
+
+  unknown_filters <- setdiff(names(filters), names(data))
+  if (length(unknown_filters) > 0) {
+    stop("Unknown filter columns: ", paste(unknown_filters, collapse = ", "))
+  }
+
+  selected <- data
+  for (filter_name in names(filters)) {
+    selected <- selected[
+      !is.na(selected[[filter_name]]) & selected[[filter_name]] %in% filters[[filter_name]],
+      , drop = FALSE
+    ]
+  }
+  if (!is.null(end_date)) {
+    selected <- selected[selected$date <= as.Date(end_date), , drop = FALSE]
+  }
+
+  if (is.null(start_date)) {
+    valid_dates <- selected$date[
+      !is.na(selected[[pollutant]]) &
+        !is.na(selected$energy_generated_mwh) & selected$energy_generated_mwh > 0
+    ]
+    if (length(valid_dates) == 0) return(NULL)
+    window_end <- max(valid_dates)
+    window_start <- min(seq(window_end, by = "-1 month", length.out = recent_months))
+    selected <- selected[
+      selected$date >= window_start & selected$date <= window_end,
+      , drop = FALSE
+    ]
+  } else {
+    selected <- selected[selected$date >= as.Date(start_date), , drop = FALSE]
+  }
+
+  total_generation <- sum(
+    selected$energy_generated_mwh[
+      !is.na(selected$energy_generated_mwh) & selected$energy_generated_mwh > 0
+    ],
+    na.rm = TRUE
+  )
+  valid <- !is.na(selected[[pollutant]]) &
+    !is.na(selected$energy_generated_mwh) & selected$energy_generated_mwh > 0
+  selected <- selected[valid, , drop = FALSE]
+
+  if (nrow(selected) == 0 || total_generation <= 0) return(NULL)
+
+  plant_emissions <- aggregate(
+    selected[[pollutant]],
+    selected[c("plant_name")],
+    sum,
+    na.rm = TRUE
+  )
+  plant_generation <- aggregate(
+    selected$energy_generated_mwh,
+    selected[c("plant_name")],
+    sum,
+    na.rm = TRUE
+  )
+  names(plant_emissions)[2] <- "emissions_kg"
+  names(plant_generation)[2] <- "generation_mwh"
+  plant_estimates <- merge(plant_emissions, plant_generation, by = "plant_name")
+  valid_generation <- sum(plant_estimates$generation_mwh)
+  coverage_pct <- valid_generation / total_generation
+
+  if (coverage_pct < min_coverage_pct) return(NULL)
+
+  plant_estimates$plant_ef_kg_per_mwh <-
+    plant_estimates$emissions_kg / plant_estimates$generation_mwh
+  plant_estimates$generation_weight <-
+    plant_estimates$generation_mwh / valid_generation
+
+  estimate <- weighted.mean(
+    plant_estimates$plant_ef_kg_per_mwh,
+    plant_estimates$generation_mwh
+  )
+
+  list(
+    estimate = data.frame(
+      pollutant = pollutant,
+      ef_kg_per_mwh = estimate,
+      plant_count = nrow(plant_estimates),
+      valid_generation_mwh = valid_generation,
+      generation_coverage_pct = coverage_pct,
+      start_date = if (nrow(selected)) min(selected$date) else as.Date(NA),
+      end_date = if (nrow(selected)) max(selected$date) else as.Date(NA),
+      filter = if (length(filters)) paste(
+        paste0(names(filters), "=", vapply(filters, paste, collapse = "|", character(1))),
+        collapse = ";"
+      ) else "all",
+      row.names = NULL
+    ),
+    plants = plant_estimates[order(-plant_estimates$generation_weight), ]
+  )
+}
+
+# Point estimates by fuel type, plus province-by-fuel estimates for questions
+# such as: "What is the NOx EF for a coal plant in this province?"
+point_estimate_rows <- list()
+for (i in seq_len(nrow(pollutants))) {
+  pollutant <- pollutants$pollutant[[i]]
+  for (fuel in sort(unique(analysis_kepco$energy_type_clean))) {
+    result <- estimate_ef(
+      analysis_kepco, pollutant,
+      filters = list(energy_type_clean = fuel)
+    )
+    if (!is.null(result)) {
+      row <- result$estimate
+      row$plant_province <- "all"
+      row$energy_type <- fuel
+      point_estimate_rows[[length(point_estimate_rows) + 1]] <- row
+    }
+  }
+  province_fuels <- unique(analysis_kepco[c("plant_province", "energy_type_clean")])
+  province_fuels <- province_fuels[complete.cases(province_fuels), ]
+  for (j in seq_len(nrow(province_fuels))) {
+    result <- estimate_ef(
+      analysis_kepco, pollutant,
+      filters = list(
+        plant_province = province_fuels$plant_province[[j]],
+        energy_type_clean = province_fuels$energy_type_clean[[j]]
+      )
+    )
+    if (!is.null(result)) {
+      row <- result$estimate
+      row$plant_province <- province_fuels$plant_province[[j]]
+      row$energy_type <- province_fuels$energy_type_clean[[j]]
+      point_estimate_rows[[length(point_estimate_rows) + 1]] <- row
+    }
+  }
+}
+ef_point_estimates <- do.call(rbind, point_estimate_rows)
+save_table(ef_point_estimates, "kepco_generation_weighted_ef_point_estimates.csv")
+
+overnight_ef_figure_data <- ef_point_estimates %>%
+  filter(plant_province != "all") %>%
+  mutate(
+    pollutant = factor(
+      pollutant,
+      levels = c("nox", "sox", "dust_tsp"),
+      labels = c("NOx", "SOx", "TSP")
+    ),
+    energy_type = gsub("_", " ", energy_type),
+    cell_label = ifelse(
+      ef_kg_per_mwh >= 0.01,
+      sprintf("%.3f", ef_kg_per_mwh),
+      sprintf("%.4f", ef_kg_per_mwh)
+    )
+  ) %>%
+  complete(
+    pollutant,
+    plant_province,
+    energy_type,
+    fill = list(cell_label = "—")
+  )
+
+overnight_ef_table_figure <- ggplot(
+  overnight_ef_figure_data,
+  aes(x = energy_type, y = plant_province)
+) +
+  geom_tile(aes(fill = ef_kg_per_mwh), color = "white", linewidth = 0.8) +
+  geom_text(aes(label = cell_label), size = 3.3, color = "#17202A") +
+  facet_grid(pollutant ~ ., scales = "free_y", space = "free_y") +
+  scale_fill_gradient(
+    low = "#F4F9FD",
+    high = "#2878B5",
+    na.value = "#F2F2F2",
+    name = "kg/MWh"
+  ) +
+  labs(
+    title = "Overnight plant emission factors by province and fuel type",
+    subtitle = paste0(
+      "Generation-weighted estimates from each cohort's most recent six months; ",
+      "— indicates insufficient data"
+    ),
+    x = "Fuel type",
+    y = NULL,
+    caption = "Values are kilograms of pollutant per MWh of electricity generated."
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(
+    panel.grid = element_blank(),
+    axis.text.x = element_text(angle = 35, hjust = 1),
+    strip.text.y = element_text(face = "bold", angle = 0),
+    strip.background = element_rect(fill = "#EAF2F8", color = NA),
+    plot.title = element_text(face = "bold", size = 15),
+    plot.subtitle = element_text(color = "#4D4D4D"),
+    legend.position = "right"
+  )
+
+save_figure(
+  file.path("kepco", "overnight_ef", "kepco_province_by_fuel_overnight_ef.png"),
+  overnight_ef_table_figure,
+  width = 13,
+  height = 13
+)
+
+# Example query (change the province as needed):
+# estimate_ef(
+#   analysis_kepco,
+#   pollutant = "nox",
+#   filters = list(energy_type_clean = "coal", plant_province = "Chungcheongnam-do")
+# )$estimate
+
+# ---- Continuous negative-exponential EF projections -------------------------
+
+# EF(t) = floor + (initial - floor) * exp(-decay * t), where t is years since
+# the first observation. This gives rapid early improvement, followed by ever
+# smaller reductions toward a nonnegative long-run floor, with no imposed
+# structural break.
+fit_exponential_projection <- function(
+  series,
+  pollutant,
+  group_label,
+  projection_end = as.Date("2050-12-01"),
+  min_months = 24
+) {
+  series <- series[!is.na(series$ef_kg_per_mwh) & series$ef_kg_per_mwh >= 0, ]
+  series <- series[order(series$date), ]
+  if (nrow(series) < min_months) return(NULL)
+
+  first_date <- min(series$date)
+  series$t_years <- (month_index(series$date) - month_index(first_date)) / 12
+  floor_start <- max(0, unname(quantile(series$ef_kg_per_mwh, 0.1)))
+  amplitude_start <- max(series$ef_kg_per_mwh) - floor_start
+  model_weights <- pmax(series$generation_mwh, 1)
+  model_weights <- model_weights / mean(model_weights)
+
+  weighted_sse <- function(parameters) {
+    fitted <- parameters[["floor"]] + parameters[["amplitude"]] *
+      exp(-parameters[["decay"]] * series$t_years)
+    sum(model_weights * (series$ef_kg_per_mwh - fitted)^2)
+  }
+  starts <- list(
+    c(floor = floor_start, amplitude = amplitude_start, decay = 0.03),
+    c(floor = floor_start, amplitude = amplitude_start, decay = 0.1),
+    c(floor = 0, amplitude = max(series$ef_kg_per_mwh), decay = 0.3)
+  )
+  fits <- lapply(starts, function(start) try(
+    optim(
+      start,
+      weighted_sse,
+      method = "L-BFGS-B",
+      lower = c(floor = 0, amplitude = 0, decay = 0.0001),
+      upper = c(floor = Inf, amplitude = Inf, decay = 10)
+    ),
+    silent = TRUE
+  ))
+  fits <- fits[!vapply(fits, inherits, logical(1), "try-error")]
+  if (length(fits) == 0) return(NULL)
+  fit <- fits[[which.min(vapply(fits, function(x) x$value, numeric(1)))]]
+  if (fit$convergence != 0) return(NULL)
+
+  projection <- data.frame(date = project_month_sequence(first_date, projection_end))
+  projection$t_years <- (month_index(projection$date) - month_index(first_date)) / 12
+  coefficients <- fit$par
+  projection$projected_ef_kg_per_mwh <- coefficients[["floor"]] +
+    coefficients[["amplitude"]] * exp(-coefficients[["decay"]] * projection$t_years)
+  projection$observed_ef_kg_per_mwh <- series$ef_kg_per_mwh[
+    match(projection$date, series$date)
+  ]
+  projection$pollutant <- pollutant
+  projection$group <- group_label
+
+  list(
+    model = fit,
+    projection = projection,
+    summary = data.frame(
+      pollutant = pollutant,
+      group = group_label,
+      first_observed_date = first_date,
+      last_observed_date = max(series$date),
+      observations = nrow(series),
+      initial_ef_kg_per_mwh = unname(
+        coefficients[["floor"]] + coefficients[["amplitude"]]
+      ),
+      floor_ef_kg_per_mwh = unname(coefficients[["floor"]]),
+      annual_decay_rate = unname(coefficients[["decay"]]),
+      projected_2030_ef_kg_per_mwh = projection$projected_ef_kg_per_mwh[
+        which.min(abs(projection$date - as.Date("2030-12-01")))
+      ],
+      projected_2050_ef_kg_per_mwh = tail(projection$projected_ef_kg_per_mwh, 1),
+      row.names = NULL
+    )
+  )
+}
+
+exponential_projection_summaries <- list()
+for (i in seq_len(nrow(pollutants))) {
+  pollutant <- pollutants$pollutant[[i]]
+  fuel_series <- aggregate_ef(
+    analysis_kepco,
+    c("energy_type_clean", "date"),
+    pollutant
+  )
+  if (nrow(fuel_series) == 0) next
+
+  for (fuel in sort(unique(fuel_series$energy_type_clean))) {
+    result <- fit_exponential_projection(
+      fuel_series[fuel_series$energy_type_clean == fuel, ],
+      pollutant,
+      fuel
+    )
+    if (is.null(result)) next
+
+    stub <- paste0(clean_filename(fuel), "_", pollutant)
+    save_table(result$projection, paste0("projections/kepco_exponential_", stub, ".csv"))
+    save_model(result$model, paste0("kepco_exponential_", stub, ".rds"))
+    exponential_projection_summaries[[length(exponential_projection_summaries) + 1]] <-
+      result$summary
+  }
+}
+if (length(exponential_projection_summaries) > 0) {
+  exponential_projection_summary <- do.call(rbind, exponential_projection_summaries)
+  save_table(
+    exponential_projection_summary,
+    "kepco_exponential_projection_summary.csv"
+  )
+}
 
 # Paused: holding off on EF break/plateau projections for now (2026-06-30).
 # Wrapped in `if (FALSE)` rather than deleted so this can be re-enabled
