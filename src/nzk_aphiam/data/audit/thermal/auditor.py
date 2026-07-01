@@ -105,7 +105,9 @@ def robust_high_thresholds(data: pd.DataFrame, value: pd.Series) -> pd.Series:
     return pd.Series(index.map(stats["threshold"]), index=data.index, dtype=float)
 
 
-def baseline_window_log_thresholds(data: pd.DataFrame, value: pd.Series) -> tuple[pd.Series, pd.Series]:
+def baseline_window_log_thresholds(
+    data: pd.DataFrame, value: pd.Series
+) -> tuple[pd.Series, pd.Series]:
     """Return unit-specific high/low thresholds, in log1p space, computed only
     from each unit's history before its most recent ``RECENT_WINDOW_MONTHS``.
 
@@ -342,7 +344,11 @@ def audit_subsidiary(name: str, data: pd.DataFrame) -> AuditResult:
         add_flags(
             flags,
             data,
-            recent & active & generation.gt(0) & log_value.notna() & log_value.lt(baseline_log_low),
+            recent
+            & active
+            & generation.gt(0)
+            & log_value.notna()
+            & log_value.lt(baseline_log_low),
             f"recent_shift_low_{pollutant}_mass",
             "warning",
             pollutant,

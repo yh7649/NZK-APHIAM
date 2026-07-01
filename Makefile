@@ -443,6 +443,7 @@ reproduce-annual-plant-panel-offline: verify-facility-crosswalk-offline combine-
 .PHONY: check-scraper-cli
 check-scraper-cli:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.eastwest_power --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.khnp --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.western_power --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southern_power emissions --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southern_power generation --help
@@ -494,10 +495,9 @@ create_environment:
 #################################################################################
 
 
-## Make dataset
+## Build the full KEPCO monthly dataset
 .PHONY: data
-data: requirements
-	$(PYTHON_INTERPRETER) net_zero_korea:_air_pollution_and_health_iam/dataset.py
+data: reproduce-kepco-monthly
 
 
 #################################################################################

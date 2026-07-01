@@ -10,8 +10,8 @@ authors:
   - family-names: "Hong"
     given-names: "Yehyun"
     affiliation: "Princeton University"
-version: 0.1.0
-date-released: 2026-06-12
+version: 0.2.0-beta.1
+date-released: 2026-07-01
 license: MIT
 repository-code: "https://github.com/yh7649/NZK-APHIAM"
 url: "https://github.com/yh7649/NZK-APHIAM"

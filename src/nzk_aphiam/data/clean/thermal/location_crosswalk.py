@@ -18,9 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[5]
 DEFAULT_CROSSWALK_PATH = (
     PROJECT_ROOT / "docs" / "references" / "crosswalk" / "plant_location_dates.csv"
 )
-DEFAULT_GEOGRAPHY_PATH = (
-    PROJECT_ROOT / "docs" / "references" / "crosswalk" / "plant_geography.csv"
-)
+DEFAULT_GEOGRAPHY_PATH = PROJECT_ROOT / "docs" / "references" / "crosswalk" / "plant_geography.csv"
 LOCATION_COLUMNS = [
     "plant_latitude",
     "plant_longitude",

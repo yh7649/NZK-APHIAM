@@ -223,9 +223,7 @@ def build_monthly_emissions(facility_raw: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def compute_incheon_flow_proxy(
-    facility_raw: pd.DataFrame, generation_raw: pd.DataFrame
-) -> float:
+def compute_incheon_flow_proxy(facility_raw: pd.DataFrame, generation_raw: pd.DataFrame) -> float:
     """Return Sm³ of flue gas per MWh of Incheon combined generation.
 
     Computed from the 2024-2025 odcloud Incheon GT rows joined to the monthly
@@ -281,7 +279,15 @@ def build_aggregate_incheon_emissions(
 
     if src.empty:
         return pd.DataFrame(
-            columns=["date", "generation_orgnm", "nox", "sox", "dust_tsp", "component_count", "_is_estimated"]
+            columns=[
+                "date",
+                "generation_orgnm",
+                "nox",
+                "sox",
+                "dust_tsp",
+                "component_count",
+                "_is_estimated",
+            ]
         )
 
     src["date"] = pd.to_datetime(src["ym"].astype(str), format="%Y%m", errors="raise")
@@ -290,7 +296,15 @@ def build_aggregate_incheon_emissions(
 
     if src.empty:
         return pd.DataFrame(
-            columns=["date", "generation_orgnm", "nox", "sox", "dust_tsp", "component_count", "_is_estimated"]
+            columns=[
+                "date",
+                "generation_orgnm",
+                "nox",
+                "sox",
+                "dust_tsp",
+                "component_count",
+                "_is_estimated",
+            ]
         )
 
     nox_ppm = pd.to_numeric(src["avgair02value"], errors="coerce")
@@ -312,15 +326,23 @@ def build_aggregate_incheon_emissions(
     rows = rows.merge(gen_incheon, on="date", how="left")
     estimated_flow = flow_proxy_sm3_per_mwh * rows["energy_generated_mwh"]
     rows["nox"] = (
-        rows["nox_ppm"] * estimated_flow * NOX_MOLECULAR_WEIGHT_GRAMS / (MOLAR_VOLUME_LITERS_PER_MOL * 1_000_000)
+        rows["nox_ppm"]
+        * estimated_flow
+        * NOX_MOLECULAR_WEIGHT_GRAMS
+        / (MOLAR_VOLUME_LITERS_PER_MOL * 1_000_000)
     )
     rows["sox"] = (
-        rows["sox_ppm"] * estimated_flow * SOX_MOLECULAR_WEIGHT_GRAMS / (MOLAR_VOLUME_LITERS_PER_MOL * 1_000_000)
+        rows["sox_ppm"]
+        * estimated_flow
+        * SOX_MOLECULAR_WEIGHT_GRAMS
+        / (MOLAR_VOLUME_LITERS_PER_MOL * 1_000_000)
     )
     rows["dust_tsp"] = rows["dust_mg_sm3"] * estimated_flow / 1_000_000
     rows["component_count"] = pd.array([pd.NA] * len(rows), dtype="Int64")
     rows["_is_estimated"] = True
-    return rows[["date", "generation_orgnm", "nox", "sox", "dust_tsp", "component_count", "_is_estimated"]]
+    return rows[
+        ["date", "generation_orgnm", "nox", "sox", "dust_tsp", "component_count", "_is_estimated"]
+    ]
 
 
 def clean_generation(generation_raw: pd.DataFrame) -> pd.DataFrame:
@@ -375,9 +397,7 @@ def clean_midland_power(
     if aggregate_raw is not None:
         proxy = compute_incheon_flow_proxy(facility_raw, generation_raw)
         exclude_dates = set(
-            odcloud_emissions.loc[
-                odcloud_emissions["generation_orgnm"] == "인천복합", "date"
-            ]
+            odcloud_emissions.loc[odcloud_emissions["generation_orgnm"] == "인천복합", "date"]
         )
         historical = build_aggregate_incheon_emissions(
             aggregate_raw, proxy, generation_raw, exclude_dates

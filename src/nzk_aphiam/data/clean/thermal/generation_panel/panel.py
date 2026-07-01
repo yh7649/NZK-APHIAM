@@ -61,33 +61,32 @@ GENERATION_PANEL_COLUMNS = [
 # ---- Default input paths ---------------------------------------------------
 
 DEFAULT_EW_INPUT = (
-    PROJECT_ROOT / "data" / "raw" / "eastwest_power"
+    PROJECT_ROOT
+    / "data"
+    / "raw"
+    / "eastwest_power"
     / "eastwest_power_air_pollutants_generation.csv"
 )
 DEFAULT_WP_INPUT = (
-    PROJECT_ROOT / "data" / "raw" / "western_power"
-    / "western_power_air_pollutants_generation.csv"
+    PROJECT_ROOT / "data" / "raw" / "western_power" / "western_power_air_pollutants_generation.csv"
 )
 DEFAULT_SP_GENERATION_INPUT = (
-    PROJECT_ROOT / "data" / "raw" / "southern_power"
-    / "southern_power_daily_generation.csv"
+    PROJECT_ROOT / "data" / "raw" / "southern_power" / "southern_power_daily_generation.csv"
 )
 DEFAULT_SE_GENERATION_INPUT = (
-    PROJECT_ROOT / "data" / "raw" / "southeast_power"
-    / "southeast_power_monthly_generation.csv"
+    PROJECT_ROOT / "data" / "raw" / "southeast_power" / "southeast_power_monthly_generation.csv"
 )
 DEFAULT_MP_GENERATION_INPUT = (
-    PROJECT_ROOT / "data" / "raw" / "midland_power"
-    / "midland_power_monthly_generation.csv"
+    PROJECT_ROOT / "data" / "raw" / "midland_power" / "midland_power_monthly_generation.csv"
 )
 DEFAULT_KHNP_GENERATION_INPUT = (
-    PROJECT_ROOT / "data" / "raw" / "khnp"
-    / "khnp_daily_generation.csv"
+    PROJECT_ROOT / "data" / "raw" / "khnp" / "khnp_daily_generation.csv"
 )
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "processed" / "kepco" / "generation"
 
 
 # ---- East-West Power -------------------------------------------------------
+
 
 def build_eastwest_generation(input_path: Path) -> pd.DataFrame:
     """Extract generation rows from the combined East-West source CSV."""
@@ -112,6 +111,7 @@ def build_eastwest_generation(input_path: Path) -> pd.DataFrame:
 
 
 # ---- Western Power ---------------------------------------------------------
+
 
 def build_western_generation(input_path: Path) -> pd.DataFrame:
     """Extract generation rows from the combined Western source CSV."""
@@ -138,8 +138,7 @@ def build_western_generation(input_path: Path) -> pd.DataFrame:
 # ---- Southern Power --------------------------------------------------------
 
 _SP_PLANT_ENERGY_TYPE: dict[str, str] = {
-    plant_name: energy_type
-    for _, (plant_name, energy_type, _) in _SP_SITE_RULES.items()
+    plant_name: energy_type for _, (plant_name, energy_type, _) in _SP_SITE_RULES.items()
 }
 
 _SP_OBSERVATION_LEVEL: dict[str, str] = {
@@ -179,9 +178,7 @@ def build_southern_generation(generation_path: Path) -> pd.DataFrame:
             "energy_generated_mwh": monthly["energy_generated_mwh"].astype("Float64"),
             "energy_capacity_mw": monthly["energy_capacity_mw"].astype("Float64"),
             "component_count": monthly["component_count"].astype("Int64"),
-            "original_korean_name": pd.array(
-                [pd.NA] * len(monthly), dtype="string"
-            ),
+            "original_korean_name": pd.array([pd.NA] * len(monthly), dtype="string"),
         },
         columns=GENERATION_PANEL_COLUMNS,
     )
@@ -222,12 +219,10 @@ def build_southeast_generation(generation_path: Path) -> pd.DataFrame:
             "date": source["date"],
             "subsidiary_company": "Korea South-East Power",
             "plant_name": plant_name,
-            "plant_number": (
-                unit_id.str.extract(r"(\d+)", expand=False).astype("Int64")
+            "plant_number": (unit_id.str.extract(r"(\d+)", expand=False).astype("Int64")),
+            "reporting_unit_id": ("southeast_power:" + plant_name + ":" + unit_id).astype(
+                "string"
             ),
-            "reporting_unit_id": (
-                "southeast_power:" + plant_name + ":" + unit_id
-            ).astype("string"),
             "observation_level": "generating_unit",
             "energy_type": (
                 source["발전원"].map(_SE_ENERGY_TYPES).fillna("other").astype("string")
@@ -276,9 +271,7 @@ _MP_ENERGY_TYPES: dict[str, str] = {
 def build_midland_generation(generation_path: Path) -> pd.DataFrame:
     """Parse the KOMIPO monthly generation CSV and return thermal-fleet rows."""
     raw = pd.read_csv(generation_path, encoding="utf-8-sig")
-    source = raw[
-        raw["gennm"].isin(_MP_THERMAL_GENNM) & raw["orgnm"].isin(_MP_PLANT_NAMES)
-    ].copy()
+    source = raw[raw["gennm"].isin(_MP_THERMAL_GENNM) & raw["orgnm"].isin(_MP_PLANT_NAMES)].copy()
     if source.empty:
         return pd.DataFrame(columns=GENERATION_PANEL_COLUMNS)
 
@@ -360,11 +353,12 @@ def build_khnp_generation(generation_path: Path) -> pd.DataFrame:
     source = raw[raw["resourceType"].isin(_KHNP_ENERGY_TYPES)].copy()
     if source.empty:
         return pd.DataFrame(columns=GENERATION_PANEL_COLUMNS)
-    source["date"] = pd.to_datetime(source["tradeDt"], format="%Y%m%d").dt.to_period("M").dt.start_time
+    source["date"] = (
+        pd.to_datetime(source["tradeDt"], format="%Y%m%d").dt.to_period("M").dt.start_time
+    )
     # The qt_* fields are hourly energy in kWh; sum them and convert to MWh.
     source["daily_mwh"] = (
-        source[hour_columns].apply(pd.to_numeric, errors="coerce").sum(axis=1, min_count=1)
-        / 1000
+        source[hour_columns].apply(pd.to_numeric, errors="coerce").sum(axis=1, min_count=1) / 1000
     )
     keys = ["date", "genCd", "genNm", "resourceType"]
     monthly = source.groupby(keys, as_index=False, dropna=False)["daily_mwh"].sum(min_count=1)
@@ -393,6 +387,7 @@ def build_khnp_generation(generation_path: Path) -> pd.DataFrame:
 
 
 # ---- Panel builder ---------------------------------------------------------
+
 
 def build_panel(
     ew_input: Path = DEFAULT_EW_INPUT,
@@ -435,7 +430,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--sp-generation-input", type=Path, default=DEFAULT_SP_GENERATION_INPUT)
     parser.add_argument("--se-generation-input", type=Path, default=DEFAULT_SE_GENERATION_INPUT)
     parser.add_argument("--mp-generation-input", type=Path, default=DEFAULT_MP_GENERATION_INPUT)
-    parser.add_argument("--khnp-generation-input", type=Path, default=DEFAULT_KHNP_GENERATION_INPUT)
+    parser.add_argument(
+        "--khnp-generation-input", type=Path, default=DEFAULT_KHNP_GENERATION_INPUT
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     return parser.parse_args()
 

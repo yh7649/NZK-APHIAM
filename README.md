@@ -277,12 +277,13 @@ dataset rules, lives in
 ```
 ├── CITATION.cff       <- Machine-readable software citation
 ├── docs/project       <- Authorship, provenance, and release documentation
+├── docs/references    <- Documented mappings, evidence, and source references
 ├── LICENSE            <- MIT license for repository software and documentation
 ├── Makefile           <- Reproducible scrape, clean, combine, test, and analysis commands
 ├── requirements       <- Python and R dependency lists
+├── configs            <- Event and pipeline YAML configuration files
 ├── analysis           <- Main R analysis workspace and shared R helpers
 ├── data               <- Local raw, interim, and processed data; ignored by Git
-├── references         <- Documented mappings, evidence, and source references
 ├── results
 │   ├── figures        <- Saved plots and graphics
 │   ├── tables         <- Saved analysis tables
