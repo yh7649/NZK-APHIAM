@@ -112,6 +112,14 @@ make r-analysis PYTHON_INTERPRETER=.venv/bin/python
 
 ## RStudio Analysis
 
+The descriptive plant-emissions to monitor-air-quality baseline is implemented
+in `analysis/gwr/plant_air_quality_gwr.R`. Once the upstream monthly AirKorea
+QC Parquet and station-year crosswalk exist, run `make test-gwr-r` and
+`make gwr-plant-air-quality`. It estimates non-causal annual spatial
+associations with separate emissions-distance and adaptive GWR kernels. See
+`analysis/gwr/README.md` for the 25/50/100 km sensitivity design, outputs, and
+limitations.
+
 Open `NZK-APHIAM.Rproj` in RStudio to work from the project root.
 
 Python combines and standardizes the monthly East-West, Western, and Southern

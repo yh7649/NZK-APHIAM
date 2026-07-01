@@ -175,6 +175,24 @@ combine-kepco:
 combine-thermal: combine-kepco
 
 
+## Fit descriptive plant-emissions to AirKorea spatial associations (requires existing AirKorea QC products)
+.PHONY: gwr-plant-air-quality
+gwr-plant-air-quality: combine-kepco
+	Rscript analysis/gwr/plant_air_quality_gwr.R
+
+
+## Run deterministic smoke tests for the descriptive GWR helpers
+.PHONY: test-gwr-r
+test-gwr-r:
+	Rscript analysis/gwr/test_gwr_helpers.R
+
+
+## Map annual AirKorea monitor means with fuel-coded KEPCO plants
+.PHONY: map-gwr-plant-air-quality
+map-gwr-plant-air-quality:
+	Rscript analysis/gwr/map_air_quality_and_plants.R
+
+
 ## Re-audit already-combined KEPCO subsidiary datasets without recombining (e.g. after changing audit thresholds)
 .PHONY: audit-kepco
 audit-kepco:

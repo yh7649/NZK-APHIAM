@@ -12,6 +12,14 @@ model objects under `results/`.
 
 Shared path helpers live in `R/paths.R` — source it at the top of any R script.
 
+## Descriptive plant-to-air-quality GWR
+
+`gwr/plant_air_quality_gwr.R` compares global OLS with descriptive annual GWR
+using 25/50/100 km distance-decayed KEPCO emissions indices. The exposure
+kernel and adaptive bisquare GWR observation kernel are distinct. The indices
+are not concentrations and the associations are not causal. See
+`gwr/README.md`; run `make test-gwr-r` and `make gwr-plant-air-quality`.
+
 Open `NZK-APHIAM.Rproj` and work through `kepco/kepco_monthly_analysis.R`
 interactively, or run the complete setup from the terminal with:
 

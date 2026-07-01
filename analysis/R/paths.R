@@ -46,6 +46,18 @@ kepco_processed_path <- function(...) {
   data_path("processed", "kepco", ...)
 }
 
+air_quality_processed_path <- function(...) {
+  data_path("processed", "air_quality", ...)
+}
+
+air_quality_interim_path <- function(...) {
+  data_path("interim", "air_quality", ...)
+}
+
+gwr_results_path <- function(...) {
+  results_path(...)
+}
+
 thermal_processed_path <- function(...) {
   kepco_processed_path(...)
 }
