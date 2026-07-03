@@ -28,7 +28,7 @@ GROUP_KEY = ["plant_name", "plant_number", "original_korean_unit_name"]
 MEASURES = ["energy_generated_mwh", "energy_capacity_mw", "nox", "sox", "dust_tsp"]
 POLLUTANTS = ["nox", "sox", "dust_tsp"]
 SEVERITY_ORDER = {"critical": 0, "warning": 1, "review": 2}
-SELECT_COLUMNS = KEY + ["energy_type", "energy_generated_mwh", "energy_capacity_mw"]
+SELECT_COLUMNS = KEY + ["fuel_type", "energy_generated_mwh", "energy_capacity_mw"]
 RECENT_WINDOW_MONTHS = 12
 BASELINE_MIN_MONTHS = 24
 
@@ -270,7 +270,7 @@ def audit_subsidiary(name: str, data: pd.DataFrame) -> AuditResult:
         "A combustion unit reports positive generation but zero NOx.",
     )
     for pollutant in ["sox", "dust_tsp"]:
-        mask = generation.gt(0) & data["energy_type"].eq("coal") & data[pollutant].eq(0)
+        mask = generation.gt(0) & data["fuel_type"].eq("coal") & data[pollutant].eq(0)
         add_flags(
             flags,
             data,
@@ -393,7 +393,7 @@ def audit_subsidiary(name: str, data: pd.DataFrame) -> AuditResult:
             )
     gaps = pd.DataFrame(missing_months, columns=[*GROUP_KEY, "missing_month"])
 
-    unit_summary = data.groupby(GROUP_KEY + ["energy_type"], as_index=False, dropna=False).agg(
+    unit_summary = data.groupby(GROUP_KEY + ["fuel_type"], as_index=False, dropna=False).agg(
         rows=("date", "size"),
         start_date=("date", "min"),
         end_date=("date", "max"),

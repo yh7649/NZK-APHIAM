@@ -1,0 +1,23 @@
+subsidiary_company,plant_name,unit_pattern,technology,evidence,source_url,accessed_date
+Korea East-West Power,Dangjin,all,conventional_steam_turbine,Coal-fired generating units listed as thermal units.,https://www.ewp.co.kr/eng/subpage/content.html?pc=QY14OHXHSVTQ9WJF3Y0BJKN7RFFVYIL,2026-07-03
+Korea East-West Power,Donghae,all,conventional_steam_turbine,Anthracite-fired steam units.,https://www.ewp.co.kr/eng/subpage/content.html?pc=QY14OHXHSVTQ9WJF3Y0BJKN7RFFVYIL,2026-07-03
+Korea East-West Power,Honam,all,conventional_steam_turbine,Coal-fired steam plant.,https://www.ewp.co.kr/kor/download/ewp_open/environ_2011.pdf,2026-07-03
+Korea East-West Power,Ilsan,all,cogeneration_chp,Official portfolio identifies Ilsan as a combined heat and power plant.,https://www.ewp.co.kr/eng/subpage/content.html?pc=QY14OHXHSVTQ9WJF3Y0BJKN7RFFVYIL,2026-07-03
+Korea East-West Power,Ulsan,1-6,conventional_steam_turbine,Units 1-6 are oil-fired steam units.,https://www.ewp.co.kr/kor/download/ewp_open/environ_2011.pdf,2026-07-03
+Korea East-West Power,Ulsan,7-14,combined_cycle_gas_turbine,Units 7-14 belong to the LNG combined-cycle fleet.,https://www.ewp.co.kr/kor/download/ewp_open/environ_2011.pdf,2026-07-03
+Korea Midland Power,Incheon,combined,combined_cycle_gas_turbine,Official plant page identifies combined-cycle units 1-3.,https://www.komipo.co.kr/kor/content/30/main.do?mnCd=FN021103,2026-07-03
+Korea Midland Power,Jeju,combined,combined_cycle_gas_turbine,Official plant page lists an LNG combined-cycle block.,https://www.komipo.co.kr/kor/content/33/main.do?mnCd=FN021106,2026-07-03
+Korea Midland Power,Jeju,internal_combustion,internal_combustion_engine,Official plant page separately lists internal-combustion equipment.,https://www.komipo.co.kr/kor/content/33/main.do?mnCd=FN021106,2026-07-03
+Korea Midland Power,Jeju,steam,conventional_steam_turbine,Official plant page separately lists steam equipment.,https://www.komipo.co.kr/kor/content/33/main.do?mnCd=FN021106,2026-07-03
+Korea Midland Power,Sejong,all,cogeneration_chp,Official construction table reports both electric and heat capacity.,https://www.komipo.co.kr/kor/content/41/main.do?mnCd=FN021304,2026-07-03
+Korea Midland Power,Seocheon,all,conventional_steam_turbine,Shin-Seocheon is a coal-fired steam unit.,https://www.komipo.co.kr/kor/content/41/main.do?mnCd=FN021304,2026-07-03
+Korea South-East Power,Bundang,all,cogeneration_chp,Bundang supplies district heat as a combined heat and power plant.,https://www.koenergy.kr/,2026-07-03
+Korea South-East Power,"Samcheonpo; Yeongdong; Yeongheung; Yeosu",all,conventional_steam_turbine,Coal or biomass is burned to operate steam generating units.,https://www.koenergy.kr/,2026-07-03
+Korea Southern Power,"Andong; Busan; Hallim; Namjeju Combined; Shin-Incheon; Yeongwol",all,combined_cycle_gas_turbine,Official plant pages describe these as LNG combined-cycle facilities.,https://www.kospo.co.kr/,2026-07-03
+Korea Southern Power,"Hadong; Namjeju Steam; Samcheok",all,conventional_steam_turbine,Official plant pages identify boiler-and-steam thermal generation.,https://www.kospo.co.kr/,2026-07-03
+Korea Southern Power,Shinsejong,all,cogeneration_chp,Official plant description identifies combined heat and power service.,https://www.kospo.co.kr/kospo/622/subview.do,2026-07-03
+Korea Western Power,"Gunsan; Pyeongtaek combined; Seoincheon",all,combined_cycle_gas_turbine,Official operator describes these as LNG combined-cycle plants.,https://www.iwest.co.kr/iwest/555/subview.do,2026-07-03
+Korea Western Power,Pyeongtaek steam,all,conventional_steam_turbine,Source and operator history distinguish steam units from the combined-cycle blocks.,https://www.iwest.co.kr/iwest/560/subview.do,2026-07-03
+Korea Western Power,Gimpo,all,cogeneration_chp,Official operator identifies Gimpo as a combined heat and power plant.,https://www.iwest.co.kr/iwest/1052/subview.do,2026-07-03
+Korea Western Power,Taean,units_1-10,conventional_steam_turbine,Units 1-10 are conventional coal-fired units.,https://www.iwest.co.kr/iwest/920/subview.do,2026-07-03
+Korea Western Power,Taean,IGCC,integrated_gasification_combined_cycle,Official operator identifies Korea's coal-gasification combined-cycle facility.,https://www.iwest.co.kr/iwest/541/subview.do,2026-07-03

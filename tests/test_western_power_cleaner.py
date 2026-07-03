@@ -47,7 +47,8 @@ def test_clean_western_power_standardizes_schema_and_types() -> None:
     assert pd.isna(result.loc[0, "plant_closing_date"])
     assert result.loc[0, "plant_latitude"] == pytest.approx(36.903)
     assert result.loc[0, "plant_longitude"] == pytest.approx(126.231)
-    assert result.loc[0, "energy_type"] == "coal"
+    assert result.loc[0, "fuel_type"] == "coal"
+    assert result.loc[0, "technology"] == "conventional_steam_turbine"
     assert result.loc[0, "reporting_unit_id"] == "western_power:Taean:1호기"
     assert result.loc[0, "reporting_start_date"] == pd.Timestamp("2025-06-01")
     assert pd.isna(result.loc[0, "reporting_end_date"])
@@ -81,13 +82,13 @@ def test_clean_western_power_standardizes_schema_and_types() -> None:
         ("김포", "열병합", "2025-06", "natural_gas"),
     ],
 )
-def test_classify_energy_type(
+def test_classify_fuel_type(
     plant: str,
     unit: str,
     month: str,
     expected: str,
 ) -> None:
-    assert cleaner.classify_energy_type(plant, unit, pd.Timestamp(month)) == expected
+    assert cleaner.classify_fuel_type(plant, unit, pd.Timestamp(month)) == expected
 
 
 def test_clean_western_power_rejects_source_schema_change() -> None:

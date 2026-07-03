@@ -140,10 +140,10 @@ not an inferred commissioning date. `reporting_end_date` is populated only
 when the source explicitly gives a retirement date; `reporting_window_basis`
 records that distinction.
 
-The raw source does not include fuel type. The cleaner enriches `energy_type`
+The raw source does not include fuel type. The cleaner enriches `fuel_type`
 from official Korea Western Power plant and operating-history pages. Mapping
 rules, effective dates, evidence, and source URLs are recorded in
-[`docs/references/thermal/western_power_energy_type_mapping.csv`](../../../docs/references/thermal/western_power_energy_type_mapping.csv).
+[`docs/references/thermal/western_power_fuel_type_mapping.csv`](../../../docs/references/thermal/western_power_fuel_type_mapping.csv).
 
 Pyeongtaek steam units are classified as `oil_and_natural_gas` through February
 2020 and `natural_gas` from March 2020, following the documented start of
@@ -175,7 +175,7 @@ data/interim/eastwest_power/eastwest_power_monthly_generation_emissions.csv
 
 The cleaner preserves every monthly source row. Fuel mappings and their
 official sources are recorded in
-[`docs/references/thermal/eastwest_power_energy_type_mapping.csv`](../../../docs/references/thermal/eastwest_power_energy_type_mapping.csv).
+[`docs/references/thermal/eastwest_power_fuel_type_mapping.csv`](../../../docs/references/thermal/eastwest_power_fuel_type_mapping.csv).
 The scraper also writes the enrichment source URLs into its raw JSON and
 metadata outputs.
 
@@ -220,7 +220,7 @@ data/interim/southern_power/southern_power_monthly_generation_emissions.csv
 Southern reports emissions in kilograms, which are retained without
 conversion. Daily gross generation is summed by month and converted from kWh to
 MWh. Fuel and source-granularity rules are recorded in
-[`docs/references/thermal/southern_power_energy_type_mapping.csv`](../../../docs/references/thermal/southern_power_energy_type_mapping.csv).
+[`docs/references/thermal/southern_power_fuel_type_mapping.csv`](../../../docs/references/thermal/southern_power_fuel_type_mapping.csv).
 
 Some emissions rows are more detailed than the generation records. The cleaner
 aggregates Samcheok A/B stack rows to generating units and combined-cycle

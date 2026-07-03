@@ -45,8 +45,9 @@ def test_clean_eastwest_power_standardizes_schema_and_preserves_rows() -> None:
     assert pd.isna(result.loc[0, "plant_closing_date"])
     assert result.loc[0, "plant_latitude"] == pytest.approx(37.057)
     assert result.loc[0, "plant_longitude"] == pytest.approx(126.509)
-    assert result.loc[0, "energy_type"] == "coal"
-    assert result.loc[1, "energy_type"] == "natural_gas"
+    assert result.loc[0, "fuel_type"] == "coal"
+    assert result.loc[0, "technology"] == "conventional_steam_turbine"
+    assert result.loc[1, "fuel_type"] == "natural_gas"
     assert pd.isna(result.loc[0, "sox"])
     assert result.loc[0, "emissions_mass_unit"] == "metric_tonnes"
     assert str(result["plant_number"].dtype) == "Int64"
@@ -77,8 +78,8 @@ def test_clean_eastwest_power_standardizes_schema_and_preserves_rows() -> None:
         ("한국동서발전㈜일산발전본부", 1, "natural_gas"),
     ],
 )
-def test_classify_energy_type(plant: str, unit: int, expected: str) -> None:
-    assert cleaner.classify_energy_type(plant, unit) == expected
+def test_classify_fuel_type(plant: str, unit: int, expected: str) -> None:
+    assert cleaner.classify_fuel_type(plant, unit) == expected
 
 
 def test_clean_eastwest_power_rejects_source_schema_change() -> None:

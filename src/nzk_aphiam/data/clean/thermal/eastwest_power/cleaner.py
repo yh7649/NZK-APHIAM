@@ -4,7 +4,7 @@ Clean Korea East-West Power monthly generation and air-pollutant data.
 The source reports pollutant mass in metric tonnes. Fuel type is enriched from
 official East-West Power reports documented in:
 
-    docs/references/thermal/eastwest_power_energy_type_mapping.csv
+    docs/references/thermal/eastwest_power_fuel_type_mapping.csv
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ import pandas as pd
 
 from nzk_aphiam.data.clean.thermal.location_crosswalk import apply_location_crosswalk
 from nzk_aphiam.data.clean.thermal.schema import THERMAL_OUTPUT_COLUMNS
+from nzk_aphiam.data.clean.thermal.technology import apply_technology_mapping
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_INPUT_PATH = (
@@ -123,7 +124,7 @@ def assign_row_status(source: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
     return status, basis
 
 
-def classify_energy_type(plant_name: str, unit_number: int) -> str:
+def classify_fuel_type(plant_name: str, unit_number: int) -> str:
     """Map source plant and unit identifiers to documented primary fuels."""
     if plant_name in {
         "한국동서발전㈜ 당진발전본부",
@@ -178,8 +179,8 @@ def clean_eastwest_power(raw: pd.DataFrame) -> pd.DataFrame:
             "plant_latitude": pd.Series(pd.NA, index=source.index, dtype="Float64"),
             "plant_longitude": pd.Series(pd.NA, index=source.index, dtype="Float64"),
             "subsidiary_company": SUBSIDIARY_COMPANY,
-            "energy_type": [
-                classify_energy_type(plant, int(unit))
+            "fuel_type": [
+                classify_fuel_type(plant, int(unit))
                 for plant, unit in zip(source["발전소명"], unit_number, strict=True)
             ],
             "energy_generated_mwh": source["발전량(MWh)"],
@@ -231,7 +232,7 @@ def clean_eastwest_power(raw: pd.DataFrame) -> pd.DataFrame:
     for column in [
         "plant_name",
         "subsidiary_company",
-        "energy_type",
+        "fuel_type",
         "reporting_unit_id",
         "reporting_window_basis",
         "observation_level",
@@ -251,7 +252,7 @@ def clean_eastwest_power(raw: pd.DataFrame) -> pd.DataFrame:
     ]:
         cleaned[column] = cleaned[column].astype("string")
 
-    return apply_location_crosswalk(cleaned)
+    return apply_technology_mapping(apply_location_crosswalk(cleaned))
 
 
 def load_and_clean(input_path: Path) -> pd.DataFrame:

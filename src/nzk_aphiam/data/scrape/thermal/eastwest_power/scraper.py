@@ -35,7 +35,7 @@ API_URL_ENV = "EASTWEST_POWER_API_URL"
 DATE_COLUMN = "날짜"
 DEFAULT_PER_PAGE = 1000
 DEFAULT_RETRIES = 3
-FUEL_MAPPING_REFERENCE = "docs/references/thermal/eastwest_power_energy_type_mapping.csv"
+FUEL_MAPPING_REFERENCE = "docs/references/thermal/eastwest_power_fuel_type_mapping.csv"
 ENRICHMENT_SOURCES = [
     {
         "description": "East-West Power 2011 sustainability report: unit fuels",

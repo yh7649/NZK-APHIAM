@@ -66,6 +66,6 @@ def test_build_khnp_generation_aggregates_daily_kwh_to_monthly_mwh(tmp_path: Pat
     assert row["plant_name"] == "Kori"
     assert row["plant_number"] == 2
     assert row["reporting_unit_id"] == "khnp:7012"
-    assert row["energy_type"] == "nuclear"
+    assert row["fuel_type"] == "nuclear"
     assert row["energy_generated_mwh"] == 10.0
     assert pd.isna(row["energy_capacity_mw"])

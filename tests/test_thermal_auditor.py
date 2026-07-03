@@ -25,7 +25,7 @@ def make_row(
     nox: float = 1.5,
     sox: float = 2.0,
     dust_tsp: float = 0.5,
-    energy_type: str = "coal",
+    fuel_type: str = "coal",
     row_status: str = "active_reported",
 ) -> dict[str, object]:
     row = {column: pd.NA for column in COMBINED_THERMAL_OUTPUT_COLUMNS}
@@ -35,7 +35,7 @@ def make_row(
             "plant_name": plant_name,
             "plant_number": plant_number,
             "original_korean_unit_name": unit_name,
-            "energy_type": energy_type,
+            "fuel_type": fuel_type,
             "energy_generated_mwh": energy_generated_mwh,
             "energy_capacity_mw": energy_capacity_mw,
             "nox": nox,

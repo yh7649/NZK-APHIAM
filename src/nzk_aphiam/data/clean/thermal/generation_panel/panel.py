@@ -7,7 +7,7 @@ data is read; this panel is intended for macro modelling and capacity analysis.
 The schema is intentionally narrow:
 
     date, subsidiary_company, plant_name, plant_number, reporting_unit_id,
-    observation_level, energy_type, energy_generated_mwh, energy_capacity_mw,
+    observation_level, fuel_type, energy_generated_mwh, energy_capacity_mw,
     component_count, original_korean_name
 
 Location data (lat/lon, opening/closing dates) is not included here because
@@ -51,7 +51,7 @@ GENERATION_PANEL_COLUMNS = [
     "plant_number",
     "reporting_unit_id",
     "observation_level",
-    "energy_type",
+    "fuel_type",
     "energy_generated_mwh",
     "energy_capacity_mw",
     "component_count",
@@ -100,7 +100,7 @@ def build_eastwest_generation(input_path: Path) -> pd.DataFrame:
             "plant_number": gen["plant_number"].astype("Int64"),
             "reporting_unit_id": gen["reporting_unit_id"],
             "observation_level": gen["observation_level"],
-            "energy_type": gen["energy_type"],
+            "fuel_type": gen["fuel_type"],
             "energy_generated_mwh": gen["energy_generated_mwh"].astype("Float64"),
             "energy_capacity_mw": gen["energy_capacity_mw"].astype("Float64"),
             "component_count": gen["component_count"].astype("Int64"),
@@ -125,7 +125,7 @@ def build_western_generation(input_path: Path) -> pd.DataFrame:
             "plant_number": gen["plant_number"].astype("Int64"),
             "reporting_unit_id": gen["reporting_unit_id"],
             "observation_level": gen["observation_level"],
-            "energy_type": gen["energy_type"],
+            "fuel_type": gen["fuel_type"],
             "energy_generated_mwh": gen["energy_generated_mwh"].astype("Float64"),
             "energy_capacity_mw": gen["energy_capacity_mw"].astype("Float64"),
             "component_count": gen["component_count"].astype("Int64"),
@@ -137,8 +137,8 @@ def build_western_generation(input_path: Path) -> pd.DataFrame:
 
 # ---- Southern Power --------------------------------------------------------
 
-_SP_PLANT_ENERGY_TYPE: dict[str, str] = {
-    plant_name: energy_type for _, (plant_name, energy_type, _) in _SP_SITE_RULES.items()
+_SP_PLANT_FUEL_TYPE: dict[str, str] = {
+    plant_name: fuel_type for _, (plant_name, fuel_type, _) in _SP_SITE_RULES.items()
 }
 
 _SP_OBSERVATION_LEVEL: dict[str, str] = {
@@ -149,7 +149,7 @@ _SP_OBSERVATION_LEVEL: dict[str, str] = {
         if plant_name in {"Busan", "Shin-Incheon", "Yeongwol"}
         else "generating_unit"
     )
-    for plant_name in _SP_PLANT_ENERGY_TYPE
+    for plant_name in _SP_PLANT_FUEL_TYPE
 }
 
 
@@ -174,7 +174,7 @@ def build_southern_generation(generation_path: Path) -> pd.DataFrame:
             "plant_number": monthly["plant_number"].astype("Int64"),
             "reporting_unit_id": ("southern_power:" + plant + ":" + number_str).astype("string"),
             "observation_level": plant.map(_SP_OBSERVATION_LEVEL).astype("string"),
-            "energy_type": plant.map(_SP_PLANT_ENERGY_TYPE).astype("string"),
+            "fuel_type": plant.map(_SP_PLANT_FUEL_TYPE).astype("string"),
             "energy_generated_mwh": monthly["energy_generated_mwh"].astype("Float64"),
             "energy_capacity_mw": monthly["energy_capacity_mw"].astype("Float64"),
             "component_count": monthly["component_count"].astype("Int64"),
@@ -194,7 +194,7 @@ _SE_PLANT_NAMES: dict[str, str] = {
     "영동": "Yeongdong",
     "영흥": "Yeongheung",
 }
-_SE_ENERGY_TYPES: dict[str, str] = {
+_SE_FUEL_TYPES: dict[str, str] = {
     "석탄": "coal",
     "국내탄": "coal",
     "복합": "natural_gas",
@@ -224,8 +224,8 @@ def build_southeast_generation(generation_path: Path) -> pd.DataFrame:
                 "string"
             ),
             "observation_level": "generating_unit",
-            "energy_type": (
-                source["발전원"].map(_SE_ENERGY_TYPES).fillna("other").astype("string")
+            "fuel_type": (
+                source["발전원"].map(_SE_FUEL_TYPES).fillna("other").astype("string")
             ),
             "energy_generated_mwh": (
                 pd.to_numeric(source["발전량(MWh)"], errors="coerce").astype("Float64")
@@ -258,7 +258,7 @@ _MP_PLANT_NAMES: dict[str, str] = {
     "신보령기력": "Shin-Boryeong",
     "서천화력": "Old-Seocheon",
 }
-_MP_ENERGY_TYPES: dict[str, str] = {
+_MP_FUEL_TYPES: dict[str, str] = {
     "가스": "natural_gas",
     "복합": "natural_gas",
     "국내탄": "coal",
@@ -286,8 +286,8 @@ def build_midland_generation(generation_path: Path) -> pd.DataFrame:
             "plant_number": pd.array([pd.NA] * len(source), dtype="Int64"),
             "reporting_unit_id": ("midland_power:" + orgnm).astype("string"),
             "observation_level": "generation_block",
-            "energy_type": (
-                source["gennm"].map(_MP_ENERGY_TYPES).fillna("other").astype("string")
+            "fuel_type": (
+                source["gennm"].map(_MP_FUEL_TYPES).fillna("other").astype("string")
             ),
             "energy_generated_mwh": (
                 pd.to_numeric(source["qvodgen"], errors="coerce").astype("Float64")
@@ -304,7 +304,7 @@ def build_midland_generation(generation_path: Path) -> pd.DataFrame:
 
 # ---- Korea Hydro & Nuclear Power ------------------------------------------
 
-_KHNP_ENERGY_TYPES: dict[str, str] = {
+_KHNP_FUEL_TYPES: dict[str, str] = {
     "원자력": "nuclear",
     "수력": "hydro",
     "양수": "pumped_storage",
@@ -350,7 +350,7 @@ def build_khnp_generation(generation_path: Path) -> pd.DataFrame:
         detail = sorted(missing) if missing else ["qt_<hour> fields"]
         raise ValueError(f"KHNP generation CSV is missing required columns: {detail}")
 
-    source = raw[raw["resourceType"].isin(_KHNP_ENERGY_TYPES)].copy()
+    source = raw[raw["resourceType"].isin(_KHNP_FUEL_TYPES)].copy()
     if source.empty:
         return pd.DataFrame(columns=GENERATION_PANEL_COLUMNS)
     source["date"] = (
@@ -376,7 +376,7 @@ def build_khnp_generation(generation_path: Path) -> pd.DataFrame:
             "plant_number": plant_number,
             "reporting_unit_id": ("khnp:" + monthly["genCd"].astype("string")),
             "observation_level": "generating_unit",
-            "energy_type": monthly["resourceType"].map(_KHNP_ENERGY_TYPES).astype("string"),
+            "fuel_type": monthly["resourceType"].map(_KHNP_FUEL_TYPES).astype("string"),
             "energy_generated_mwh": monthly["daily_mwh"].astype("Float64"),
             "energy_capacity_mw": pd.array([pd.NA] * len(monthly), dtype="Float64"),
             "component_count": pd.array([1] * len(monthly), dtype="Int64"),

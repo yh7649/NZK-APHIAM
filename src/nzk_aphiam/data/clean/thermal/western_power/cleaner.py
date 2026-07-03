@@ -5,11 +5,11 @@ The source reports pollutant mass in metric tonnes. It does not contain
 temperature, so ``temperature_celsius`` is retained as a nullable column for
 compatibility with the shared thermal output schema.
 
-The source data also does not contain fuel type. ``energy_type`` is enriched
+The source data also does not contain fuel type. ``fuel_type`` is enriched
 from Korea Western Power's official plant and operating-history pages. The
 mapping evidence is recorded in:
 
-    docs/references/thermal/western_power_energy_type_mapping.csv
+    docs/references/thermal/western_power_fuel_type_mapping.csv
 
 Run from the project root:
 
@@ -26,6 +26,7 @@ import pandas as pd
 
 from nzk_aphiam.data.clean.thermal.location_crosswalk import apply_location_crosswalk
 from nzk_aphiam.data.clean.thermal.schema import THERMAL_OUTPUT_COLUMNS
+from nzk_aphiam.data.clean.thermal.technology import apply_technology_mapping
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_INPUT_PATH = (
@@ -156,7 +157,7 @@ def assign_row_status(source: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
     return status, basis
 
 
-def classify_energy_type(
+def classify_fuel_type(
     plant_name: str,
     unit_name: str,
     month: pd.Timestamp,
@@ -221,8 +222,8 @@ def clean_western_power(raw: pd.DataFrame) -> pd.DataFrame:
             "plant_latitude": pd.Series(pd.NA, index=source.index, dtype="Float64"),
             "plant_longitude": pd.Series(pd.NA, index=source.index, dtype="Float64"),
             "subsidiary_company": SUBSIDIARY_COMPANY,
-            "energy_type": [
-                classify_energy_type(plant, unit, month)
+            "fuel_type": [
+                classify_fuel_type(plant, unit, month)
                 for plant, unit, month in zip(
                     source["발전소"],
                     source["호기"],
@@ -282,7 +283,7 @@ def clean_western_power(raw: pd.DataFrame) -> pd.DataFrame:
     for column in [
         "plant_name",
         "subsidiary_company",
-        "energy_type",
+        "fuel_type",
         "reporting_unit_id",
         "reporting_window_basis",
         "observation_level",
@@ -302,7 +303,7 @@ def clean_western_power(raw: pd.DataFrame) -> pd.DataFrame:
     ]:
         cleaned[column] = cleaned[column].astype("string")
 
-    return apply_location_crosswalk(cleaned)
+    return apply_technology_mapping(apply_location_crosswalk(cleaned))
 
 
 def load_and_clean(input_path: Path) -> pd.DataFrame:

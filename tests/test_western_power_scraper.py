@@ -4,7 +4,7 @@ from nzk_aphiam.data.scrape.thermal.western_power import scraper
 def test_fuel_mapping_sources_are_logged() -> None:
     assert (
         scraper.FUEL_MAPPING_REFERENCE
-        == "docs/references/thermal/western_power_energy_type_mapping.csv"
+        == "docs/references/thermal/western_power_fuel_type_mapping.csv"
     )
     assert {source["url"] for source in scraper.FUEL_MAPPING_SOURCES} == {
         "https://www.iwest.co.kr/iwest/559/subview.do",

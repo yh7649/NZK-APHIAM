@@ -78,7 +78,8 @@ def test_clean_midland_power_derives_monthly_mass_from_usable_facility_rows() ->
     assert pd.isna(result.loc[0, "plant_number"])
     assert result.loc[0, "energy_generated_mwh"] == 334311
     assert result.loc[0, "energy_capacity_mw"] == 1018
-    assert result.loc[0, "energy_type"] == "coal"
+    assert result.loc[0, "fuel_type"] == "coal"
+    assert result.loc[0, "technology"] == "conventional_steam_turbine"
     assert result.loc[0, "reporting_unit_id"] == "midland_power:신서천화력"
     assert result.loc[0, "observation_level"] == "generation_block"
     assert result.loc[0, "component_count"] == 1

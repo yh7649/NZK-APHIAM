@@ -1,4 +1,4 @@
-plant_name_korean,unit_pattern,start_month,end_month,energy_type,evidence,source_url,accessed_date
+plant_name_korean,unit_pattern,start_month,end_month,fuel_type,evidence,source_url,accessed_date
 한국동서발전㈜ 당진발전본부,all,2010-01,,coal,"The official 2011 report lists Dangjin units 1-8 as bituminous coal; the official 2016 report lists the expanded Dangjin fleet as bituminous coal.",https://www.ewp.co.kr/kor/download/ewp_open/environ_2011.pdf,2026-06-12
 한국동서발전㈜동해바이오발전본부,all,2010-01,2023-12,coal,"The official report identifies Donghae units 1-2 as domestic/imported anthracite coal. The source site name included 'bio' during this period, but these 200 MW units are the coal units rather than the separate 30 MW biomass facility.",https://www.ewp.co.kr/kor/download/ewp_open/environ_2011.pdf,2026-06-12
 한국동서발전㈜동해발전본부,all,2024-01,,coal,"This is the renamed source label for the same 200 MW Donghae anthracite units.",https://www.ewp.co.kr/kor/download/ewp_open/environ_2011.pdf,2026-06-12

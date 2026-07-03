@@ -27,6 +27,7 @@ import pandas as pd
 
 from nzk_aphiam.data.clean.thermal.location_crosswalk import apply_location_crosswalk
 from nzk_aphiam.data.clean.thermal.schema import THERMAL_OUTPUT_COLUMNS
+from nzk_aphiam.data.clean.thermal.technology import apply_technology_mapping
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_INPUT_PATH = (
@@ -81,7 +82,7 @@ PLANT_NAMES = {
     "영동": "Yeongdong",
     "영흥": "Yeongheung",
 }
-ENERGY_TYPES = {
+FUEL_TYPES = {
     "석탄": "coal",
     "국내탄": "coal",
     "복합": "natural_gas",
@@ -247,8 +248,8 @@ def clean_generation(generation_raw: pd.DataFrame) -> pd.DataFrame:
         raise ValueError("South-East Power generation contains duplicate unit months.")
     source["energy_generated_mwh"] = pd.to_numeric(source["발전량(MWh)"], errors="coerce")
     source["energy_capacity_mw"] = pd.to_numeric(source["용량(MW)"], errors="coerce")
-    source["energy_type"] = source["발전원"].map(ENERGY_TYPES)
-    unknown = sorted(source.loc[source["energy_type"].isna(), "발전원"].dropna().unique())
+    source["fuel_type"] = source["발전원"].map(FUEL_TYPES)
+    unknown = sorted(source.loc[source["fuel_type"].isna(), "발전원"].dropna().unique())
     if unknown:
         raise ValueError(f"Unknown South-East Power generation energy types: {unknown}")
     return source[
@@ -258,7 +259,7 @@ def clean_generation(generation_raw: pd.DataFrame) -> pd.DataFrame:
             "generation_unit",
             "energy_generated_mwh",
             "energy_capacity_mw",
-            "energy_type",
+            "fuel_type",
             "호기",
         ]
     ].rename(columns={"사업소": "original_korean_plant_name", "호기": "generation_unit_label"})
@@ -303,7 +304,7 @@ def assemble_cleaned(monthly: pd.DataFrame, generation_raw: pd.DataFrame) -> pd.
             "plant_latitude": pd.Series(pd.NA, index=joined.index, dtype="Float64"),
             "plant_longitude": pd.Series(pd.NA, index=joined.index, dtype="Float64"),
             "subsidiary_company": SUBSIDIARY_COMPANY,
-            "energy_type": joined["energy_type"],
+            "fuel_type": joined["fuel_type"],
             "energy_generated_mwh": joined["energy_generated_mwh"],
             "energy_capacity_mw": joined["energy_capacity_mw"],
             "reporting_unit_id": REPORTING_ID_PREFIX
@@ -379,7 +380,7 @@ def clean_southeast_power(raw: pd.DataFrame, generation_raw: pd.DataFrame) -> pd
     for column in [
         "plant_name",
         "subsidiary_company",
-        "energy_type",
+        "fuel_type",
         "pollutant_measurement_basis",
         "nox_unit",
         "sox_unit",
@@ -394,7 +395,7 @@ def clean_southeast_power(raw: pd.DataFrame, generation_raw: pd.DataFrame) -> pd
         cleaned[column] = cleaned[column].astype("string")
 
     cleaned["component_count"] = cleaned["component_count"].astype("Int64")
-    return apply_location_crosswalk(cleaned).sort_values(
+    return apply_technology_mapping(apply_location_crosswalk(cleaned)).sort_values(
         ["date", "plant_name", "plant_number"], ignore_index=True
     )
 

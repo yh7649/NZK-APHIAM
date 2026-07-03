@@ -53,7 +53,7 @@ log_count <- function(stage, before, after) message(stage, ": removed ", before 
 plants_raw <- readr::read_csv(inputs[["plant"]], show_col_types = FALSE)
 air_raw <- arrow::read_parquet(inputs[["air"]]) |> tibble::as_tibble()
 crosswalk <- readr::read_csv(inputs[["crosswalk"]], show_col_types = FALSE)
-require_columns(plants_raw, c("date", "plant_name", "subsidiary_company", "energy_type", "reporting_unit_id", "row_status", "nox", "sox", "dust_tsp", "plant_latitude", "plant_longitude", "audit_severity", "audit_issue_codes"), "KEPCO input")
+require_columns(plants_raw, c("date", "plant_name", "subsidiary_company", "fuel_type", "reporting_unit_id", "row_status", "nox", "sox", "dust_tsp", "plant_latitude", "plant_longitude", "audit_severity", "audit_issue_codes"), "KEPCO input")
 require_columns(air_raw, c("monitor_id", "month", "pollutant", "value", "hours"), "AirKorea QC input")
 require_columns(crosswalk, c("monitor_id", "year", "latitude", "longitude", "coordinate_match_method", "coordinate_match_confidence"), "station crosswalk")
 air_raw$monitor_id <- as.character(air_raw$monitor_id)

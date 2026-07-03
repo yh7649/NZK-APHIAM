@@ -5,7 +5,7 @@ Monthly emissions are preserved in their reported unit, kilograms. Daily gross
 generation is summed to months and converted from kWh to MWh. Explicit
 granularity and fuel rules are documented in:
 
-    docs/references/thermal/southern_power_energy_type_mapping.csv
+    docs/references/thermal/southern_power_fuel_type_mapping.csv
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ import pandas as pd
 
 from nzk_aphiam.data.clean.thermal.location_crosswalk import apply_location_crosswalk
 from nzk_aphiam.data.clean.thermal.schema import THERMAL_OUTPUT_COLUMNS
+from nzk_aphiam.data.clean.thermal.technology import apply_technology_mapping
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_EMISSIONS_PATH = (
@@ -157,7 +158,7 @@ def clean_emissions(raw: pd.DataFrame) -> pd.DataFrame:
 
     source["date"] = pd.to_datetime(source["년월"], format="%Y-%m", errors="raise")
     source["plant_name"] = source["사업장명"].map(lambda value: SITE_RULES[value][0])
-    source["energy_type"] = source["사업장명"].map(lambda value: SITE_RULES[value][1])
+    source["fuel_type"] = source["사업장명"].map(lambda value: SITE_RULES[value][1])
     source["plant_number"] = [
         emissions_target_number(site, unit)
         for site, unit in zip(source["사업장명"], source["호기"], strict=True)
@@ -170,7 +171,7 @@ def clean_emissions(raw: pd.DataFrame) -> pd.DataFrame:
         "date",
         "plant_name",
         "plant_number",
-        "energy_type",
+        "fuel_type",
         "사업장명",
     ]
     grouped = (
@@ -451,7 +452,7 @@ def clean_southern_power(
             "plant_latitude": pd.Series(pd.NA, index=merged.index, dtype="Float64"),
             "plant_longitude": pd.Series(pd.NA, index=merged.index, dtype="Float64"),
             "subsidiary_company": SUBSIDIARY_COMPANY,
-            "energy_type": merged["energy_type"],
+            "fuel_type": merged["fuel_type"],
             "energy_generated_mwh": merged["energy_generated_mwh"],
             "energy_capacity_mw": merged["energy_capacity_mw"],
             "observation_level": merged["observation_level"],
@@ -498,7 +499,7 @@ def clean_southern_power(
     for column in [
         "plant_name",
         "subsidiary_company",
-        "energy_type",
+        "fuel_type",
         "observation_level",
         "generation_source",
         "generation_coverage_status",
@@ -514,7 +515,7 @@ def clean_southern_power(
     ]:
         cleaned[column] = cleaned[column].astype("string")
 
-    return apply_location_crosswalk(cleaned)
+    return apply_technology_mapping(apply_location_crosswalk(cleaned))
 
 
 def load_and_clean(

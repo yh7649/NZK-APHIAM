@@ -31,7 +31,7 @@ def make_row(
             "plant_name": "Test Plant",
             "plant_number": 1,
             "subsidiary_company": "Test Power",
-            "energy_type": "coal",
+            "fuel_type": "coal",
             "energy_generated_mwh": 100.0,
             "energy_capacity_mw": 10.0,
             "nox": nox,
@@ -61,6 +61,9 @@ def test_combiner_standardizes_metric_tonnes_to_kilograms() -> None:
     assert list(result.columns) == COMBINED_THERMAL_OUTPUT_COLUMNS
     assert result["source_dataset"].tolist() == ["kilograms_source", "tonnes_source"]
     assert result["operator_category"].eq("kepco").all()
+    assert "fuel_type" in result.columns
+    assert "energy_type" not in result.columns
+    assert "technology" in result.columns
     assert result["observation_frequency"].eq("monthly").all()
     assert result["emissions_mass_unit"].eq("kilograms").all()
     assert result["nox_unit"].eq("kilograms").all()

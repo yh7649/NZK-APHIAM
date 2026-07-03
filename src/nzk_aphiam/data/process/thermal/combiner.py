@@ -49,7 +49,8 @@ VARIABLE_LABELS = {
     "plant_province": "Plant province or metropolitan city (current English name)",
     "plant_district": "Plant city, county, or autonomous district (current English name)",
     "subsidiary_company": "KEPCO subsidiary company name",
-    "energy_type": "Primary energy or fuel type (categorical)",
+    "fuel_type": "Primary fuel type (categorical)",
+    "technology": "Electricity-generation technology at the reporting boundary",
     "energy_generated_mwh": "Monthly electricity generation (MWh)",
     "energy_capacity_mw": "Installed generating capacity (MW)",
     "reporting_unit_id": "Stable source reporting-boundary identifier",
@@ -222,7 +223,8 @@ def build_subsidiary_coverage(
 ) -> pd.DataFrame:
     """Summarize field availability so analysts can choose fit-for-purpose sources."""
     value_columns = (
-        "energy_type",
+        "fuel_type",
+        "technology",
         "energy_generated_mwh",
         "energy_capacity_mw",
         "nox",
@@ -336,8 +338,8 @@ def build_local_readme(combined: pd.DataFrame, coverage: pd.DataFrame) -> str:
     subsidiary_lines = []
     for _, row in coverage.sort_values("source_dataset").iterrows():
         parts = [
-            f"{row['energy_type_coverage_pct']:.2f}% fuel"
-            if row["energy_type_coverage_pct"] != 100
+            f"{row['fuel_type_coverage_pct']:.2f}% fuel"
+            if row["fuel_type_coverage_pct"] != 100
             else None,
             f"{row['energy_generated_mwh_coverage_pct']:.2f}% generation"
             if row["energy_generated_mwh_coverage_pct"] != 100
@@ -395,7 +397,7 @@ Rows by KEPCO subsidiary:
 
 Rows by cleaned fuel/energy type:
 
-{counts_block("energy_type")}
+{counts_block("fuel_type")}
 
 Non-missing value counts:
 

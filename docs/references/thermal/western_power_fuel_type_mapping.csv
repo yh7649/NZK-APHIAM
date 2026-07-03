@@ -1,4 +1,4 @@
-plant_name_korean,unit_pattern,start_month,end_month,energy_type,evidence,source_url,accessed_date
+plant_name_korean,unit_pattern,start_month,end_month,fuel_type,evidence,source_url,accessed_date
 태안,all,2002-01,,coal,"Official plant table identifies Taean units and IGCC fuel as bituminous coal (유연탄/석탄).",https://www.iwest.co.kr/iwest/559/subview.do,2026-06-12
 평택,기력,2002-01,2020-02,oil_and_natural_gas,"Official historical plant description states that Pyeongtaek steam generation used natural gas and heavy oil in parallel; operating history records the start of full-LNG steam operation on 2020-02-27.",https://www.iwest.co.kr/iwest/800/subview.do,2026-06-12
 평택,기력,2020-03,,natural_gas,"Official operating history records full-LNG steam operation beginning on 2020-02-27. Monthly classification changes in March because February is the transition month.",https://www.iwest.co.kr/iwest/925/subview.do,2026-06-12

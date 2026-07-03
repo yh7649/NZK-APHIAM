@@ -86,7 +86,8 @@ def test_clean_southeast_power_derives_monthly_mass() -> None:
     assert result.loc[0, "component_count"] == 2
     assert result.loc[0, "energy_generated_mwh"] == 123456
     assert result.loc[0, "energy_capacity_mw"] == 560
-    assert result.loc[0, "energy_type"] == "coal"
+    assert result.loc[0, "fuel_type"] == "coal"
+    assert result.loc[0, "technology"] == "conventional_steam_turbine"
     assert result.loc[0, "observation_level"] == "generating_unit"
     assert str(result["plant_number"].dtype) == "Int64"
     assert str(result["nox"].dtype) == "Float64"

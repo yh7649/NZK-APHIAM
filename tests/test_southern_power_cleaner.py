@@ -33,7 +33,8 @@ def test_clean_southern_power_aggregates_daily_generation_and_stack_rows() -> No
     assert pd.isna(result.loc[0, "plant_closing_date"])
     assert result.loc[0, "plant_latitude"] == pytest.approx(37.190)
     assert result.loc[0, "plant_longitude"] == pytest.approx(129.339)
-    assert result.loc[0, "energy_type"] == "coal"
+    assert result.loc[0, "fuel_type"] == "coal"
+    assert result.loc[0, "technology"] == "conventional_steam_turbine"
     assert result.loc[0, "energy_generated_mwh"] == 3000
     assert result.loc[0, "energy_capacity_mw"] == 1022
     assert result.loc[0, "observation_level"] == "generating_unit"

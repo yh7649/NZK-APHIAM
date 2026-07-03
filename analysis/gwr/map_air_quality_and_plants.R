@@ -32,7 +32,7 @@ fuel_family <- function(x) {
     TRUE ~ "Other"
   )
 }
-plants$fuel_family_unit <- fuel_family(plants$energy_type)
+plants$fuel_family_unit <- fuel_family(plants$fuel_type)
 fuel_mix <- plants |>
   dplyr::distinct(plant_id, fuel_family_unit) |>
   dplyr::group_by(plant_id) |>

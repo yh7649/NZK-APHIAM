@@ -27,6 +27,7 @@ import pandas as pd
 
 from nzk_aphiam.data.clean.thermal.location_crosswalk import apply_location_crosswalk
 from nzk_aphiam.data.clean.thermal.schema import THERMAL_OUTPUT_COLUMNS
+from nzk_aphiam.data.clean.thermal.technology import apply_technology_mapping
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_FACILITY_INPUT_PATH = (
@@ -127,9 +128,9 @@ BOUNDARY_METADATA = {
             "신서천화력": "Seocheon",
         }[generation_name],
         "reporting_label": reporting_label,
-        "energy_type": energy_type,
+        "fuel_type": fuel_type,
     }
-    for _, _, generation_name, reporting_label, energy_type in BOUNDARY_RULES
+    for _, _, generation_name, reporting_label, fuel_type in BOUNDARY_RULES
 }
 DERIVATION_NOTE = (
     "Pollutant mass derived from KOMIPO facility concentration and stack-flow rows, "
@@ -418,7 +419,7 @@ def clean_midland_power(
     metadata = joined["generation_orgnm"].map(BOUNDARY_METADATA)
     plant_name = metadata.map(lambda item: item["plant_name"])
     reporting_label = metadata.map(lambda item: item["reporting_label"])
-    energy_type = metadata.map(lambda item: item["energy_type"])
+    fuel_type = metadata.map(lambda item: item["fuel_type"])
 
     first_activity = joined["date"].groupby(joined["generation_orgnm"]).transform("min")
     row_status = missing_generation.map({True: "active_partial", False: "active_reported"})
@@ -440,7 +441,7 @@ def clean_midland_power(
             "plant_latitude": pd.Series(pd.NA, index=joined.index, dtype="Float64"),
             "plant_longitude": pd.Series(pd.NA, index=joined.index, dtype="Float64"),
             "subsidiary_company": SUBSIDIARY_COMPANY,
-            "energy_type": energy_type,
+            "fuel_type": fuel_type,
             "energy_generated_mwh": joined["energy_generated_mwh"],
             "energy_capacity_mw": joined["energy_capacity_mw"],
             "reporting_unit_id": REPORTING_ID_PREFIX
@@ -487,7 +488,7 @@ def clean_midland_power(
     cleaned["component_count"] = cleaned["component_count"].astype("Int64")
     string_columns = cleaned.select_dtypes(include=["object", "string"]).columns
     cleaned[string_columns] = cleaned[string_columns].astype("string")
-    return apply_location_crosswalk(cleaned).sort_values(
+    return apply_technology_mapping(apply_location_crosswalk(cleaned)).sort_values(
         ["date", "plant_name", "original_korean_unit_name"], ignore_index=True
     )
 

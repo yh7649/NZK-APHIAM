@@ -54,7 +54,7 @@ Current-value variables:
 - `{numeric_unit_identities}`: distinct clean numeric unit identities
 - `{source_dataset_counts}`: row counts by `source_dataset`
 - `{subsidiary_company_counts}`: row counts by `subsidiary_company`
-- `{energy_type_counts}`: row counts by cleaned `energy_type`
+- `{fuel_type_counts}`: row counts by cleaned `fuel_type`
 - `{nonmissing_value_counts}`: non-missing counts for generation, capacity,
   NOx, SOx, and dust/TSP
 
@@ -121,7 +121,7 @@ need the dataset for fuel-type or emission-factor analysis, the columns
 below are grouped by how often you actually need them:
 
 - **Core measures** (almost every analysis needs these): `date`,
-  `plant_name`, `plant_number`, `subsidiary_company`, `energy_type`,
+  `plant_name`, `plant_number`, `subsidiary_company`, `fuel_type`,
   `energy_generated_mwh`, `energy_capacity_mw`, `nox`, `sox`, `dust_tsp`.
 - **Identity columns** (needed when joining or deduplicating at the
   unit/reporting level): `source_dataset`, `reporting_unit_id`,
@@ -168,7 +168,15 @@ below are grouped by how often you actually need them:
 - `plant_province`: current English province or metropolitan-city name.
 - `plant_district`: current English city, county, or autonomous-district name.
 - `subsidiary_company`: KEPCO subsidiary company name.
-- `energy_type`: cleaned primary energy or fuel type.
+- `fuel_type`: cleaned primary energy or fuel type.
+- `technology`: generation technology at the row's reporting boundary. Current
+  values distinguish `combined_cycle_gas_turbine` (NGCC),
+  `conventional_steam_turbine`, `cogeneration_chp`,
+  `internal_combustion_engine`, and
+  `integrated_gasification_combined_cycle` (IGCC). No current KEPCO row is an
+  open-cycle NGCT or CCS unit. Technology evidence is recorded in
+  `docs/references/thermal/kepco_technology_mapping.csv` and checked against
+  `docs/references/province_level_power.xlsx` where that roster has coverage.
 - `energy_generated_mwh`: monthly electricity generation in MWh.
 - `energy_capacity_mw`: installed generating capacity in MW.
 - `reporting_unit_id`: stable source reporting-boundary identifier. Western

@@ -1,6 +1,6 @@
 """Source provenance shared by the Southern Power scrapers."""
 
-FUEL_MAPPING_REFERENCE = "docs/references/thermal/southern_power_energy_type_mapping.csv"
+FUEL_MAPPING_REFERENCE = "docs/references/thermal/southern_power_fuel_type_mapping.csv"
 ENRICHMENT_SOURCES = [
     {
         "description": "Southern emissions dataset, units, and LNG measurement note",

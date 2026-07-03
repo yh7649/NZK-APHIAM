@@ -186,7 +186,7 @@ print(coverage_by_dataset)
 # View(kepco)
 # summary(kepco)
 # table(kepco$source_dataset, useNA = "ifany")
-# table(kepco$energy_type, useNA = "ifany")
+# table(kepco$fuel_type, useNA = "ifany")
 #
 # Save examples:
 # save_table(coverage_by_dataset, "coverage_by_dataset.csv")
@@ -248,7 +248,7 @@ if ("row_status" %in% names(analysis_kepco)) {
 fallback_unit_id <- paste(
     analysis_kepco$plant_name,
     ifelse(is.na(analysis_kepco$plant_number), "NA", analysis_kepco$plant_number),
-    analysis_kepco$energy_type,
+    analysis_kepco$fuel_type,
     sep = " | "
   )
 analysis_kepco$plant_unit_id <- ifelse(
@@ -258,10 +258,10 @@ analysis_kepco$plant_unit_id <- ifelse(
   analysis_kepco$reporting_unit_id,
   fallback_unit_id
 )
-analysis_kepco$energy_type_clean <- ifelse(
-  is.na(analysis_kepco$energy_type) | analysis_kepco$energy_type == "",
+analysis_kepco$fuel_type_clean <- ifelse(
+  is.na(analysis_kepco$fuel_type) | analysis_kepco$fuel_type == "",
   "unknown",
-  analysis_kepco$energy_type
+  analysis_kepco$fuel_type
 )
 
 format_month_label <- function(x) {
@@ -349,7 +349,7 @@ for (i in seq_len(nrow(pollutants))) {
     grepl(audit_exclusion_pattern(pollutants$pollutant[[i]]), issue_codes)
 
   flagged <- analysis_kepco[analysis_kepco[[outlier_var]], c(
-    "source_dataset", "date", "plant_name", "plant_number", "energy_type_clean",
+    "source_dataset", "date", "plant_name", "plant_number", "fuel_type_clean",
     "energy_generated_mwh", pollutants$pollutant[[i]], ef_var,
     "audit_severity", "audit_issue_codes"
   )]
@@ -392,8 +392,8 @@ summarize_vector <- function(x) {
 }
 
 summary_rows <- list()
-for (energy_type in sort(unique(analysis_kepco$energy_type_clean))) {
-  rows <- analysis_kepco$energy_type_clean == energy_type
+for (fuel_type in sort(unique(analysis_kepco$fuel_type_clean))) {
+  rows <- analysis_kepco$fuel_type_clean == fuel_type
 
   for (i in seq_len(nrow(pollutants))) {
     stats <- summarize_vector(analysis_kepco[[pollutants$ef[[i]]]][rows])
@@ -405,7 +405,7 @@ for (energy_type in sort(unique(analysis_kepco$energy_type_clean))) {
       analysis_kepco$energy_generated_mwh > 0]
 
     summary_rows[[length(summary_rows) + 1]] <- data.frame(
-      energy_type = energy_type,
+      fuel_type = fuel_type,
       pollutant = pollutants$label[[i]],
       t(stats),
       total_generation_mwh = sum(gen_valid, na.rm = TRUE),
@@ -422,7 +422,7 @@ summary_by_fuel <- do.call(rbind, summary_rows)
 save_table(summary_by_fuel, "kepco_pollutant_summary_by_fuel.csv")
 
 coverage_by_plant_fuel <- aggregate(
-  date ~ plant_name + energy_type_clean,
+  date ~ plant_name + fuel_type_clean,
   data = analysis_kepco[
     !is.na(analysis_kepco$nox_kg_per_mwh) |
       !is.na(analysis_kepco$sox_kg_per_mwh) |
@@ -606,15 +606,15 @@ for (i in seq_len(nrow(pollutants))) {
 }
 
 generation_by_fuel <- aggregate(
-  energy_generated_mwh ~ energy_type_clean + date,
+  energy_generated_mwh ~ fuel_type_clean + date,
   data = analysis_kepco[!is.na(analysis_kepco$energy_generated_mwh), ],
   sum,
   na.rm = TRUE
 )
 generation_by_fuel <- generation_by_fuel[order(generation_by_fuel$date), ]
 generation_by_fuel$energy_generated_mwh_ma6 <- NA_real_
-for (fuel in sort(unique(generation_by_fuel$energy_type_clean))) {
-  idx <- which(generation_by_fuel$energy_type_clean == fuel)
+for (fuel in sort(unique(generation_by_fuel$fuel_type_clean))) {
+  idx <- which(generation_by_fuel$fuel_type_clean == fuel)
   idx <- idx[order(generation_by_fuel$date[idx])]
   generation_by_fuel$energy_generated_mwh_ma6[idx] <- trailing_mean(
     generation_by_fuel$energy_generated_mwh[idx],
@@ -632,7 +632,7 @@ if (nrow(generation_by_fuel) > 0) {
       "kepco_fuel_type_generation_mwh.png"
     )
   )
-  fuels <- sort(unique(generation_by_fuel$energy_type_clean))
+  fuels <- sort(unique(generation_by_fuel$fuel_type_clean))
   fuel_colors <- rep(line_colors, length.out = length(fuels))
   y_range <- range(
     c(generation_by_fuel$energy_generated_mwh, generation_by_fuel$energy_generated_mwh_ma6),
@@ -649,7 +649,7 @@ if (nrow(generation_by_fuel) > 0) {
   grid(col = "grey88")
 
   for (j in seq_along(fuels)) {
-    fuel_data <- generation_by_fuel[generation_by_fuel$energy_type_clean == fuels[[j]], ]
+    fuel_data <- generation_by_fuel[generation_by_fuel$fuel_type_clean == fuels[[j]], ]
     fuel_data <- fuel_data[order(fuel_data$date), ]
     lines(
       fuel_data$date,
@@ -682,7 +682,7 @@ fuel_time_series <- list()
 for (i in seq_len(nrow(pollutants))) {
   plot_data <- aggregate_ef(
     analysis_kepco,
-    c("energy_type_clean", "date"),
+    c("fuel_type_clean", "date"),
     pollutants$pollutant[[i]]
   )
   fuel_time_series[[pollutants$pollutant[[i]]]] <- plot_data
@@ -703,7 +703,7 @@ for (i in seq_len(nrow(pollutants))) {
       paste0("kepco_fuel_type_average_", pollutants$pollutant[[i]], "_ef_ma6.png")
     )
   )
-  fuels <- sort(unique(plot_data$energy_type_clean))
+  fuels <- sort(unique(plot_data$fuel_type_clean))
   fuel_colors <- rep(line_colors, length.out = length(fuels))
   y_range <- range(plot_data$ef_kg_per_mwh, na.rm = TRUE)
   plot(
@@ -720,7 +720,7 @@ for (i in seq_len(nrow(pollutants))) {
   grid(col = "grey88")
 
   for (j in seq_along(fuels)) {
-    fuel_data <- plot_data[plot_data$energy_type_clean == fuels[[j]], ]
+    fuel_data <- plot_data[plot_data$fuel_type_clean == fuels[[j]], ]
     fuel_data <- fuel_data[order(fuel_data$date), ]
     lines(
       fuel_data$date,
@@ -771,7 +771,7 @@ for (i in seq_len(nrow(pollutants))) {
   grid(col = "grey88")
 
   for (j in seq_along(fuels)) {
-    fuel_data <- plot_data[plot_data$energy_type_clean == fuels[[j]], ]
+    fuel_data <- plot_data[plot_data$fuel_type_clean == fuels[[j]], ]
     fuel_data <- fuel_data[order(fuel_data$date), ]
     lines(
       fuel_data$date,
@@ -793,10 +793,10 @@ for (i in seq_len(nrow(pollutants))) {
   dev.off()
   message("Saved figure: ", output_path)
 
-  mass_data <- plot_data[, c("energy_type_clean", "date", "emissions_kg", "generation_mwh")]
+  mass_data <- plot_data[, c("fuel_type_clean", "date", "emissions_kg", "generation_mwh")]
   mass_data$emissions_kg_ma6 <- NA_real_
-  for (fuel in sort(unique(mass_data$energy_type_clean))) {
-    idx <- which(mass_data$energy_type_clean == fuel)
+  for (fuel in sort(unique(mass_data$fuel_type_clean))) {
+    idx <- which(mass_data$fuel_type_clean == fuel)
     idx <- idx[order(mass_data$date[idx])]
     mass_data$emissions_kg_ma6[idx] <- trailing_mean(mass_data$emissions_kg[idx], window = 6)
   }
@@ -825,7 +825,7 @@ for (i in seq_len(nrow(pollutants))) {
   grid(col = "grey88")
 
   for (j in seq_along(fuels)) {
-    fuel_data <- mass_data[mass_data$energy_type_clean == fuels[[j]], ]
+    fuel_data <- mass_data[mass_data$fuel_type_clean == fuels[[j]], ]
     fuel_data <- fuel_data[order(fuel_data$date), ]
     lines(
       fuel_data$date,
@@ -1141,7 +1141,7 @@ build_province_breakdown <- function(group_var, output_stub, group_label) {
 }
 
 build_province_breakdown("plant_name", "province_by_plant", "plant")
-build_province_breakdown("energy_type_clean", "province_by_fuel_type", "fuel type")
+build_province_breakdown("fuel_type_clean", "province_by_fuel_type", "fuel type")
 
 # ---- Generation-weighted EF point estimates ---------------------------------
 
@@ -1269,32 +1269,32 @@ estimate_ef <- function(
 point_estimate_rows <- list()
 for (i in seq_len(nrow(pollutants))) {
   pollutant <- pollutants$pollutant[[i]]
-  for (fuel in sort(unique(analysis_kepco$energy_type_clean))) {
+  for (fuel in sort(unique(analysis_kepco$fuel_type_clean))) {
     result <- estimate_ef(
       analysis_kepco, pollutant,
-      filters = list(energy_type_clean = fuel)
+      filters = list(fuel_type_clean = fuel)
     )
     if (!is.null(result)) {
       row <- result$estimate
       row$plant_province <- "all"
-      row$energy_type <- fuel
+      row$fuel_type <- fuel
       point_estimate_rows[[length(point_estimate_rows) + 1]] <- row
     }
   }
-  province_fuels <- unique(analysis_kepco[c("plant_province", "energy_type_clean")])
+  province_fuels <- unique(analysis_kepco[c("plant_province", "fuel_type_clean")])
   province_fuels <- province_fuels[complete.cases(province_fuels), ]
   for (j in seq_len(nrow(province_fuels))) {
     result <- estimate_ef(
       analysis_kepco, pollutant,
       filters = list(
         plant_province = province_fuels$plant_province[[j]],
-        energy_type_clean = province_fuels$energy_type_clean[[j]]
+        fuel_type_clean = province_fuels$fuel_type_clean[[j]]
       )
     )
     if (!is.null(result)) {
       row <- result$estimate
       row$plant_province <- province_fuels$plant_province[[j]]
-      row$energy_type <- province_fuels$energy_type_clean[[j]]
+      row$fuel_type <- province_fuels$fuel_type_clean[[j]]
       point_estimate_rows[[length(point_estimate_rows) + 1]] <- row
     }
   }
@@ -1310,7 +1310,7 @@ overnight_ef_figure_data <- ef_point_estimates %>%
       levels = c("nox", "sox", "dust_tsp"),
       labels = c("NOx", "SOx", "TSP")
     ),
-    energy_type = gsub("_", " ", energy_type),
+    fuel_type = gsub("_", " ", fuel_type),
     cell_label = ifelse(
       ef_kg_per_mwh >= 0.01,
       sprintf("%.3f", ef_kg_per_mwh),
@@ -1320,13 +1320,13 @@ overnight_ef_figure_data <- ef_point_estimates %>%
   complete(
     pollutant,
     plant_province,
-    energy_type,
+    fuel_type,
     fill = list(cell_label = "—")
   )
 
 overnight_ef_table_figure <- ggplot(
   overnight_ef_figure_data,
-  aes(x = energy_type, y = plant_province)
+  aes(x = fuel_type, y = plant_province)
 ) +
   geom_tile(aes(fill = ef_kg_per_mwh), color = "white", linewidth = 0.8) +
   geom_text(aes(label = cell_label), size = 3.3, color = "#17202A") +
@@ -1372,7 +1372,7 @@ save_figure(
 # estimate_ef(
 #   analysis_kepco,
 #   pollutant = "nox",
-#   filters = list(energy_type_clean = "coal", plant_province = "Chungcheongnam-do")
+#   filters = list(fuel_type_clean = "coal", plant_province = "Chungcheongnam-do")
 # )$estimate
 
 # ---- Continuous negative-exponential EF projections -------------------------
@@ -1463,14 +1463,14 @@ for (i in seq_len(nrow(pollutants))) {
   pollutant <- pollutants$pollutant[[i]]
   fuel_series <- aggregate_ef(
     analysis_kepco,
-    c("energy_type_clean", "date"),
+    c("fuel_type_clean", "date"),
     pollutant
   )
   if (nrow(fuel_series) == 0) next
 
-  for (fuel in sort(unique(fuel_series$energy_type_clean))) {
+  for (fuel in sort(unique(fuel_series$fuel_type_clean))) {
     result <- fit_exponential_projection(
-      fuel_series[fuel_series$energy_type_clean == fuel, ],
+      fuel_series[fuel_series$fuel_type_clean == fuel, ],
       pollutant,
       fuel
     )
@@ -1698,9 +1698,9 @@ for (i in seq_len(nrow(pollutants))) {
   }
 
   fuel_series <- fuel_time_series[[pollutants$pollutant[[i]]]]
-  for (fuel in sort(unique(fuel_series$energy_type_clean))) {
+  for (fuel in sort(unique(fuel_series$fuel_type_clean))) {
     result <- fit_break_projection(
-      fuel_series[fuel_series$energy_type_clean == fuel, ],
+      fuel_series[fuel_series$fuel_type_clean == fuel, ],
       pollutants$label[[i]],
       fuel,
       clean_filename(fuel)
@@ -1711,7 +1711,7 @@ for (i in seq_len(nrow(pollutants))) {
     }
 
     result <- fit_break_projection(
-      fuel_series[fuel_series$energy_type_clean == fuel, ],
+      fuel_series[fuel_series$fuel_type_clean == fuel, ],
       pollutants$label[[i]],
       paste0(fuel, ", 6-month MA"),
       paste0(clean_filename(fuel), "_ma6"),
