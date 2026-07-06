@@ -1368,6 +1368,133 @@ save_figure(
   height = 13
 )
 
+# Full-calendar-year EF estimates requested for 2021 and 2025. Each estimate
+# is for a pollutant x fuel type x technology cohort and is weighted by raw
+# electricity generation (equivalently, total emissions / total generation).
+annual_fuel_technology_ef_rows <- list()
+for (estimate_year in c(2021L, 2025L)) {
+  year_data <- analysis_kepco[analysis_kepco$year == estimate_year, ]
+  fuel_technologies <- unique(
+    year_data[c("fuel_type_clean", "technology")]
+  )
+  fuel_technologies <- fuel_technologies[complete.cases(fuel_technologies), ]
+
+  for (i in seq_len(nrow(pollutants))) {
+    pollutant <- pollutants$pollutant[[i]]
+    for (j in seq_len(nrow(fuel_technologies))) {
+      result <- estimate_ef(
+        analysis_kepco,
+        pollutant,
+        filters = list(
+          fuel_type_clean = fuel_technologies$fuel_type_clean[[j]],
+          technology = fuel_technologies$technology[[j]]
+        ),
+        start_date = as.Date(sprintf("%d-01-01", estimate_year)),
+        end_date = as.Date(sprintf("%d-12-31", estimate_year))
+      )
+      if (!is.null(result)) {
+        row <- result$estimate
+        row$year <- estimate_year
+        row$fuel_type <- fuel_technologies$fuel_type_clean[[j]]
+        row$technology <- fuel_technologies$technology[[j]]
+        annual_fuel_technology_ef_rows[[
+          length(annual_fuel_technology_ef_rows) + 1
+        ]] <- row
+      }
+    }
+  }
+}
+
+annual_fuel_technology_ef <- do.call(rbind, annual_fuel_technology_ef_rows) %>%
+  select(
+    year, pollutant, fuel_type, technology, ef_kg_per_mwh, plant_count,
+    valid_generation_mwh, generation_coverage_pct, months_covered,
+    start_date, end_date
+  ) %>%
+  arrange(year, pollutant, fuel_type, technology)
+
+save_table(
+  annual_fuel_technology_ef,
+  "kepco_2021_2025_generation_weighted_ef_by_fuel_technology.csv"
+)
+
+for (estimate_year in c(2021L, 2025L)) {
+  annual_ef_figure_data <- annual_fuel_technology_ef %>%
+    filter(year == estimate_year) %>%
+    mutate(
+      pollutant = factor(
+        pollutant,
+        levels = c("nox", "sox", "dust_tsp"),
+        labels = c("NOx", "SOx", "TSP")
+      ),
+      fuel_type = gsub("_", " ", fuel_type),
+      technology = gsub("_", " ", technology),
+      cell_label = ifelse(
+        ef_kg_per_mwh >= 0.01,
+        sprintf("%.3f", ef_kg_per_mwh),
+        sprintf("%.4f", ef_kg_per_mwh)
+      )
+    ) %>%
+    complete(
+      pollutant,
+      technology,
+      fuel_type,
+      fill = list(cell_label = "—")
+    )
+
+  annual_ef_table_figure <- ggplot(
+    annual_ef_figure_data,
+    aes(x = fuel_type, y = technology)
+  ) +
+    geom_tile(aes(fill = ef_kg_per_mwh), color = "white", linewidth = 0.8) +
+    geom_text(aes(label = cell_label), size = 3.3, color = "#17202A") +
+    facet_grid(pollutant ~ ., scales = "free_y", space = "free_y") +
+    scale_fill_gradient(
+      low = "#F4F9FD",
+      high = "#2878B5",
+      na.value = "#F2F2F2",
+      name = "kg/MWh"
+    ) +
+    labs(
+      title = paste0(
+        estimate_year,
+        " emission factors by fuel type and generation technology"
+      ),
+      subtitle = paste0(
+        "Generation-weighted estimates for January–December ",
+        estimate_year,
+        "; — indicates insufficient data"
+      ),
+      x = "Fuel type",
+      y = NULL,
+      caption = paste0(
+        "Values are kilograms of pollutant per MWh of electricity generated. ",
+        "Weights are each plant's raw generation within the cohort and year."
+      )
+    ) +
+    theme_minimal(base_size = 11) +
+    theme(
+      panel.grid = element_blank(),
+      axis.text.x = element_text(angle = 35, hjust = 1),
+      axis.text.y = element_text(size = 9),
+      strip.text.y = element_text(face = "bold", angle = 0),
+      strip.background = element_rect(fill = "#EAF2F8", color = NA),
+      plot.title = element_text(face = "bold", size = 15),
+      plot.subtitle = element_text(color = "#4D4D4D"),
+      legend.position = "right"
+    )
+
+  save_figure(
+    file.path(
+      "kepco", "fuel_technology_year",
+      paste0("kepco_", estimate_year, "_fuel_technology_ef.png")
+    ),
+    annual_ef_table_figure,
+    width = 13,
+    height = 13
+  )
+}
+
 # Example query (change the province as needed):
 # estimate_ef(
 #   analysis_kepco,

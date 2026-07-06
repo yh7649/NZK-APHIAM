@@ -1,4 +1,4 @@
-"energy_type_clean","date","emissions_kg","generation_mwh","ef_kg_per_mwh","ef_ma_kg_per_mwh"
+"fuel_type_clean","date","emissions_kg","generation_mwh","ef_kg_per_mwh","ef_ma_kg_per_mwh"
 "natural_gas",2002-02-01,132500,212606,0.623218535695136,0.623218535695136
 "natural_gas",2002-03-01,174000,281808,0.617441662408448,0.620330099051792
 "natural_gas",2002-04-01,180600,271791,0.664481163835447,0.635047120646344

@@ -1,4 +1,4 @@
-"energy_type_clean","date","emissions_kg","generation_mwh","emissions_kg_ma6"
+"fuel_type_clean","date","emissions_kg","generation_mwh","emissions_kg_ma6"
 "natural_gas",2002-02-01,132500,212606,132500
 "natural_gas",2002-03-01,174000,281808,153250
 "natural_gas",2002-04-01,180600,271791,162366.666666667

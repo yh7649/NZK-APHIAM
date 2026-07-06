@@ -1,4 +1,4 @@
-"source_dataset","date","plant_name","plant_number","energy_type_clean","energy_generated_mwh","emissions_kg","ef_kg_per_mwh","audit_severity","audit_issue_codes","pollutant"
+"source_dataset","date","plant_name","plant_number","fuel_type_clean","energy_generated_mwh","emissions_kg","ef_kg_per_mwh","audit_severity","audit_issue_codes","pollutant"
 "western_power",2007-03-01,"Pyeongtaek",4,"oil_and_natural_gas",246406,220600,0.895270407376444,"warning","high_dust_tsp_mass;high_sox_emission_factor;high_sox_mass","SOx"
 "eastwest_power",2010-01-01,"Ulsan",2,"oil",37893.208,62584.3077,1.65159697484573,"warning","high_sox_emission_factor","SOx"
 "eastwest_power",2010-02-01,"Honam",1,"coal",161600.228,326163.0782,2.0183330323024,"warning","high_nox_emission_factor;high_sox_emission_factor","SOx"

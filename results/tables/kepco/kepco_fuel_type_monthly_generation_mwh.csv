@@ -1,4 +1,4 @@
-"energy_type_clean","date","energy_generated_mwh","energy_generated_mwh_ma6"
+"fuel_type_clean","date","energy_generated_mwh","energy_generated_mwh_ma6"
 "coal",2002-01-01,1597807,1597807
 "natural_gas",2002-01-01,687645,687645
 "coal",2002-02-01,1437237,1517522
