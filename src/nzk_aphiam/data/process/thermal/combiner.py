@@ -20,6 +20,7 @@ from nzk_aphiam.data.clean.thermal.schema import (
     COMBINED_THERMAL_OUTPUT_COLUMNS,
     THERMAL_OUTPUT_COLUMNS,
 )
+from nzk_aphiam.data.clean.thermal.retirement_crosswalk import apply_retirement_crosswalk
 
 OUTPUT_PATH = THERMAL_PROCESSED_DIR / "kepco_monthly_generation_emissions.csv"
 METADATA_PATH = THERMAL_PROCESSED_DIR / "kepco_monthly_generation_emissions_metadata.csv"
@@ -44,6 +45,7 @@ VARIABLE_LABELS = {
     "plant_number": "Generating unit number (unitless identifier)",
     "plant_opening_date": "Plant opening date (YYYY-MM-DD)",
     "plant_closing_date": "Plant closing date (YYYY-MM-DD)",
+    "plant_closing_date_status": "Plant closing date status (actual or planned)",
     "plant_latitude": "Plant latitude (WGS84 decimal degrees north)",
     "plant_longitude": "Plant longitude (WGS84 decimal degrees east)",
     "plant_province": "Plant province or metropolitan city (current English name)",
@@ -63,8 +65,6 @@ VARIABLE_LABELS = {
     "generation_days_reported": "Minimum distinct source days reported across contributing components",
     "generation_days_expected": "Calendar days expected in the observation month",
     "generation_coverage_status": "Generation day coverage status (complete, partial, or missing)",
-    "alternate_energy_generated_mwh": "Monthly generation from the alternate official source (MWh)",
-    "generation_difference_pct": "Absolute percent difference between primary and alternate generation",
     "generation_reconciliation_status": "Cross-source generation comparison or fallback status",
     "row_status": "Evidence-based row status (active_reported, active_partial, inactive_placeholder, or unknown_status)",
     "row_status_basis": "Evidence used to assign row_status",
@@ -181,6 +181,7 @@ def prepare_dataset(data: pd.DataFrame, spec: DatasetSpec) -> pd.DataFrame:
     """Validate and annotate one cleaned subsidiary dataset."""
     validate_interim_dataset(data, spec)
     prepared = standardize_mass_to_kilograms(data)
+    prepared = apply_retirement_crosswalk(prepared)
     prepared.insert(0, "observation_frequency", spec.frequency)
     prepared.insert(0, "operator_category", "kepco")
     prepared.insert(0, "source_dataset", spec.name)

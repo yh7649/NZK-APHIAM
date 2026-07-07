@@ -50,6 +50,8 @@ THERMAL_OUTPUT_COLUMNS = [
 ]
 
 COMBINED_THERMAL_EXCLUDED_COLUMNS = {
+    "alternate_energy_generated_mwh",
+    "generation_difference_pct",
     "oxygen",
     "oxygen_unit",
     "flue_gas_flow",
@@ -67,3 +69,7 @@ COMBINED_THERMAL_OUTPUT_COLUMNS = [
         if column not in COMBINED_THERMAL_EXCLUDED_COLUMNS
     ],
 ]
+COMBINED_THERMAL_OUTPUT_COLUMNS.insert(
+    COMBINED_THERMAL_OUTPUT_COLUMNS.index("plant_closing_date") + 1,
+    "plant_closing_date_status",
+)

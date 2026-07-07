@@ -102,6 +102,13 @@ Nullable `plant_opening_date` and `plant_closing_date` columns are reserved for
 documented plant metadata. Cleaners must not infer them from the first or last
 observation in a source dataset.
 
+Reviewed actual and planned retirement dates are maintained separately in
+`docs/references/crosswalk/plant_retirement_dates.csv` and applied centrally
+when the processed subsidiary products are built. Unit mappings take priority
+over explicitly plant-scoped fallbacks. `plant_closing_date_status` distinguishes
+actual from planned dates; year-only official plans use December 31 as a
+documented end-of-year convention.
+
 Nullable `plant_latitude` and `plant_longitude` columns are also reserved for a
 separate plant metadata dataset. Future coordinates should use WGS84 decimal
 degrees (`EPSG:4326`) and consistently represent the plant site rather than

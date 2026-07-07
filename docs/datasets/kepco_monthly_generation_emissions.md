@@ -131,7 +131,6 @@ below are grouped by how often you actually need them:
   `row_status_basis`, `observation_level`, `component_count`,
   `generation_source`, `generation_coverage_status`,
   `generation_days_reported`, `generation_days_expected`,
-  `alternate_energy_generated_mwh`, `generation_difference_pct`,
   `generation_reconciliation_status`, `pollutant_data_pattern`,
   `reporting_start_date`, `reporting_end_date`, `reporting_window_basis`.
   The combined and subsidiary processed files also carry `audit_severity`
@@ -144,11 +143,12 @@ below are grouped by how often you actually need them:
 - **Source-language reference** (useful for tracing a row back to the
   original filing, rarely used in analysis): `original_korean_plant_name`,
   `original_korean_note`.
-- **Plant location and dates** (populated for all current plants from
-  `docs/references/crosswalk/plant_location_dates.csv`; the official-source
-  evidence file beside it documents locations that were absent from the
-  teammate roster): `plant_opening_date`,
-  `plant_closing_date`, `plant_latitude`, `plant_longitude`.
+- **Plant location and dates** (location and opening metadata come from
+  `docs/references/crosswalk/plant_location_dates.csv`; actual and planned
+  unit retirements come from `plant_retirement_dates.csv`, with reviewed
+  evidence files beside both references): `plant_opening_date`,
+  `plant_closing_date`, `plant_closing_date_status`, `plant_latitude`,
+  `plant_longitude`.
   The coordinate-derived administrative fields are `plant_province` and
   `plant_district`; their reviewed plant mapping is stored in
   `docs/references/crosswalk/plant_geography.csv`.
@@ -163,6 +163,10 @@ below are grouped by how often you actually need them:
 - `plant_number`: source-reported generating unit number where available.
 - `plant_opening_date`: plant opening date.
 - `plant_closing_date`: plant closing date.
+- `plant_closing_date_status`: whether `plant_closing_date` is an observed
+  `actual` closure or an officially published `planned` closure. Plans that
+  specify only a calendar year are encoded as December 31 of that year; this
+  is an explicit end-of-year convention, not an asserted exact shutdown day.
 - `plant_latitude`: plant latitude in WGS84 decimal degrees.
 - `plant_longitude`: plant longitude in WGS84 decimal degrees.
 - `plant_province`: current English province or metropolitan-city name.
@@ -197,10 +201,6 @@ below are grouped by how often you actually need them:
 - `generation_coverage_status`: source-appropriate generation availability;
   Western uses `reported` or `missing`, while daily-derived sources may use
   `complete`, `partial`, or `missing`.
-- `alternate_energy_generated_mwh`: independent Southern hourly-source monthly
-  total when available.
-- `generation_difference_pct`: absolute difference between Southern generation
-  sources as a percentage of the larger value.
 - `generation_reconciliation_status`: overlap comparison or fallback status.
 - `row_status`: evidence-based row status: `active_reported`, `active_partial`,
   `inactive_placeholder`, or `unknown_status` where assigned.

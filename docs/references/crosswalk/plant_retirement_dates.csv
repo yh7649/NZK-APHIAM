@@ -1,0 +1,21 @@
+subsidiary_company,plant_name,scope,reporting_unit_id,plant_closing_date,plant_closing_date_status,evidence_id,notes
+Korea Western Power,Taean,unit,western_power:Taean:1호기,2025-12-31,actual,me_taean_1_end_2025,Exact official generation-end date.
+Korea Western Power,Taean,unit,western_power:Taean:2호기,2026-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2026; December 31 is the project end-of-year convention.
+Korea South-East Power,Samcheonpo,unit,southeast_power:삼천포:3,2027-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2027; December 31 is the project end-of-year convention.
+Korea South-East Power,Samcheonpo,unit,southeast_power:삼천포:4,2027-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2027; December 31 is the project end-of-year convention.
+Korea South-East Power,Samcheonpo,unit,southeast_power:삼천포:5,2028-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2028; December 31 is the project end-of-year convention.
+Korea Western Power,Taean,unit,western_power:Taean:3호기,2028-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2028; December 31 is the project end-of-year convention.
+Korea East-West Power,Donghae,unit,eastwest_power:Donghae:1,2029-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2029; December 31 is the project end-of-year convention.
+Korea East-West Power,Donghae,unit,eastwest_power:Donghae:2,2029-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2029; December 31 is the project end-of-year convention.
+Korea South-East Power,Samcheonpo,unit,southeast_power:삼천포:6,2029-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2029; December 31 is the project end-of-year convention.
+Korea Western Power,Taean,unit,western_power:Taean:4호기,2029-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2029; December 31 is the project end-of-year convention.
+Korea East-West Power,Dangjin,unit,eastwest_power:Dangjin:1,2029-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2029; December 31 is the project end-of-year convention.
+Korea East-West Power,Dangjin,unit,eastwest_power:Dangjin:2,2029-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2029; December 31 is the project end-of-year convention.
+Korea East-West Power,Dangjin,unit,eastwest_power:Dangjin:3,2030-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2030; December 31 is the project end-of-year convention.
+Korea East-West Power,Dangjin,unit,eastwest_power:Dangjin:4,2030-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2030; December 31 is the project end-of-year convention.
+Korea Western Power,Taean,unit,western_power:Taean:5호기,2032-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2032; December 31 is the project end-of-year convention.
+Korea Western Power,Taean,unit,western_power:Taean:6호기,2032-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2032; December 31 is the project end-of-year convention.
+Korea South-East Power,Yeongheung,unit,southeast_power:영흥:1,2034-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2034; December 31 is the project end-of-year convention.
+Korea South-East Power,Yeongheung,unit,southeast_power:영흥:2,2034-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2034; December 31 is the project end-of-year convention.
+Korea East-West Power,Dangjin,unit,eastwest_power:Dangjin:5,2036-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2036; December 31 is the project end-of-year convention.
+Korea East-West Power,Dangjin,unit,eastwest_power:Dangjin:6,2036-12-31,planned,motie_11th_power_plan_2025,Official plan specifies 2036; December 31 is the project end-of-year convention.
