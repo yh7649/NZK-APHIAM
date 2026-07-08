@@ -2,6 +2,7 @@
 /data/*
 !/data/raw/
 /data/raw/*
+!/data/raw/*.dvc
 !/data/raw/references/
 /data/raw/references/*
 !/data/raw/references/plant_location_dates.dvc
@@ -219,13 +220,6 @@ results/models/*
 results/tables/
 
 # PyPI configuration file
-.pypirc.env
-.env.*
-!.env.example
-__pycache__/
-*.pyc
-.venv/
-venv/
+.pypirc
+
 .DS_Store
-data/interim/
-data/processed/

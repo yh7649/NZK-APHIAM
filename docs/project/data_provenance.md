@@ -72,7 +72,10 @@ thermal subsidiary monthly panel (see
 [`docs/datasets/kepco_monthly_generation_emissions.md`](../datasets/kepco_monthly_generation_emissions.md)).
 The annual-panel matching and source integration were judged too messy for
 current research needs relative to a fuel-type and emissions-only KEPCO scope.
-The code is preserved, not deleted, under
+See [`docs/archive/annual_plant_generation_emissions.md`](../archive/annual_plant_generation_emissions.md)
+for the archived dataset's schema and
+[`docs/archive/annual_plant_panel_methods.md`](../archive/annual_plant_panel_methods.md)
+for its construction methods. The code is preserved, not deleted, under
 `src/nzk_aphiam/archive/annual_panel/` (scrapers for EPSIS, ENV-INFO, and
 CleanSYS under `scrape/`; the crosswalk builder and annual-panel pipeline
 under `process/`), and remains runnable through the Makefile targets marked

@@ -30,7 +30,10 @@ Run the complete offline verification workflow using preserved raw files:
 make verify-offline PYTHON_INTERPRETER=.venv/bin/python
 ```
 
-Reproduce the annual facility-emission-factor inputs and plant crosswalk:
+**[PAUSED: annual non-KEPCO panel]** Reproduce the annual facility-emission-factor
+inputs and plant crosswalk (see
+[`docs/project/data_provenance.md`](../../../docs/project/data_provenance.md)
+for why this scope is paused):
 
 ```bash
 make reproduce-facility-crosswalk PYTHON_INTERPRETER=.venv/bin/python
@@ -47,8 +50,8 @@ make verify-facility-crosswalk-offline PYTHON_INTERPRETER=.venv/bin/python
 The offline command fails if any required raw response is absent. Override the
 common period with `FACILITY_START_YEAR` and `FACILITY_END_YEAR`.
 
-Build the final annual plant-level generation and emissions panel from the
-preserved inputs:
+**[PAUSED: annual non-KEPCO panel]** Build the final annual plant-level
+generation and emissions panel from the preserved inputs:
 
 ```bash
 make reproduce-annual-plant-panel-offline PYTHON_INTERPRETER=.venv/bin/python
@@ -60,7 +63,7 @@ writes the plant-year panel under `data/archive/annual_plant/`.
 Detailed rules and output definitions are in
 [`docs/archive/annual_plant_panel_methods.md`](../../../docs/archive/annual_plant_panel_methods.md).
 
-Download annual CleanSYS facility emissions:
+**[PAUSED: annual non-KEPCO panel]** Download annual CleanSYS facility emissions:
 
 ```bash
 make scrape-cleansys PYTHON_INTERPRETER=.venv/bin/python
@@ -252,7 +255,7 @@ file is not used to impute months; it produces
 Unresolved emissions codes and the requested stack-to-generator crosswalk are
 listed in `docs/references/thermal/southern_power_unresolved_data_request.md`.
 
-## EPSIS Generator Rosters
+## EPSIS Generator Rosters [PAUSED: annual non-KEPCO panel]
 
 KPX EPSIS provides two complementary generator-level sources:
 
@@ -302,7 +305,7 @@ omitted, and that reported capacity may not reflect facility improvements.
 Keep this separate from the rosters and preserve `source_record_name` without
 assuming plant or unit granularity.
 
-## Private Generator Emissions
+## Private Generator Emissions [PAUSED: annual non-KEPCO panel]
 
 Download annual ENV-INFO disclosures for individual and representative
 power-sector sites:
@@ -324,7 +327,7 @@ utilities, so match facilities to EPSIS before calculating emission factors.
 Each year contains a detail-page checksum manifest, and the combined panel has
 metadata linking it to the yearly metadata files.
 
-## Thermal Plant Crosswalk
+## Thermal Plant Crosswalk [PAUSED: annual non-KEPCO panel]
 
 Build the EPSIS thermal plant dimension and link it to ENV-INFO and CleanSYS:
 

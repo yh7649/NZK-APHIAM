@@ -11,7 +11,6 @@ from pathlib import Path
 
 import pandas as pd
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[5]
 DEFAULT_RETIREMENT_PATH = (
     PROJECT_ROOT / "docs" / "references" / "crosswalk" / "plant_retirement_dates.csv"
@@ -49,8 +48,7 @@ PLANT_KEY = ["subsidiary_company", "plant_name"]
 def _require_columns(data: pd.DataFrame, expected: list[str], label: str) -> None:
     if list(data.columns) != expected:
         raise ValueError(
-            f"Unexpected {label} columns. Expected {expected!r}, "
-            f"received {list(data.columns)!r}."
+            f"Unexpected {label} columns. Expected {expected!r}, received {list(data.columns)!r}."
         )
 
 
@@ -127,9 +125,9 @@ def apply_retirement_crosswalk(
 
     plants = relevant[relevant["scope"].eq("plant")]
     for row in plants.itertuples(index=False):
-        match = result["subsidiary_company"].eq(row.subsidiary_company) & result[
-            "plant_name"
-        ].eq(row.plant_name)
+        match = result["subsidiary_company"].eq(row.subsidiary_company) & result["plant_name"].eq(
+            row.plant_name
+        )
         result.loc[match, "plant_closing_date"] = row.plant_closing_date
         result.loc[match, "plant_closing_date_status"] = row.plant_closing_date_status
 
@@ -138,9 +136,7 @@ def apply_retirement_crosswalk(
         result.loc[match, "plant_closing_date"] = row.plant_closing_date
         result.loc[match, "plant_closing_date_status"] = row.plant_closing_date_status
 
-    unsupported = result["plant_closing_date"].notna() & result[
-        "plant_closing_date_status"
-    ].isna()
+    unsupported = result["plant_closing_date"].notna() & result["plant_closing_date_status"].isna()
     if unsupported.any():
         raise ValueError("Plant closing dates require a reviewed retirement mapping.")
 

@@ -4,15 +4,30 @@ from __future__ import annotations
 
 import pandas as pd
 
-
 CONVENTIONAL_STEAM_PLANTS = {
-    "Dangjin", "Donghae", "Honam", "Hadong", "Namjeju Steam", "Samcheok",
-    "Samcheonpo", "Yeongdong", "Yeongheung", "Yeosu", "Seocheon",
+    "Dangjin",
+    "Donghae",
+    "Honam",
+    "Hadong",
+    "Namjeju Steam",
+    "Samcheok",
+    "Samcheonpo",
+    "Yeongdong",
+    "Yeongheung",
+    "Yeosu",
+    "Seocheon",
 }
 CHP_PLANTS = {"Bundang", "Gimpo", "Ilsan", "Sejong", "Shinsejong"}
 CCGT_PLANTS = {
-    "Andong", "Busan", "Gunsan", "Hallim", "Incheon", "Namjeju Combined",
-    "Shin-Incheon", "Seoincheon", "Yeongwol",
+    "Andong",
+    "Busan",
+    "Gunsan",
+    "Hallim",
+    "Incheon",
+    "Namjeju Combined",
+    "Shin-Incheon",
+    "Seoincheon",
+    "Yeongwol",
 }
 
 

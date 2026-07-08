@@ -224,9 +224,7 @@ def build_southeast_generation(generation_path: Path) -> pd.DataFrame:
                 "string"
             ),
             "observation_level": "generating_unit",
-            "fuel_type": (
-                source["발전원"].map(_SE_FUEL_TYPES).fillna("other").astype("string")
-            ),
+            "fuel_type": (source["발전원"].map(_SE_FUEL_TYPES).fillna("other").astype("string")),
             "energy_generated_mwh": (
                 pd.to_numeric(source["발전량(MWh)"], errors="coerce").astype("Float64")
             ),
@@ -286,9 +284,7 @@ def build_midland_generation(generation_path: Path) -> pd.DataFrame:
             "plant_number": pd.array([pd.NA] * len(source), dtype="Int64"),
             "reporting_unit_id": ("midland_power:" + orgnm).astype("string"),
             "observation_level": "generation_block",
-            "fuel_type": (
-                source["gennm"].map(_MP_FUEL_TYPES).fillna("other").astype("string")
-            ),
+            "fuel_type": (source["gennm"].map(_MP_FUEL_TYPES).fillna("other").astype("string")),
             "energy_generated_mwh": (
                 pd.to_numeric(source["qvodgen"], errors="coerce").astype("Float64")
             ),

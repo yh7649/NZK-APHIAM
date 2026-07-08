@@ -505,9 +505,7 @@ def process(
     return outputs
 
 
-def build_local_readme(
-    outputs: list[dict[str, object]], start_year: int, end_year: int
-) -> str:
+def build_local_readme(outputs: list[dict[str, object]], start_year: int, end_year: int) -> str:
     """Render current-value coverage matching the placeholders in
     docs/datasets/kma_weather.md, so the local snapshot tracks whatever this
     processing run just produced.

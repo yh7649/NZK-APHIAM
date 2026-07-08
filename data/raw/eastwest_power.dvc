@@ -1,0 +1,6 @@
+outs:
+- md5: b7e6d4d61d669eccaead999a6cdb0988.dir
+  size: 2457836
+  nfiles: 3
+  hash: md5
+  path: eastwest_power

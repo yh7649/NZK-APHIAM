@@ -135,9 +135,7 @@ def standardize_airkorea_frame(
     return long.drop(columns="source_pollutant")
 
 
-def read_airkorea_zip(
-    path: Path, selected_pollutants: set[str] | None = None
-) -> pd.DataFrame:
+def read_airkorea_zip(path: Path, selected_pollutants: set[str] | None = None) -> pd.DataFrame:
     """Read every XLSX member from an annual AirKorea ZIP without altering the archive."""
     frames: list[pd.DataFrame] = []
     with TemporaryDirectory(prefix="airkorea_") as temporary, ZipFile(path) as archive:
@@ -149,7 +147,9 @@ def read_airkorea_zip(
             try:
                 standardized = standardize_airkorea_frame(raw, selected_pollutants)
             except ValueError as error:
-                if selected_pollutants is not None and "none of the requested pollutants" in str(error):
+                if selected_pollutants is not None and "none of the requested pollutants" in str(
+                    error
+                ):
                     continue
                 raise
             standardized["source_archive"] = path.name

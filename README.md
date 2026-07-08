@@ -310,14 +310,20 @@ dataset rules, lives in
 
 ```
 ├── CITATION.cff       <- Machine-readable software citation
+├── pyproject.toml     <- Python package metadata, dependencies, and ruff config
+├── NZK-APHIAM.Rproj   <- RStudio project file
 ├── docs/project       <- Authorship, provenance, and release documentation
+├── docs/datasets      <- Per-dataset schema, coverage, and QC documentation
+├── docs/methods       <- Documented analysis methodologies
 ├── docs/references    <- Documented mappings, evidence, and source references
+├── docs/archive       <- Documentation for paused/superseded work
 ├── LICENSE            <- MIT license for repository software and documentation
 ├── Makefile           <- Reproducible scrape, clean, combine, test, and analysis commands
 ├── requirements       <- Python and R dependency lists
 ├── configs            <- Event and pipeline YAML configuration files
 ├── analysis           <- Main R analysis workspace and shared R helpers
 ├── data               <- Local raw, interim, and processed data; ignored by Git
+├── .dvc               <- Local DVC cache/config for versioning raw-data snapshots
 ├── results
 │   ├── figures        <- Saved plots and graphics
 │   ├── tables         <- Saved analysis tables

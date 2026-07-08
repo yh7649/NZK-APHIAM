@@ -1,0 +1,6 @@
+outs:
+- md5: 576800e474e719d4b9e7e9ce10e2ddc8.dir
+  size: 7632752
+  nfiles: 28
+  hash: md5
+  path: southeast_power

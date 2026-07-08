@@ -16,11 +16,11 @@ import pandas as pd
 
 from nzk_aphiam.config.paths import THERMAL_INTERIM_DIR, THERMAL_PROCESSED_DIR
 from nzk_aphiam.data.audit.thermal.auditor import RESULTS_DIR, audit_all
+from nzk_aphiam.data.clean.thermal.retirement_crosswalk import apply_retirement_crosswalk
 from nzk_aphiam.data.clean.thermal.schema import (
     COMBINED_THERMAL_OUTPUT_COLUMNS,
     THERMAL_OUTPUT_COLUMNS,
 )
-from nzk_aphiam.data.clean.thermal.retirement_crosswalk import apply_retirement_crosswalk
 
 OUTPUT_PATH = THERMAL_PROCESSED_DIR / "kepco_monthly_generation_emissions.csv"
 METADATA_PATH = THERMAL_PROCESSED_DIR / "kepco_monthly_generation_emissions_metadata.csv"
@@ -334,7 +334,9 @@ def build_local_readme(combined: pd.DataFrame, coverage: pd.DataFrame) -> str:
 
     def field_coverage_line(label: str, column: str) -> str:
         count = int(combined[column].notna().sum())
-        return f"- {label}: `{count:,}` of `{total_rows:,}` rows (`{100 * count / total_rows:.0f}%`)"
+        return (
+            f"- {label}: `{count:,}` of `{total_rows:,}` rows (`{100 * count / total_rows:.0f}%`)"
+        )
 
     subsidiary_lines = []
     for _, row in coverage.sort_values("source_dataset").iterrows():
@@ -359,8 +361,7 @@ def build_local_readme(combined: pd.DataFrame, coverage: pd.DataFrame) -> str:
             else ""
         )
         subsidiary_lines.append(
-            f"- {row['subsidiary_company']}: `{row['rows']:,}` rows"
-            f"{placeholder_note}; {detail}."
+            f"- {row['subsidiary_company']}: `{row['rows']:,}` rows{placeholder_note}; {detail}."
         )
 
     return f"""# KEPCO Monthly Dataset: Current Local Values

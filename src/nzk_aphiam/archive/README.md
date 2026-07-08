@@ -4,6 +4,14 @@ This folder contains archived CleanSYS TMS scripts that convert raw downloaded
 API responses into analysis-ready CSV files. They are retained for reference
 and are not part of the active KEPCO monthly workflow.
 
+**Not to be confused with** `nzk_aphiam.archive.annual_panel.scrape.cleansys`
+(the `[PAUSED: annual non-KEPCO panel]` scraper used by `make scrape-cleansys`,
+documented in [`src/nzk_aphiam/data/README.md`](../data/README.md)). That module
+downloads annual facility-level CleanSYS emissions for the paused non-KEPCO
+plant panel. This folder's `cleansys_tms_*` scripts are an older, unrelated,
+real-time TMS stack-measurement pipeline that predates that effort and is not
+reachable through any current Makefile target.
+
 The basic workflow is:
 
 ```text
