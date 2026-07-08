@@ -255,13 +255,18 @@ interpolated or imputed. See
 [`docs/datasets/kma_weather.md`](docs/datasets/kma_weather.md) for variable,
 coverage, request-budget, and methodological details.
 
-## Public Health Baseline
+## Public Health And Demographic Baseline
 
-The initial public Korean health panel uses three KOSIS tables:
+The public Korean health panel uses KOSIS tables for outcomes, denominators,
+and district-level covariates:
 
 - monthly all-cause deaths by residence 시군구;
-- annual deaths by 시군구 and 50 cause groups; and
-- monthly resident population denominators.
+- annual deaths by 시군구 and 50 cause groups;
+- monthly resident population denominators;
+- monthly age-structure and sex-ratio indicators;
+- annual foreign-resident composition by category and sex; and
+- annual socioeconomic, housing, migration, insurance, disability, household,
+  and healthcare-access proxies.
 
 Request a free KOSIS OpenAPI key and add it to `.env`:
 
@@ -281,6 +286,18 @@ annual JSON responses, normalized CSVs, checksums, and provenance metadata are
 written under `data/raw/health/kosis/`. Aggregate national and provincial rows
 are retained and labeled so boundary harmonization can be handled explicitly
 before the DiD/GWR panel is constructed.
+
+To refresh only the demographic covariates, run:
+
+```bash
+make scrape-demographics PYTHON_INTERPRETER=.venv/bin/python
+```
+
+To add the broader social-determinants scrape:
+
+```bash
+make scrape-social-determinants PYTHON_INTERPRETER=.venv/bin/python
+```
 
 ## KEPCO Data Documentation
 

@@ -396,10 +396,22 @@ HEALTH_START_YEAR ?= 2001
 HEALTH_END_YEAR ?= 2024
 
 
-## Download KOSIS district mortality and population baseline data
+## Download KOSIS district health, population, and demographic baseline data
 .PHONY: scrape-health
 scrape-health:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.health.kosis --start-year $(HEALTH_START_YEAR) --end-year $(HEALTH_END_YEAR)
+
+
+## Download only KOSIS district demographic and socioeconomic covariates
+.PHONY: scrape-demographics
+scrape-demographics:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.health.kosis aging sex-ratio foreign-residents fiscal-independence elderly-living-alone --start-year $(HEALTH_START_YEAR) --end-year $(HEALTH_END_YEAR)
+
+
+## Download additional KOSIS/NHIS social determinants and healthcare-access covariates
+.PHONY: scrape-social-determinants
+scrape-social-determinants:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.health.kosis registered-disability health-insurance-population one-person-households one-person-households-age-sex migration old-housing vacant-housing longterm-care-facilities medical-coverage-seoul-incheon-gyeonggi-gangwon medical-coverage-daejeon-sejong-chungcheong medical-coverage-gwangju-jeolla-jeju medical-coverage-busan-daegu-ulsan-gyeongsang medical-institutions-seoul-incheon-gyeonggi-gangwon medical-institutions-daejeon-sejong-chungcheong medical-institutions-gwangju-jeolla-jeju medical-institutions-busan-daegu-ulsan-gyeongsang medical-workforce-seoul-incheon-gyeonggi-gangwon medical-workforce-daejeon-sejong-chungcheong medical-workforce-gwangju-jeolla-jeju medical-workforce-busan-daegu-ulsan-gyeongsang insurance-premiums-seoul-incheon-gyeonggi-gangwon insurance-premiums-daejeon-sejong-chungcheong insurance-premiums-gwangju-jeolla-jeju insurance-premiums-busan-daegu-ulsan-gyeongsang --start-year $(HEALTH_START_YEAR) --end-year $(HEALTH_END_YEAR)
 
 
 ## [PAUSED: annual non-KEPCO panel] Download ENV-INFO annual power-sector facility air pollutant emissions
