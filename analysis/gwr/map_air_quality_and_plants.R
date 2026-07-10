@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 # Descriptive map of monitor concentrations and KEPCO plants; not a dispersion map.
 source(file.path("analysis", "R", "paths.R"))
-source(project_path("analysis", "R", "gwr_helpers.R"))
+source(project_path("analysis", "gwr", "gwr_helpers.R"))
 
 packages <- c("dplyr", "ggplot2", "ggrepel", "patchwork", "readr", "rnaturalearthdata", "sf", "tidyr")
 missing <- packages[!vapply(packages, requireNamespace, logical(1), quietly = TRUE)]

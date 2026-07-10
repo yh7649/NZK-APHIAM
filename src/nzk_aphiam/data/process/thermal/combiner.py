@@ -94,27 +94,42 @@ DATASET_SPECS = (
     DatasetSpec(
         "eastwest_power",
         "monthly",
-        THERMAL_INTERIM_DIR / "eastwest_power" / "eastwest_power_monthly_generation_emissions.csv",
+        THERMAL_INTERIM_DIR
+        / "kepco_subsidiaries"
+        / "eastwest_power"
+        / "eastwest_power_monthly_generation_emissions.csv",
     ),
     DatasetSpec(
         "western_power",
         "monthly",
-        THERMAL_INTERIM_DIR / "western_power" / "western_power_monthly_generation_emissions.csv",
+        THERMAL_INTERIM_DIR
+        / "kepco_subsidiaries"
+        / "western_power"
+        / "western_power_monthly_generation_emissions.csv",
     ),
     DatasetSpec(
         "southern_power",
         "monthly",
-        THERMAL_INTERIM_DIR / "southern_power" / "southern_power_monthly_generation_emissions.csv",
+        THERMAL_INTERIM_DIR
+        / "kepco_subsidiaries"
+        / "southern_power"
+        / "southern_power_monthly_generation_emissions.csv",
     ),
     DatasetSpec(
         "southeast_power",
         "monthly",
-        THERMAL_INTERIM_DIR / "southeast_power" / "southeast_power_monthly_derived_emissions.csv",
+        THERMAL_INTERIM_DIR
+        / "kepco_subsidiaries"
+        / "southeast_power"
+        / "southeast_power_monthly_derived_emissions.csv",
     ),
     DatasetSpec(
         "midland_power",
         "monthly",
-        THERMAL_INTERIM_DIR / "midland_power" / "midland_power_monthly_derived_emissions.csv",
+        THERMAL_INTERIM_DIR
+        / "kepco_subsidiaries"
+        / "midland_power"
+        / "midland_power_monthly_derived_emissions.csv",
     ),
 )
 

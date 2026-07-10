@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-source(file.path("analysis", "R", "gwr_helpers.R"))
+source(file.path("analysis", "gwr", "gwr_helpers.R"))
 needed <- c("dplyr", "lubridate", "sf", "units")
 missing <- needed[!vapply(needed, requireNamespace, logical(1), quietly = TRUE)]
 if (length(missing)) stop("Missing test packages: ", paste(missing, collapse = ", "), ". Run `make requirements-r`.")

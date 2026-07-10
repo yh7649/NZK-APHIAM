@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 # Plant-side descriptive readiness tables. These are input diagnostics, not GWR results.
 source(file.path("analysis", "R", "paths.R"))
-source(project_path("analysis", "R", "gwr_helpers.R"))
+source(project_path("analysis", "gwr", "gwr_helpers.R"))
 
 input <- kepco_processed_path("kepco_monthly_generation_emissions.csv")
 if (!file.exists(input)) stop("Missing processed KEPCO input: ", input, call. = FALSE)

@@ -129,7 +129,7 @@ make clean-western-power
 The interim output is:
 
 ```text
-data/interim/western_power/western_power_monthly_generation_emissions.csv
+data/interim/kepco_subsidiaries/western_power/western_power_monthly_generation_emissions.csv
 ```
 
 The cleaner retains every source row and never converts a blank pollutant or
@@ -180,7 +180,7 @@ make clean-eastwest-power
 The interim output is:
 
 ```text
-data/interim/eastwest_power/eastwest_power_monthly_generation_emissions.csv
+data/interim/kepco_subsidiaries/eastwest_power/eastwest_power_monthly_generation_emissions.csv
 ```
 
 The cleaner preserves every monthly source row. Fuel mappings and their
@@ -218,13 +218,13 @@ make clean-southern-power
 Raw responses, CSV extracts, and redacted request metadata are saved under:
 
 ```text
-data/raw/southern_power/
+data/raw/kepco_subsidiaries/southern_power/
 ```
 
 The interim output is:
 
 ```text
-data/interim/southern_power/southern_power_monthly_generation_emissions.csv
+data/interim/kepco_subsidiaries/southern_power/southern_power_monthly_generation_emissions.csv
 ```
 
 Southern reports emissions in kilograms, which are retained without
@@ -462,7 +462,7 @@ The scraper downloads calendar-year chunks, preserves each original CP949
 response, writes a combined UTF-8 CSV, and records request metadata under:
 
 ```text
-data/raw/southeast_power/
+data/raw/kepco_subsidiaries/southeast_power/
 ```
 
 Use `--reuse-existing-source` on the Python scraper command to resume from
@@ -472,7 +472,7 @@ provider export currently begins on July 16, 2020.
 The interim output is:
 
 ```text
-data/interim/southeast_power/southeast_power_monthly_derived_emissions.csv
+data/interim/kepco_subsidiaries/southeast_power/southeast_power_monthly_derived_emissions.csv
 ```
 
 It converts reported daily concentrations and flow to inferred daily mass, then
@@ -500,7 +500,7 @@ which is also registered as data.go.kr OpenAPI dataset `15120379`. The scraper
 preserves yearly source CSV responses and writes the combined normalized file:
 
 ```text
-data/raw/southeast_power/southeast_power_monthly_generation.csv
+data/raw/kepco_subsidiaries/southeast_power/southeast_power_monthly_generation.csv
 ```
 
 The cleaner crosswalks Bundang emissions units 1--8 to generation units
@@ -523,7 +523,7 @@ The commands retain source field names and values, save XML responses, CSV
 extracts, and redacted metadata under:
 
 ```text
-data/raw/midland_power/
+data/raw/kepco_subsidiaries/midland_power/
 ```
 
 They refuse to replace existing outputs unless `--overwrite` is explicitly
@@ -540,19 +540,19 @@ values, but not flue-gas flow, so it is not used for mass derivation. The newer
 facility-status APIs are saved under:
 
 ```text
-data/raw/midland_power/facilities/
+data/raw/kepco_subsidiaries/midland_power/facilities/
 ```
 
 Each facility has its own subdirectory, and the scraper also writes:
 
 ```text
-data/raw/midland_power/facilities/midland_power_facility_air_status.csv
+data/raw/kepco_subsidiaries/midland_power/facilities/midland_power_facility_air_status.csv
 ```
 
 The cleaner reads that merged raw file and writes:
 
 ```text
-data/interim/midland_power/midland_power_monthly_derived_emissions.csv
+data/interim/kepco_subsidiaries/midland_power/midland_power_monthly_derived_emissions.csv
 ```
 
 For Seocheon, Sejong, Jeju, and Incheon, the facility-status APIs report

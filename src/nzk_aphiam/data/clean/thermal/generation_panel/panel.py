@@ -68,16 +68,36 @@ DEFAULT_EW_INPUT = (
     / "eastwest_power_air_pollutants_generation.csv"
 )
 DEFAULT_WP_INPUT = (
-    PROJECT_ROOT / "data" / "raw" / "western_power" / "western_power_air_pollutants_generation.csv"
+    PROJECT_ROOT
+    / "data"
+    / "raw"
+    / "kepco_subsidiaries"
+    / "western_power"
+    / "western_power_air_pollutants_generation.csv"
 )
 DEFAULT_SP_GENERATION_INPUT = (
-    PROJECT_ROOT / "data" / "raw" / "southern_power" / "southern_power_daily_generation.csv"
+    PROJECT_ROOT
+    / "data"
+    / "raw"
+    / "kepco_subsidiaries"
+    / "southern_power"
+    / "southern_power_daily_generation.csv"
 )
 DEFAULT_SE_GENERATION_INPUT = (
-    PROJECT_ROOT / "data" / "raw" / "southeast_power" / "southeast_power_monthly_generation.csv"
+    PROJECT_ROOT
+    / "data"
+    / "raw"
+    / "kepco_subsidiaries"
+    / "southeast_power"
+    / "southeast_power_monthly_generation.csv"
 )
 DEFAULT_MP_GENERATION_INPUT = (
-    PROJECT_ROOT / "data" / "raw" / "midland_power" / "midland_power_monthly_generation.csv"
+    PROJECT_ROOT
+    / "data"
+    / "raw"
+    / "kepco_subsidiaries"
+    / "midland_power"
+    / "midland_power_monthly_generation.csv"
 )
 DEFAULT_KHNP_GENERATION_INPUT = (
     PROJECT_ROOT / "data" / "raw" / "khnp" / "khnp_daily_generation.csv"

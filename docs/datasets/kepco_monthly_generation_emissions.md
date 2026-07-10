@@ -180,7 +180,8 @@ below are grouped by how often you actually need them:
   `integrated_gasification_combined_cycle` (IGCC). No current KEPCO row is an
   open-cycle NGCT or CCS unit. Technology evidence is recorded in
   `docs/references/thermal/kepco_technology_mapping.csv` and checked against
-  `docs/references/province_level_power.xlsx` where that roster has coverage.
+  `docs/references/province_level_power/province_level_power.xlsx` where that
+  roster has coverage.
 - `energy_generated_mwh`: monthly electricity generation in MWh.
 - `energy_capacity_mw`: installed generating capacity in MW.
 - `reporting_unit_id`: stable source reporting-boundary identifier. Western
@@ -274,7 +275,8 @@ Each subsidiary cleaner fills `plant_latitude`, `plant_longitude`,
 (`subsidiary_company`, `plant_name`) against
 `docs/references/crosswalk/plant_location_dates.csv`, a hand-built crosswalk
 against a teammate-supplied plant roster
-(`docs/references/province_level_power.xlsx`), official operator plant pages,
+(`docs/references/province_level_power/province_level_power.xlsx`), official
+operator plant pages,
 and mapped OpenStreetMap plant footprints. The associated
 `plant_location_dates_official_evidence.csv` records the official address and
 URL, coordinate method and map element, and opening-date evidence for every

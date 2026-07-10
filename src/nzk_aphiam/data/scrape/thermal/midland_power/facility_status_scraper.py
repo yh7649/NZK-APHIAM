@@ -31,7 +31,7 @@ from nzk_aphiam.data.scrape.thermal.midland_power.generation_scraper import (
 API_KEY_ENV = "DATA_GO_KR_API_KEY"
 DEFAULT_PER_PAGE = 1000
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "midland_power"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "kepco_subsidiaries" / "midland_power"
 BASE_API_URL = "https://api.odcloud.kr/api"
 
 

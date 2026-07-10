@@ -38,12 +38,18 @@ DEFAULT_INPUT_PATH = (
     / "southeast_power_daily_air_pollutant_emissions.csv"
 )
 DEFAULT_GENERATION_INPUT_PATH = (
-    PROJECT_ROOT / "data" / "raw" / "southeast_power" / "southeast_power_monthly_generation.csv"
+    PROJECT_ROOT
+    / "data"
+    / "raw"
+    / "kepco_subsidiaries"
+    / "southeast_power"
+    / "southeast_power_monthly_generation.csv"
 )
 DEFAULT_OUTPUT_PATH = (
     PROJECT_ROOT
     / "data"
     / "interim"
+    / "kepco_subsidiaries"
     / "southeast_power"
     / "southeast_power_monthly_derived_emissions.csv"
 )

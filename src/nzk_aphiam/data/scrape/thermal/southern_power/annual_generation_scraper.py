@@ -17,7 +17,7 @@ DEFAULT_DOWNLOAD_URL = (
 )
 EXPECTED_COLUMNS = ["년도", "발전원", "플랜트", "호기", "용량", "발전량"]
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "southern_power"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "kepco_subsidiaries" / "southern_power"
 
 
 def download(url: str, timeout: int = 60) -> bytes:

@@ -6,6 +6,9 @@
 !/data/raw/references/
 /data/raw/references/*
 !/data/raw/references/plant_location_dates.dvc
+!/data/raw/kepco_subsidiaries/
+/data/raw/kepco_subsidiaries/*
+!/data/raw/kepco_subsidiaries/*.dvc
 
 # IDE
 .vscode/

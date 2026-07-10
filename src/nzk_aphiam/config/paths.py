@@ -20,7 +20,7 @@ CLEANSYS_DIR = ARCHIVE_RAW_DIR / "cleansys_tms"
 # Three-stage pipeline roots: raw (scraper output), interim (cleaner
 # output), processed (auditor/merger output). Each domain (kepco today;
 # airkorea/health/weather as they're added) gets its own subdirectory under
-# each stage, e.g. data/raw/eastwest_power, data/processed/kepco.
+# each stage, e.g. data/raw/kepco_subsidiaries/eastwest_power, data/processed/kepco.
 THERMAL_RAW_DIR = DATA_DIR / "raw"
 THERMAL_INTERIM_DIR = DATA_DIR / "interim"
 PROCESSED_DIR = DATA_DIR / "processed"

@@ -48,7 +48,7 @@ ENRICHMENT_SOURCES = [
 ]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "eastwest_power"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "kepco_subsidiaries" / "eastwest_power"
 
 SECRET_QUERY_KEYS = {"servicekey", "service_key", "apikey", "api_key", "key"}
 

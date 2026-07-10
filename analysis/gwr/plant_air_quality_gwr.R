@@ -1,7 +1,7 @@
 #!/usr/bin/env Rscript
 # Descriptive spatial association analysis; this is not a causal or dispersion model.
 source(file.path("analysis", "R", "paths.R"))
-source(project_path("analysis", "R", "gwr_helpers.R"))
+source(project_path("analysis", "gwr", "gwr_helpers.R"))
 
 config <- list(
   minimum_monitor_months = 9L, minimum_monthly_hour_share = 0.75,

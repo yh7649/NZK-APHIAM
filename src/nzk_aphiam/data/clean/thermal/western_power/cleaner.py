@@ -30,12 +30,18 @@ from nzk_aphiam.data.clean.thermal.technology import apply_technology_mapping
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_INPUT_PATH = (
-    PROJECT_ROOT / "data" / "raw" / "western_power" / "western_power_air_pollutants_generation.csv"
+    PROJECT_ROOT
+    / "data"
+    / "raw"
+    / "kepco_subsidiaries"
+    / "western_power"
+    / "western_power_air_pollutants_generation.csv"
 )
 DEFAULT_OUTPUT_PATH = (
     PROJECT_ROOT
     / "data"
     / "interim"
+    / "kepco_subsidiaries"
     / "western_power"
     / "western_power_monthly_generation_emissions.csv"
 )

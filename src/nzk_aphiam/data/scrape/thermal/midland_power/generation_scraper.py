@@ -40,7 +40,7 @@ DEFAULT_START_MONTH = "201201"
 DEFAULT_PER_PAGE = 1000
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "midland_power"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "kepco_subsidiaries" / "midland_power"
 
 SECRET_QUERY_KEYS = {"servicekey", "service_key", "apikey", "api_key", "key"}
 

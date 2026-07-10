@@ -2,7 +2,8 @@
 
 Plant coordinates and opening/closing dates cannot be derived from any
 subsidiary's generation/emissions API. They come from a teammate-supplied
-roster (`docs/references/province_level_power.xlsx`) plus official operator
+roster (`docs/references/province_level_power/province_level_power.xlsx`) plus
+official operator
 pages and mapped OpenStreetMap plant footprints. The hand-reviewed result and
 its evidence are recorded under `docs/references/crosswalk/`; the main
 `plant_location_dates.csv` file is the source of truth used by cleaners.

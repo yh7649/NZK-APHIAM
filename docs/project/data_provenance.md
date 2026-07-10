@@ -102,9 +102,9 @@ constant in Python.
 
 Plant coordinates and commissioning/retirement dates begin with a project
 teammate's secondary roster, preserved as received at
-`docs/references/province_level_power.xlsx` (provenance and known
-limitations documented beside it in
-`docs/references/province_level_power_README.md`). Because it is a
+`docs/references/province_level_power/province_level_power.xlsx` (provenance
+and known limitations documented beside it in
+`docs/references/province_level_power/README.md`). Because it is a
 teammate-compiled secondary dataset rather than an official source, it is
 used as supporting evidence: each KEPCO plant was matched to it by hand, and
 that matching is recorded with evidence in

@@ -34,7 +34,7 @@ subsidiary_csv <- kepco_processed_path(
 )
 
 figures_dir <- results_path("figures", "kepco_subsidiaries")
-tables_dir  <- results_path("tables", subsidiary_name)
+tables_dir  <- results_path("tables", "kepco_subsidiaries", subsidiary_name)
 objects_dir <- results_path("objects")
 models_dir  <- results_path("models")
 

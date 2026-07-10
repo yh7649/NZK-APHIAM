@@ -39,15 +39,26 @@ DEFAULT_FACILITY_INPUT_PATH = (
     / "midland_power_facility_air_status.csv"
 )
 DEFAULT_GENERATION_INPUT_PATH = (
-    PROJECT_ROOT / "data" / "raw" / "midland_power" / "midland_power_monthly_generation.csv"
+    PROJECT_ROOT
+    / "data"
+    / "raw"
+    / "kepco_subsidiaries"
+    / "midland_power"
+    / "midland_power_monthly_generation.csv"
 )
 DEFAULT_AGGREGATE_INPUT_PATH = (
-    PROJECT_ROOT / "data" / "raw" / "midland_power" / "midland_power_air_pollutant_emissions.csv"
+    PROJECT_ROOT
+    / "data"
+    / "raw"
+    / "kepco_subsidiaries"
+    / "midland_power"
+    / "midland_power_air_pollutant_emissions.csv"
 )
 DEFAULT_OUTPUT_PATH = (
     PROJECT_ROOT
     / "data"
     / "interim"
+    / "kepco_subsidiaries"
     / "midland_power"
     / "midland_power_monthly_derived_emissions.csv"
 )

@@ -36,7 +36,7 @@ requirements-all: requirements requirements-r
 ## Normalize hourly monitor pollution with rmweather
 .PHONY: ascm-normalize
 ascm-normalize:
-	Rscript analysis/R/synthetic_control/normalize_weather.R $(ASCM_INPUT) $(ASCM_HOURLY)
+	Rscript analysis/synthetic_control/normalize_weather.R $(ASCM_INPUT) $(ASCM_HOURLY)
 
 
 ## Screen donors and build the weekly synthetic-control panel
@@ -48,7 +48,7 @@ ascm-panel:
 ## Fit ridge-augmented synthetic control (one pollutant per event panel)
 .PHONY: ascm-estimate
 ascm-estimate:
-	Rscript analysis/R/synthetic_control/run_augsynth.R data/processed/synthetic_control/$(EVENT)_weekly.csv results/models/synthetic_control/$(EVENT)
+	Rscript analysis/synthetic_control/run_augsynth.R data/processed/synthetic_control/$(EVENT)_weekly.csv results/models/synthetic_control/$(EVENT)
 
 
 
@@ -296,11 +296,11 @@ scrape-thermal:
 .PHONY: track-kepco-snapshots
 track-kepco-snapshots:
 	$(DVC) add \
-		data/raw/eastwest_power \
-		data/raw/western_power \
-		data/raw/southern_power \
-		data/raw/southeast_power \
-		data/raw/midland_power
+		data/raw/kepco_subsidiaries/eastwest_power \
+		data/raw/kepco_subsidiaries/western_power \
+		data/raw/kepco_subsidiaries/southern_power \
+		data/raw/kepco_subsidiaries/southeast_power \
+		data/raw/kepco_subsidiaries/midland_power
 	@echo "Snapshots staged for git (review with 'git status', then commit)."
 	@echo "Run 'dvc push' once a remote is configured to share them."
 

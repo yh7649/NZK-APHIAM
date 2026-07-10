@@ -88,6 +88,7 @@ save_analysis_object <- function(object, filename) {
 
 save_model <- function(model, filename) {
   output_path <- file.path(models_dir, filename)
+  dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
   saveRDS(model, output_path)
   message("Saved model: ", output_path)
   invisible(output_path)
@@ -2346,7 +2347,7 @@ for (i in seq_len(nrow(pollutants))) {
 
     stub <- paste0(clean_filename(fuel), "_", pollutant)
     save_table(result$projection, paste0("projections/kepco_exponential_", stub, ".csv"))
-    save_model(result$model, paste0("kepco_exponential_", stub, ".rds"))
+    save_model(result$model, file.path("kepco", "projections", paste0("kepco_exponential_", stub, ".rds")))
     exponential_projection_summaries[[length(exponential_projection_summaries) + 1]] <-
       result$summary
   }

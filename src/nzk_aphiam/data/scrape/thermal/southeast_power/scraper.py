@@ -47,7 +47,7 @@ PLANT_CODES = {
 }
 
 PROJECT_ROOT = Path(__file__).resolve().parents[6]
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "southeast_power"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "kepco_subsidiaries" / "southeast_power"
 
 
 class FormFieldsParser(HTMLParser):

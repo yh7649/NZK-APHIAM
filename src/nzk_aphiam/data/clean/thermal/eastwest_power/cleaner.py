@@ -30,6 +30,7 @@ DEFAULT_OUTPUT_PATH = (
     PROJECT_ROOT
     / "data"
     / "interim"
+    / "kepco_subsidiaries"
     / "eastwest_power"
     / "eastwest_power_monthly_generation_emissions.csv"
 )
