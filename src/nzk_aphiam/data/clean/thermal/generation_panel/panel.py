@@ -64,6 +64,7 @@ DEFAULT_EW_INPUT = (
     PROJECT_ROOT
     / "data"
     / "raw"
+    / "kepco_subsidiaries"
     / "eastwest_power"
     / "eastwest_power_air_pollutants_generation.csv"
 )

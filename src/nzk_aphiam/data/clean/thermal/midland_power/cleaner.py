@@ -34,6 +34,7 @@ DEFAULT_FACILITY_INPUT_PATH = (
     PROJECT_ROOT
     / "data"
     / "raw"
+    / "kepco_subsidiaries"
     / "midland_power"
     / "facilities"
     / "midland_power_facility_air_status.csv"

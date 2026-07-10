@@ -34,6 +34,7 @@ DEFAULT_INPUT_PATH = (
     PROJECT_ROOT
     / "data"
     / "raw"
+    / "kepco_subsidiaries"
     / "southeast_power"
     / "southeast_power_daily_air_pollutant_emissions.csv"
 )

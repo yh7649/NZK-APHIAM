@@ -23,6 +23,7 @@ DEFAULT_INPUT_PATH = (
     PROJECT_ROOT
     / "data"
     / "raw"
+    / "kepco_subsidiaries"
     / "eastwest_power"
     / "eastwest_power_air_pollutants_generation.csv"
 )
