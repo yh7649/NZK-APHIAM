@@ -116,6 +116,17 @@ and date evidence are recorded row by row in
 `docs/references/crosswalk/plant_location_dates_official_evidence.csv`.
 Cleaners join against the main crosswalk file, not either source directly.
 
+Coal stack geometry is kept as a separate reference product for future
+dispersion-modeling consumers, not joined into the monthly KEPCO generation and
+emissions panel. The thin fact table is
+`docs/references/crosswalk/stack_properties.csv`; shared-stack unit links are
+recorded in `docs/references/crosswalk/stack_unit_map.csv`; source evidence is
+recorded in
+`docs/references/crosswalk/stack_properties_official_evidence.csv`. The source
+extractor is `src/nzk_aphiam/data/scrape/references/stack_properties.py`, which
+uses Appendix 2 of CREA's South Korea coal health-impact report for KEPCO coal
+units and marks plants absent from that appendix explicitly as unmatched.
+
 The cited web evidence is also preserved for offline review. Run
 `make archive-plant-location-references` to create an immutable dated snapshot
 under `data/raw/references/plant_location_dates/`. The archive contains the

@@ -25,6 +25,7 @@ dependencies = [
     "openpyxl",
     "pyarrow",
     "pyyaml",
+    "pypdf",
     "scikit-learn",
 ]
 
