@@ -36,6 +36,16 @@ save_table <- function(data, filename, row.names = FALSE, ...) {
   invisible(output_path)
 }
 
+flat_kepco_tables <- list.files(
+  tables_dir,
+  pattern = "^kepco_.*\\.(csv|xlsx)$",
+  full.names = TRUE
+)
+for (flat_kepco_table in flat_kepco_tables) {
+  unlink(flat_kepco_table)
+  message("Deleted superseded flat KEPCO table: ", flat_kepco_table)
+}
+
 save_figure <- function(
   filename,
   plot = NULL,
@@ -365,10 +375,10 @@ for (i in seq_len(nrow(pollutants))) {
   analysis_kepco[[ef_var]][analysis_kepco[[outlier_var]]] <- NA_real_
 }
 
-save_table(audit_exclusion_log, "kepco_audit_excluded.csv")
+save_table(audit_exclusion_log, file.path("audit", "kepco_audit_excluded.csv"))
 # Retain the historical filename for downstream code; its contents now use
 # the canonical audit exclusions rather than a separately computed R rule.
-save_table(audit_exclusion_log, "kepco_ef_outliers_removed.csv")
+save_table(audit_exclusion_log, file.path("audit", "kepco_ef_outliers_removed.csv"))
 
 summarize_vector <- function(x) {
   x <- x[!is.na(x)]
@@ -419,7 +429,7 @@ for (fuel_type in sort(unique(analysis_kepco$fuel_type_clean))) {
 }
 
 summary_by_fuel <- do.call(rbind, summary_rows)
-save_table(summary_by_fuel, "kepco_pollutant_summary_by_fuel.csv")
+save_table(summary_by_fuel, file.path("diagnostics", "kepco_pollutant_summary_by_fuel.csv"))
 
 coverage_by_plant_fuel <- aggregate(
   date ~ plant_name + fuel_type_clean,
@@ -430,7 +440,10 @@ coverage_by_plant_fuel <- aggregate(
   ],
   FUN = function(x) paste(min(x), max(x), sep = " to ")
 )
-save_table(coverage_by_plant_fuel, "kepco_ef_coverage_by_plant_fuel.csv")
+save_table(
+  coverage_by_plant_fuel,
+  file.path("diagnostics", "kepco_ef_coverage_by_plant_fuel.csv")
+)
 
 aggregate_ef <- function(data, group_vars, pollutant, min_coverage_pct = 0.5) {
   keep <- !is.na(data[[pollutant]]) &
@@ -621,7 +634,10 @@ for (fuel in sort(unique(generation_by_fuel$fuel_type_clean))) {
     window = 6
   )
 }
-save_table(generation_by_fuel, "kepco_fuel_type_monthly_generation_mwh.csv")
+save_table(
+  generation_by_fuel,
+  file.path("monthly", "fuel_type", "kepco_fuel_type_monthly_generation_mwh.csv")
+)
 
 if (nrow(generation_by_fuel) > 0) {
   output_path <- save_base_png(
@@ -688,7 +704,10 @@ for (i in seq_len(nrow(pollutants))) {
   fuel_time_series[[pollutants$pollutant[[i]]]] <- plot_data
   save_table(
     plot_data,
-    paste0("kepco_fuel_type_monthly_", pollutants$pollutant[[i]], "_ef.csv")
+    file.path(
+      "monthly", "fuel_type",
+      paste0("kepco_fuel_type_monthly_", pollutants$pollutant[[i]], "_ef.csv")
+    )
   )
 
   if (nrow(plot_data) == 0) {
@@ -802,7 +821,10 @@ for (i in seq_len(nrow(pollutants))) {
   }
   save_table(
     mass_data,
-    paste0("kepco_fuel_type_monthly_", pollutants$pollutant[[i]], "_emissions_kg.csv")
+    file.path(
+      "monthly", "fuel_type",
+      paste0("kepco_fuel_type_monthly_", pollutants$pollutant[[i]], "_emissions_kg.csv")
+    )
   )
 
   output_path <- save_base_png(
@@ -871,7 +893,10 @@ for (province in sort(unique(province_generation$plant_province))) {
     province_generation$energy_generated_mwh[idx], window = 6
   )
 }
-save_table(province_generation, "kepco_province_monthly_generation_mwh.csv")
+save_table(
+  province_generation,
+  file.path("monthly", "province", "kepco_province_monthly_generation_mwh.csv")
+)
 
 if (nrow(province_generation) > 0) {
   provinces <- sort(unique(province_generation$plant_province))
@@ -910,7 +935,10 @@ for (i in seq_len(nrow(pollutants))) {
   )
   save_table(
     province_ef,
-    paste0("kepco_province_monthly_", pollutants$pollutant[[i]], "_ef.csv")
+    file.path(
+      "monthly", "province",
+      paste0("kepco_province_monthly_", pollutants$pollutant[[i]], "_ef.csv")
+    )
   )
   if (nrow(province_ef) == 0) {
     next
@@ -978,7 +1006,10 @@ for (i in seq_len(nrow(pollutants))) {
   }
   save_table(
     province_mass,
-    paste0("kepco_province_monthly_", pollutants$pollutant[[i]], "_emissions_kg.csv")
+    file.path(
+      "monthly", "province",
+      paste0("kepco_province_monthly_", pollutants$pollutant[[i]], "_emissions_kg.csv")
+    )
   )
 
   output_path <- save_base_png(file.path(
@@ -1037,7 +1068,13 @@ build_province_breakdown <- function(group_var, output_stub, group_label) {
       generation$energy_generated_mwh[idx], window = 6
     )
   }
-  save_table(generation, paste0("kepco_", output_stub, "_monthly_generation_mwh.csv"))
+  save_table(
+    generation,
+    file.path(
+      "monthly", output_stub,
+      paste0("kepco_", output_stub, "_monthly_generation_mwh.csv")
+    )
+  )
 
   generation_plot <- ggplot(
     generation,
@@ -1061,7 +1098,10 @@ build_province_breakdown <- function(group_var, output_stub, group_label) {
     ef_data <- aggregate_ef(analysis_kepco, group_columns, pollutants$pollutant[[i]])
     save_table(
       ef_data,
-      paste0("kepco_", output_stub, "_monthly_", pollutants$pollutant[[i]], "_ef.csv")
+      file.path(
+        "monthly", output_stub,
+        paste0("kepco_", output_stub, "_monthly_", pollutants$pollutant[[i]], "_ef.csv")
+      )
     )
     if (nrow(ef_data) == 0) {
       next
@@ -1116,9 +1156,12 @@ build_province_breakdown <- function(group_var, output_stub, group_label) {
     }
     save_table(
       mass_data,
-      paste0(
-        "kepco_", output_stub, "_monthly_", pollutants$pollutant[[i]],
-        "_emissions_kg.csv"
+      file.path(
+        "monthly", output_stub,
+        paste0(
+          "kepco_", output_stub, "_monthly_", pollutants$pollutant[[i]],
+          "_emissions_kg.csv"
+        )
       )
     )
 
@@ -1213,6 +1256,7 @@ estimate_ef <- function(
 
   if (nrow(selected) == 0 || total_generation <= 0) return(NULL)
   months_covered <- length(unique(selected$date))
+  selected$obs_ef_kg_per_mwh <- selected[[pollutant]] / selected$energy_generated_mwh
 
   plant_emissions <- aggregate(
     selected[[pollutant]],
@@ -1260,7 +1304,11 @@ estimate_ef <- function(
       ) else "all",
       row.names = NULL
     ),
-    plants = plant_estimates[order(-plant_estimates$generation_weight), ]
+    plants = plant_estimates[order(-plant_estimates$generation_weight), ],
+    observations = selected[
+      order(selected$date, selected$plant_name),
+      c("date", "plant_name", "energy_generated_mwh", pollutant, "obs_ef_kg_per_mwh")
+    ]
   )
 }
 
@@ -1300,7 +1348,10 @@ for (i in seq_len(nrow(pollutants))) {
   }
 }
 ef_point_estimates <- do.call(rbind, point_estimate_rows)
-save_table(ef_point_estimates, "kepco_generation_weighted_ef_point_estimates.csv")
+save_table(
+  ef_point_estimates,
+  file.path("point_estimates", "kepco_generation_weighted_ef_point_estimates.csv")
+)
 
 overnight_ef_figure_data <- ef_point_estimates %>%
   filter(plant_province != "all") %>%
@@ -1368,130 +1419,820 @@ save_figure(
   height = 13
 )
 
-# Full-calendar-year EF estimates requested for 2021 and 2025. Each estimate
-# is for a pollutant x fuel type x technology cohort and is weighted by raw
-# electricity generation (equivalently, total emissions / total generation).
-annual_fuel_technology_ef_rows <- list()
-for (estimate_year in c(2021L, 2025L)) {
-  year_data <- analysis_kepco[analysis_kepco$year == estimate_year, ]
-  fuel_technologies <- unique(
-    year_data[c("fuel_type_clean", "technology")]
-  )
-  fuel_technologies <- fuel_technologies[complete.cases(fuel_technologies), ]
+# Full-calendar-year EF estimates by observed fuel x technology cohort. The
+# handoff tables intentionally keep only physically observed cohorts; they do
+# not complete a rectangular fuel-by-technology matrix.
+summarize_ef_distribution <- function(x) {
+  x <- x[!is.na(x)]
+  if (length(x) == 0) {
+    return(c(
+      n = 0, mean = NA, sd = NA, min = NA, p10 = NA, p25 = NA,
+      median = NA, p75 = NA, p90 = NA, max = NA, iqr = NA
+    ))
+  }
 
+  c(
+    n = length(x),
+    mean = mean(x),
+    sd = ifelse(length(x) > 1, sd(x), NA_real_),
+    min = min(x),
+    p10 = unname(quantile(x, 0.10)),
+    p25 = unname(quantile(x, 0.25)),
+    median = median(x),
+    p75 = unname(quantile(x, 0.75)),
+    p90 = unname(quantile(x, 0.90)),
+    max = max(x),
+    iqr = unname(IQR(x))
+  )
+}
+
+annual_fuel_technology_distribution_rows <- function(
+  data,
+  estimate_year,
+  province_level = FALSE
+) {
+  year_data <- data[data$year == estimate_year, , drop = FALSE]
+  group_vars <- c(if (province_level) "plant_province", "fuel_type_clean", "technology")
+  cohorts <- unique(year_data[group_vars])
+  cohorts <- cohorts[complete.cases(cohorts), , drop = FALSE]
+  cohorts <- cohorts[do.call(order, cohorts), , drop = FALSE]
+
+  rows <- list()
   for (i in seq_len(nrow(pollutants))) {
     pollutant <- pollutants$pollutant[[i]]
-    for (j in seq_len(nrow(fuel_technologies))) {
+    pollutant_label <- pollutants$label[[i]]
+    for (j in seq_len(nrow(cohorts))) {
+      filters <- as.list(cohorts[j, , drop = FALSE])
       result <- estimate_ef(
-        analysis_kepco,
+        data,
         pollutant,
-        filters = list(
-          fuel_type_clean = fuel_technologies$fuel_type_clean[[j]],
-          technology = fuel_technologies$technology[[j]]
-        ),
+        filters = filters,
         start_date = as.Date(sprintf("%d-01-01", estimate_year)),
         end_date = as.Date(sprintf("%d-12-31", estimate_year))
       )
-      if (!is.null(result)) {
-        row <- result$estimate
-        row$year <- estimate_year
-        row$fuel_type <- fuel_technologies$fuel_type_clean[[j]]
-        row$technology <- fuel_technologies$technology[[j]]
-        annual_fuel_technology_ef_rows[[
-          length(annual_fuel_technology_ef_rows) + 1
-        ]] <- row
+      if (is.null(result)) {
+        next
       }
+
+      plant_distribution <- summarize_ef_distribution(result$plants$plant_ef_kg_per_mwh)
+      monthly_distribution <- summarize_ef_distribution(
+        result$observations$obs_ef_kg_per_mwh
+      )
+      row <- cbind(
+        data.frame(
+          year = estimate_year,
+          cohorts[j, , drop = FALSE],
+          pollutant = pollutant,
+          pollutant_label = pollutant_label,
+          row.names = NULL,
+          check.names = FALSE
+        ),
+        data.frame(
+          ef_kg_per_mwh = result$estimate$ef_kg_per_mwh,
+          plant_ef_mean_kg_per_mwh = plant_distribution[["mean"]],
+          plant_ef_sd_kg_per_mwh = plant_distribution[["sd"]],
+          plant_ef_min_kg_per_mwh = plant_distribution[["min"]],
+          plant_ef_p10_kg_per_mwh = plant_distribution[["p10"]],
+          plant_ef_p25_kg_per_mwh = plant_distribution[["p25"]],
+          plant_ef_median_kg_per_mwh = plant_distribution[["median"]],
+          plant_ef_p75_kg_per_mwh = plant_distribution[["p75"]],
+          plant_ef_p90_kg_per_mwh = plant_distribution[["p90"]],
+          plant_ef_max_kg_per_mwh = plant_distribution[["max"]],
+          plant_ef_iqr_kg_per_mwh = plant_distribution[["iqr"]],
+          monthly_ef_mean_kg_per_mwh = monthly_distribution[["mean"]],
+          monthly_ef_sd_kg_per_mwh = monthly_distribution[["sd"]],
+          monthly_ef_min_kg_per_mwh = monthly_distribution[["min"]],
+          monthly_ef_p10_kg_per_mwh = monthly_distribution[["p10"]],
+          monthly_ef_p25_kg_per_mwh = monthly_distribution[["p25"]],
+          monthly_ef_median_kg_per_mwh = monthly_distribution[["median"]],
+          monthly_ef_p75_kg_per_mwh = monthly_distribution[["p75"]],
+          monthly_ef_p90_kg_per_mwh = monthly_distribution[["p90"]],
+          monthly_ef_max_kg_per_mwh = monthly_distribution[["max"]],
+          monthly_ef_iqr_kg_per_mwh = monthly_distribution[["iqr"]],
+          plant_count = result$estimate$plant_count,
+          plant_month_count = monthly_distribution[["n"]],
+          valid_generation_mwh = result$estimate$valid_generation_mwh,
+          generation_coverage_pct = result$estimate$generation_coverage_pct,
+          months_covered = result$estimate$months_covered,
+          start_date = result$estimate$start_date,
+          end_date = result$estimate$end_date,
+          row.names = NULL,
+          check.names = FALSE
+        )
+      )
+      rows[[length(rows) + 1]] <- row
     }
   }
+
+  if (length(rows) == 0) {
+    return(data.frame())
+  }
+
+  do.call(rbind, rows) %>%
+    arrange(across(all_of(c("year", group_vars, "pollutant"))))
 }
 
-annual_fuel_technology_ef <- do.call(rbind, annual_fuel_technology_ef_rows) %>%
-  select(
-    year, pollutant, fuel_type, technology, ef_kg_per_mwh, plant_count,
-    valid_generation_mwh, generation_coverage_pct, months_covered,
-    start_date, end_date
-  ) %>%
-  arrange(year, pollutant, fuel_type, technology)
+format_fuel_technology_handoff_table <- function(data, province_level = FALSE) {
+  if (nrow(data) == 0) {
+    return(data.frame())
+  }
 
-save_table(
-  annual_fuel_technology_ef,
-  "kepco_2021_2025_generation_weighted_ef_by_fuel_technology.csv"
+  id_cols <- c("year", if (province_level) "plant_province", "fuel_type_clean", "technology")
+  data %>%
+    select(
+      all_of(id_cols), pollutant,
+      ef_kg_per_mwh, plant_ef_mean_kg_per_mwh, plant_ef_sd_kg_per_mwh,
+      plant_ef_min_kg_per_mwh, plant_ef_p10_kg_per_mwh,
+      plant_ef_p25_kg_per_mwh, plant_ef_median_kg_per_mwh,
+      plant_ef_p75_kg_per_mwh, plant_ef_p90_kg_per_mwh,
+      plant_ef_max_kg_per_mwh, plant_ef_iqr_kg_per_mwh,
+      monthly_ef_mean_kg_per_mwh, monthly_ef_sd_kg_per_mwh,
+      monthly_ef_min_kg_per_mwh, monthly_ef_p10_kg_per_mwh,
+      monthly_ef_p25_kg_per_mwh, monthly_ef_median_kg_per_mwh,
+      monthly_ef_p75_kg_per_mwh, monthly_ef_p90_kg_per_mwh,
+      monthly_ef_max_kg_per_mwh, monthly_ef_iqr_kg_per_mwh,
+      plant_count, plant_month_count, valid_generation_mwh, generation_coverage_pct,
+      months_covered, start_date, end_date
+    ) %>%
+    pivot_wider(
+      id_cols = all_of(id_cols),
+      names_from = pollutant,
+      values_from = c(
+        ef_kg_per_mwh, plant_ef_mean_kg_per_mwh, plant_ef_sd_kg_per_mwh,
+        plant_ef_min_kg_per_mwh, plant_ef_p10_kg_per_mwh,
+        plant_ef_p25_kg_per_mwh, plant_ef_median_kg_per_mwh,
+        plant_ef_p75_kg_per_mwh, plant_ef_p90_kg_per_mwh,
+        plant_ef_max_kg_per_mwh, plant_ef_iqr_kg_per_mwh,
+        monthly_ef_mean_kg_per_mwh, monthly_ef_sd_kg_per_mwh,
+        monthly_ef_min_kg_per_mwh, monthly_ef_p10_kg_per_mwh,
+        monthly_ef_p25_kg_per_mwh, monthly_ef_median_kg_per_mwh,
+        monthly_ef_p75_kg_per_mwh, monthly_ef_p90_kg_per_mwh,
+        monthly_ef_max_kg_per_mwh, monthly_ef_iqr_kg_per_mwh,
+        plant_count, plant_month_count, valid_generation_mwh, generation_coverage_pct,
+        months_covered, start_date, end_date
+      ),
+      names_glue = "{pollutant}_{.value}"
+    ) %>%
+    select(
+      all_of(id_cols),
+      starts_with("nox_"),
+      starts_with("sox_"),
+      starts_with("dust_tsp_")
+    ) %>%
+    arrange(across(all_of(id_cols)))
+}
+
+annual_years <- sort(unique(analysis_kepco$year[!is.na(analysis_kepco$year)]))
+annual_fuel_technology_ef <- do.call(
+  rbind,
+  lapply(annual_years, function(estimate_year) {
+    annual_fuel_technology_distribution_rows(
+      data = analysis_kepco,
+      estimate_year = estimate_year,
+      province_level = FALSE
+    )
+  })
+)
+annual_province_fuel_technology_ef <- do.call(
+  rbind,
+  lapply(annual_years, function(estimate_year) {
+    annual_fuel_technology_distribution_rows(
+      data = analysis_kepco,
+      estimate_year = estimate_year,
+      province_level = TRUE
+    )
+  })
 )
 
-for (estimate_year in c(2021L, 2025L)) {
-  annual_ef_figure_data <- annual_fuel_technology_ef %>%
-    filter(year == estimate_year) %>%
+annual_fuel_technology_handoff <- format_fuel_technology_handoff_table(
+  annual_fuel_technology_ef,
+  province_level = FALSE
+)
+annual_province_fuel_technology_handoff <- format_fuel_technology_handoff_table(
+  annual_province_fuel_technology_ef,
+  province_level = TRUE
+)
+
+format_ef_cell <- function(weighted, median, p10, p90) {
+  if (is.na(weighted)) {
+    return("")
+  }
+  if (is.na(median) || is.na(p10) || is.na(p90)) {
+    return(sprintf("%.3f", weighted))
+  }
+  sprintf("%.3f\nmed %.3f\n[%.3f, %.3f]", weighted, median, p10, p90)
+}
+
+format_editable_fuel_technology_table <- function(data, province_level = FALSE) {
+  if (nrow(data) == 0) {
+    return(data.frame())
+  }
+
+  id_cols <- c("year", if (province_level) "plant_province", "fuel_technology")
+  table_data <- data %>%
     mutate(
-      pollutant = factor(
-        pollutant,
-        levels = c("nox", "sox", "dust_tsp"),
-        labels = c("NOx", "SOx", "TSP")
+      fuel_type_label = gsub("_", " ", fuel_type_clean),
+      technology_label = gsub("_", " ", technology),
+      fuel_technology = paste(fuel_type_label, technology_label, sep = " / "),
+      ef_cell = mapply(
+        format_ef_cell,
+        ef_kg_per_mwh,
+        monthly_ef_median_kg_per_mwh,
+        monthly_ef_p10_kg_per_mwh,
+        monthly_ef_p90_kg_per_mwh,
+        USE.NAMES = FALSE
       ),
-      fuel_type = gsub("_", " ", fuel_type),
-      technology = gsub("_", " ", technology),
-      cell_label = ifelse(
-        ef_kg_per_mwh >= 0.01,
-        sprintf("%.3f", ef_kg_per_mwh),
-        sprintf("%.4f", ef_kg_per_mwh)
-      )
+      plant_record_cell = ifelse(
+        is.na(plant_count),
+        "",
+        paste0(plant_count, " / ", plant_month_count)
+      ),
+      coverage_cell = ifelse(
+        is.na(generation_coverage_pct),
+        "",
+        percent(generation_coverage_pct, accuracy = 1)
+      ),
+      months_cell = ifelse(is.na(months_covered), "", as.character(months_covered))
     ) %>%
-    complete(
-      pollutant,
-      technology,
-      fuel_type,
-      fill = list(cell_label = "—")
+    select(
+      all_of(id_cols), pollutant,
+      ef_cell, plant_record_cell, coverage_cell, months_cell
     )
 
-  annual_ef_table_figure <- ggplot(
-    annual_ef_figure_data,
-    aes(x = fuel_type, y = technology)
-  ) +
-    geom_tile(aes(fill = ef_kg_per_mwh), color = "white", linewidth = 0.8) +
-    geom_text(aes(label = cell_label), size = 3.3, color = "#17202A") +
-    facet_grid(pollutant ~ ., scales = "free_y", space = "free_y") +
-    scale_fill_gradient(
-      low = "#F4F9FD",
-      high = "#2878B5",
-      na.value = "#F2F2F2",
-      name = "kg/MWh"
+  wide <- table_data %>%
+    pivot_wider(
+      id_cols = all_of(id_cols),
+      names_from = pollutant,
+      values_from = c(ef_cell, plant_record_cell, coverage_cell, months_cell),
+      names_glue = "{pollutant}_{.value}"
+    ) %>%
+    arrange(across(all_of(id_cols)))
+
+  expected_columns <- c(
+    "nox_ef_cell", "sox_ef_cell", "dust_tsp_ef_cell",
+    "nox_plant_record_cell", "sox_plant_record_cell",
+    "dust_tsp_plant_record_cell",
+    "nox_coverage_cell", "sox_coverage_cell", "dust_tsp_coverage_cell",
+    "nox_months_cell", "sox_months_cell", "dust_tsp_months_cell"
+  )
+  for (column in expected_columns) {
+    if (!column %in% names(wide)) {
+      wide[[column]] <- ""
+    }
+    wide[[column]][is.na(wide[[column]])] <- ""
+  }
+
+  combine_pollutant_cells <- function(nox, sox, tsp) {
+    paste0("NOx: ", nox, "\nSOx: ", sox, "\nTSP: ", tsp)
+  }
+
+  display <- data.frame(
+    year = wide$year,
+    fuel_technology = wide$fuel_technology,
+    nox_kg_per_mwh = wide$nox_ef_cell,
+    sox_kg_per_mwh = wide$sox_ef_cell,
+    tsp_kg_per_mwh = wide$dust_tsp_ef_cell,
+    plants_records = combine_pollutant_cells(
+      wide$nox_plant_record_cell,
+      wide$sox_plant_record_cell,
+      wide$dust_tsp_plant_record_cell
+    ),
+    generation_coverage = combine_pollutant_cells(
+      wide$nox_coverage_cell,
+      wide$sox_coverage_cell,
+      wide$dust_tsp_coverage_cell
+    ),
+    months_covered = combine_pollutant_cells(
+      wide$nox_months_cell,
+      wide$sox_months_cell,
+      wide$dust_tsp_months_cell
+    ),
+    stringsAsFactors = FALSE
+  )
+
+  if (province_level) {
+    display <- cbind(
+      display["year"],
+      data.frame(plant_province = wide$plant_province, stringsAsFactors = FALSE),
+      display[names(display) != "year"]
+    )
+  }
+
+  display
+}
+
+save_table(
+  annual_fuel_technology_handoff,
+  file.path("annual_handoff", "kepco_annual_ef_handoff_by_fuel_technology.csv")
+)
+save_table(
+  annual_province_fuel_technology_handoff,
+  file.path(
+    "annual_handoff",
+    "kepco_annual_ef_handoff_by_province_fuel_technology.csv"
+  )
+)
+save_table(
+  annual_fuel_technology_ef,
+  file.path("annual_handoff", "kepco_annual_ef_distribution_long_by_fuel_technology.csv")
+)
+save_table(
+  annual_province_fuel_technology_ef,
+  file.path(
+    "annual_handoff",
+    "kepco_annual_ef_distribution_long_by_province_fuel_technology.csv"
+  )
+)
+save_table(
+  format_editable_fuel_technology_table(
+    annual_fuel_technology_ef,
+    province_level = FALSE
+  ),
+  file.path("annual_handoff", "kepco_annual_ef_editable_by_fuel_technology.csv")
+)
+save_table(
+  format_editable_fuel_technology_table(
+    annual_province_fuel_technology_ef,
+    province_level = TRUE
+  ),
+  file.path(
+    "annual_handoff",
+    "kepco_annual_ef_editable_by_province_fuel_technology.csv"
+  )
+)
+
+python_executable <- Sys.which("python")
+if (nzchar(python_executable)) {
+  workbook_status <- system2(
+    python_executable,
+    c("-m", "nzk_aphiam.data.export.kepco_handoff_workbook"),
+    env = c("PYTHONPATH=src"),
+    stdout = TRUE,
+    stderr = TRUE
+  )
+  if (!is.null(attr(workbook_status, "status"))) {
+    warning(
+      "Could not write editable KEPCO Excel workbook:\n",
+      paste(workbook_status, collapse = "\n"),
+      call. = FALSE
+    )
+  } else {
+    message("Saved workbook: ", tail(workbook_status, 1))
+  }
+} else {
+  warning("Python executable not found; skipping editable KEPCO Excel workbook.", call. = FALSE)
+}
+
+old_matrix_table <- file.path(
+  tables_dir, "annual_handoff",
+  "kepco_2021_2025_generation_weighted_ef_by_fuel_technology.csv"
+)
+if (file.exists(old_matrix_table)) {
+  unlink(old_matrix_table)
+  message("Deleted superseded matrix table: ", old_matrix_table)
+}
+
+old_matrix_figures <- file.path(
+  figures_dir,
+  "kepco", "fuel_technology_year",
+  paste0("kepco_", annual_years, "_fuel_technology_ef.png")
+)
+for (old_matrix_figure in old_matrix_figures[file.exists(old_matrix_figures)]) {
+  unlink(old_matrix_figure)
+  message("Deleted superseded matrix figure: ", old_matrix_figure)
+}
+
+flat_annual_figure_dir <- file.path(figures_dir, "kepco", "fuel_technology_year")
+flat_annual_figures <- list.files(
+  flat_annual_figure_dir,
+  pattern = "^kepco_[0-9]{4}_.*fuel_technology.*\\.png$",
+  full.names = TRUE
+)
+for (flat_annual_figure in flat_annual_figures) {
+  unlink(flat_annual_figure)
+  message("Deleted superseded flat annual figure: ", flat_annual_figure)
+}
+
+flat_table_dir <- file.path(flat_annual_figure_dir, "tables")
+if (dir.exists(flat_table_dir)) {
+  unlink(flat_table_dir, recursive = TRUE)
+  message("Deleted superseded flat annual table directory: ", flat_table_dir)
+}
+
+wrap_table_text <- function(x, width = 26) {
+  vapply(
+    x,
+    function(value) paste(strwrap(value, width = width), collapse = "\n"),
+    character(1)
+  )
+}
+
+plot_fuel_technology_table <- function(data, estimate_year, province_level = FALSE) {
+  table_data <- data %>%
+    filter(year == estimate_year) %>%
+    mutate(
+      fuel_type_label = gsub("_", " ", fuel_type_clean),
+      technology_label = gsub("_", " ", technology),
+      cohort_label = paste(fuel_type_label, technology_label, sep = "\n"),
+      ef_cell = mapply(
+        format_ef_cell,
+        ef_kg_per_mwh,
+        monthly_ef_median_kg_per_mwh,
+        monthly_ef_p10_kg_per_mwh,
+        monthly_ef_p90_kg_per_mwh,
+        USE.NAMES = FALSE
+      ),
+      plant_cell = ifelse(
+        is.na(plant_count),
+        "",
+        paste0(plant_count, " / ", plant_month_count)
+      ),
+      coverage_cell = ifelse(
+        is.na(generation_coverage_pct),
+        "",
+        percent(generation_coverage_pct, accuracy = 1)
+      )
+    )
+
+  wide <- table_data %>%
+    select(
+      all_of(c(if (province_level) "plant_province", "cohort_label")),
+      pollutant, ef_cell, plant_cell, coverage_cell
+    ) %>%
+    pivot_wider(
+      id_cols = all_of(c(if (province_level) "plant_province", "cohort_label")),
+      names_from = pollutant,
+      values_from = c(ef_cell, plant_cell, coverage_cell),
+      names_glue = "{pollutant}_{.value}"
+    ) %>%
+    arrange(across(all_of(c(if (province_level) "plant_province", "cohort_label"))))
+
+  expected_columns <- c(
+    "nox_ef_cell", "sox_ef_cell", "dust_tsp_ef_cell",
+    "nox_plant_cell", "sox_plant_cell", "dust_tsp_plant_cell",
+    "nox_coverage_cell", "sox_coverage_cell", "dust_tsp_coverage_cell"
+  )
+  for (column in expected_columns) {
+    if (!column %in% names(wide)) {
+      wide[[column]] <- ""
+    }
+    wide[[column]][is.na(wide[[column]])] <- ""
+  }
+
+  if (province_level) {
+    display <- data.frame(
+      province = wrap_table_text(wide$plant_province, width = 16),
+      cohort = wrap_table_text(wide$cohort_label, width = 22),
+      nox = wide$nox_ef_cell,
+      sox = wide$sox_ef_cell,
+      tsp = wide$dust_tsp_ef_cell,
+      plant_n = paste(wide$nox_plant_cell, wide$sox_plant_cell, wide$dust_tsp_plant_cell, sep = "\n"),
+      coverage = paste(
+        wide$nox_coverage_cell, wide$sox_coverage_cell, wide$dust_tsp_coverage_cell,
+        sep = "\n"
+      ),
+      stringsAsFactors = FALSE
+    )
+    names(display) <- c(
+      "Province",
+      "Fuel / tech",
+      "NOx\nkg/MWh",
+      "SOx\nkg/MWh",
+      "TSP\nkg/MWh",
+      "Plants / records\nNOx SOx TSP",
+      "Gen. coverage\nNOx SOx TSP"
+    )
+  } else {
+    display <- data.frame(
+      cohort = wrap_table_text(wide$cohort_label, width = 24),
+      nox = wide$nox_ef_cell,
+      sox = wide$sox_ef_cell,
+      tsp = wide$dust_tsp_ef_cell,
+      plant_n = paste(wide$nox_plant_cell, wide$sox_plant_cell, wide$dust_tsp_plant_cell, sep = "\n"),
+      coverage = paste(
+        wide$nox_coverage_cell, wide$sox_coverage_cell, wide$dust_tsp_coverage_cell,
+        sep = "\n"
+      ),
+      stringsAsFactors = FALSE
+    )
+    names(display) <- c(
+      "Fuel / tech",
+      "NOx\nkg/MWh",
+      "SOx\nkg/MWh",
+      "TSP\nkg/MWh",
+      "Plants / records\nNOx SOx TSP",
+      "Gen. coverage\nNOx SOx TSP"
+    )
+  }
+
+  table_values <- rbind(names(display), as.matrix(display))
+  row_count <- nrow(table_values)
+  col_count <- ncol(table_values)
+  col_widths <- if (province_level) {
+    c(2.4, 3.2, 2.5, 2.5, 2.5, 2.2, 2.4)
+  } else {
+    c(3.4, 2.5, 2.5, 2.5, 2.2, 2.4)
+  }
+  x_min <- cumsum(c(0, head(col_widths, -1)))
+  x_max <- cumsum(col_widths)
+  row_y <- rev(seq_len(row_count))
+
+  cell_grid <- expand.grid(row = seq_len(row_count), col = seq_len(col_count))
+  cell_grid$label <- as.vector(table_values)
+  cell_grid$xmin <- x_min[cell_grid$col]
+  cell_grid$xmax <- x_max[cell_grid$col]
+  cell_grid$y <- row_y[cell_grid$row]
+  cell_grid$is_header <- cell_grid$row == 1
+  cell_grid$fill <- ifelse(
+    cell_grid$is_header,
+    "#D9EAF7",
+    ifelse(cell_grid$row %% 2 == 0, "#FFFFFF", "#F6F8FA")
+  )
+  cell_grid$text_color <- ifelse(cell_grid$is_header, "#102A43", "#17202A")
+  cell_grid$fontface <- ifelse(cell_grid$is_header, "bold", "plain")
+  cell_grid$hjust <- ifelse(
+    cell_grid$col <= ifelse(province_level, 2, 1),
+    0,
+    0.5
+  )
+  cell_grid$text_x <- ifelse(
+    cell_grid$col <= ifelse(province_level, 2, 1),
+    cell_grid$xmin + 0.08,
+    (cell_grid$xmin + cell_grid$xmax) / 2
+  )
+
+  title <- paste0(
+    estimate_year,
+    ifelse(province_level, " provincial", " national"),
+    " emission factors by observed fuel and technology"
+  )
+  subtitle <- paste0(
+    "Pollutant cells show generation-weighted EF, monthly median, and monthly p10-p90 in brackets; ",
+    "blank cells mean no usable pollutant data for that observed cohort."
+  )
+
+  ggplot(cell_grid) +
+    geom_rect(
+      aes(xmin = xmin, xmax = xmax, ymin = y - 0.5, ymax = y + 0.5, fill = fill),
+      color = "#D0D7DE",
+      linewidth = 0.25
     ) +
+    geom_text(
+      aes(
+        x = text_x, y = y, label = label, hjust = hjust,
+        color = text_color, fontface = fontface
+      ),
+      size = ifelse(province_level, 2.35, 2.7),
+      lineheight = 0.92
+    ) +
+    scale_fill_identity() +
+    scale_color_identity() +
+    coord_cartesian(
+      xlim = c(0, sum(col_widths)),
+      ylim = c(0.45, row_count + 0.55),
+      expand = FALSE,
+      clip = "off"
+    ) +
+    labs(title = title, subtitle = subtitle, x = NULL, y = NULL) +
+    theme_void(base_size = 10) +
+    theme(
+      plot.title = element_text(face = "bold", size = 15, color = "#102A43"),
+      plot.subtitle = element_text(size = 9, color = "#4D4D4D", margin = margin(b = 8)),
+      plot.margin = margin(14, 14, 14, 14)
+    )
+}
+
+plot_fuel_technology_distribution <- function(data, estimate_year, province_level = FALSE) {
+  figure_data <- data %>%
+    filter(year == estimate_year) %>%
+    mutate(
+      pollutant_label = factor(pollutant_label, levels = c("NOx", "SOx", "TSP")),
+      fuel_type_label = gsub("_", " ", fuel_type_clean),
+      technology_label = gsub("_", " ", technology),
+      cohort_label = paste(fuel_type_label, technology_label, sep = " | ")
+    )
+
+  if (province_level) {
+    figure_data <- figure_data %>%
+      mutate(cohort_label = paste(plant_province, cohort_label, sep = " | "))
+  }
+
+  ggplot(
+    figure_data,
+    aes(
+      x = ef_kg_per_mwh,
+      y = reorder(cohort_label, ef_kg_per_mwh),
+      color = fuel_type_label
+    )
+  ) +
+    geom_linerange(
+      aes(xmin = plant_ef_min_kg_per_mwh, xmax = plant_ef_max_kg_per_mwh),
+      alpha = 0.45,
+      linewidth = 0.7,
+      na.rm = TRUE
+    ) +
+    geom_point(aes(x = plant_ef_median_kg_per_mwh), shape = 21, fill = "white", size = 2) +
+    geom_point(size = 2.6, na.rm = TRUE) +
+    facet_wrap(~pollutant_label, scales = "free_x") +
+    scale_x_continuous(labels = label_number(accuracy = 0.001)) +
     labs(
       title = paste0(
         estimate_year,
-        " emission factors by fuel type and generation technology"
+        if (province_level) " provincial" else " national",
+        " EF distributions by observed fuel and technology"
       ),
       subtitle = paste0(
-        "Generation-weighted estimates for January–December ",
-        estimate_year,
-        "; — indicates insufficient data"
+        "Line = plant-level min to max; open point = plant median; ",
+        "filled point = generation-weighted cohort EF"
       ),
-      x = "Fuel type",
+      x = "Emission factor, kg/MWh",
       y = NULL,
-      caption = paste0(
-        "Values are kilograms of pollutant per MWh of electricity generated. ",
-        "Weights are each plant's raw generation within the cohort and year."
-      )
+      color = "Fuel type",
+      caption = "Rows are only observed fuel + technology cohorts; no unobserved matrix cells are created."
     ) +
-    theme_minimal(base_size = 11) +
+    theme_minimal(base_size = 10) +
     theme(
-      panel.grid = element_blank(),
-      axis.text.x = element_text(angle = 35, hjust = 1),
-      axis.text.y = element_text(size = 9),
-      strip.text.y = element_text(face = "bold", angle = 0),
-      strip.background = element_rect(fill = "#EAF2F8", color = NA),
-      plot.title = element_text(face = "bold", size = 15),
-      plot.subtitle = element_text(color = "#4D4D4D"),
-      legend.position = "right"
+      legend.position = "bottom",
+      panel.grid.minor = element_blank(),
+      strip.text = element_text(face = "bold"),
+      plot.title = element_text(face = "bold", size = 14),
+      axis.text.y = element_text(size = 7)
+    )
+}
+
+plot_fuel_technology_monthly_distribution <- function(
+  data,
+  estimate_year,
+  province_level = FALSE
+) {
+  figure_data <- data %>%
+    filter(year == estimate_year) %>%
+    mutate(
+      pollutant_label = factor(pollutant_label, levels = c("NOx", "SOx", "TSP")),
+      fuel_type_label = gsub("_", " ", fuel_type_clean),
+      technology_label = gsub("_", " ", technology),
+      cohort_label = paste(fuel_type_label, technology_label, sep = " | ")
     )
 
+  if (province_level) {
+    figure_data <- figure_data %>%
+      mutate(cohort_label = paste(plant_province, cohort_label, sep = " | "))
+  }
+
+  ggplot(
+    figure_data,
+    aes(
+      x = ef_kg_per_mwh,
+      y = reorder(cohort_label, ef_kg_per_mwh),
+      color = fuel_type_label
+    )
+  ) +
+    geom_linerange(
+      aes(xmin = monthly_ef_p10_kg_per_mwh, xmax = monthly_ef_p90_kg_per_mwh),
+      alpha = 0.28,
+      linewidth = 1.0,
+      na.rm = TRUE
+    ) +
+    geom_linerange(
+      aes(xmin = monthly_ef_p25_kg_per_mwh, xmax = monthly_ef_p75_kg_per_mwh),
+      alpha = 0.70,
+      linewidth = 2.0,
+      na.rm = TRUE
+    ) +
+    geom_point(aes(x = monthly_ef_median_kg_per_mwh), shape = 21, fill = "white", size = 2) +
+    geom_point(size = 2.6, na.rm = TRUE) +
+    facet_wrap(~pollutant_label, scales = "free_x") +
+    scale_x_continuous(labels = label_number(accuracy = 0.001)) +
+    labs(
+      title = paste0(
+        estimate_year,
+        if (province_level) " provincial" else " national",
+        " monthly EF distributions by observed fuel and technology"
+      ),
+      subtitle = paste0(
+        "Thin line = monthly p10-p90; thick line = monthly p25-p75; ",
+        "open point = monthly median; filled point = generation-weighted annual EF"
+      ),
+      x = "Emission factor, kg/MWh",
+      y = NULL,
+      color = "Fuel type",
+      caption = "Monthly ranges summarize plant-month EF observations within physically observed cohorts."
+    ) +
+    theme_minimal(base_size = 10) +
+    theme(
+      legend.position = "bottom",
+      panel.grid.minor = element_blank(),
+      strip.text = element_text(face = "bold"),
+      plot.title = element_text(face = "bold", size = 14),
+      axis.text.y = element_text(size = 7)
+    )
+}
+
+for (estimate_year in annual_years) {
+  annual_figure_dir <- file.path(
+    "kepco", "fuel_technology_year", paste0("year=", estimate_year)
+  )
+
+  national_table <- plot_fuel_technology_table(
+    annual_fuel_technology_ef,
+    estimate_year,
+    province_level = FALSE
+  )
+  national_table_rows <- nrow(unique(
+    annual_fuel_technology_ef[
+      annual_fuel_technology_ef$year == estimate_year,
+      c("fuel_type_clean", "technology")
+    ]
+  ))
   save_figure(
     file.path(
-      "kepco", "fuel_technology_year",
-      paste0("kepco_", estimate_year, "_fuel_technology_ef.png")
+      annual_figure_dir,
+      "kepco_fuel_technology_ef_table.png"
     ),
-    annual_ef_table_figure,
+    national_table,
+    width = 15.5,
+    height = max(5.5, 1.8 + 0.55 * national_table_rows)
+  )
+
+  provincial_table <- plot_fuel_technology_table(
+    annual_province_fuel_technology_ef,
+    estimate_year,
+    province_level = TRUE
+  )
+  provincial_table_rows <- nrow(unique(
+    annual_province_fuel_technology_ef[
+      annual_province_fuel_technology_ef$year == estimate_year,
+      c("plant_province", "fuel_type_clean", "technology")
+    ]
+  ))
+  save_figure(
+    file.path(
+      annual_figure_dir,
+      "kepco_province_fuel_technology_ef_table.png"
+    ),
+    provincial_table,
+    width = 18.5,
+    height = max(6.5, 1.8 + 0.55 * provincial_table_rows)
+  )
+
+  national_plot <- plot_fuel_technology_distribution(
+    annual_fuel_technology_ef,
+    estimate_year,
+    province_level = FALSE
+  )
+  save_figure(
+    file.path(
+      annual_figure_dir,
+      "kepco_fuel_technology_ef_distribution.png"
+    ),
+    national_plot,
     width = 13,
-    height = 13
+    height = 8
+  )
+
+  national_monthly_plot <- plot_fuel_technology_monthly_distribution(
+    annual_fuel_technology_ef,
+    estimate_year,
+    province_level = FALSE
+  )
+  save_figure(
+    file.path(
+      annual_figure_dir,
+      "kepco_fuel_technology_monthly_ef_distribution.png"
+    ),
+    national_monthly_plot,
+    width = 13,
+    height = 8
+  )
+
+  provincial_plot <- plot_fuel_technology_distribution(
+    annual_province_fuel_technology_ef,
+    estimate_year,
+    province_level = TRUE
+  )
+  save_figure(
+    file.path(
+      annual_figure_dir,
+      "kepco_province_fuel_technology_ef_distribution.png"
+    ),
+    provincial_plot,
+    width = 14,
+    height = 12
+  )
+
+  provincial_monthly_plot <- plot_fuel_technology_monthly_distribution(
+    annual_province_fuel_technology_ef,
+    estimate_year,
+    province_level = TRUE
+  )
+  save_figure(
+    file.path(
+      annual_figure_dir,
+      "kepco_province_fuel_technology_monthly_ef_distribution.png"
+    ),
+    provincial_monthly_plot,
+    width = 14,
+    height = 12
   )
 }
 
@@ -1614,7 +2355,7 @@ if (length(exponential_projection_summaries) > 0) {
   exponential_projection_summary <- do.call(rbind, exponential_projection_summaries)
   save_table(
     exponential_projection_summary,
-    "kepco_exponential_projection_summary.csv"
+    file.path("projections", "kepco_exponential_projection_summary.csv")
   )
 }
 
@@ -1775,7 +2516,10 @@ fit_break_projection <- function(
   projection_table$break_date <- break_date
   save_table(
     projection_table,
-    paste0("kepco_projection_", output_stub, "_", clean_filename(label), ".csv")
+    file.path(
+      "projections", "break_plateau",
+      paste0("kepco_projection_", output_stub, "_", clean_filename(label), ".csv")
+    )
   )
 
   data.frame(
@@ -1854,7 +2598,10 @@ for (i in seq_len(nrow(pollutants))) {
 }
 
 projection_summary <- do.call(rbind, projection_summaries)
-save_table(projection_summary, "kepco_break_projection_summary.csv")
+save_table(
+  projection_summary,
+  file.path("projections", "break_plateau", "kepco_break_projection_summary.csv")
+)
 
 } # end paused EF projection block
 
