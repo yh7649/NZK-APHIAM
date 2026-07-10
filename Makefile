@@ -164,6 +164,23 @@ scrape-khnp-generation:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.khnp --overwrite
 
 
+## Download CAPSS detailed annual emissions statistics workbooks
+.PHONY: scrape-capss-emissions
+scrape-capss-emissions:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.capss
+
+
+## Parse CAPSS detailed emissions workbooks into tidy long-form Parquet
+.PHONY: process-capss-emissions
+process-capss-emissions:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.capss
+
+
+## Download and parse CAPSS detailed annual emissions statistics
+.PHONY: build-capss-emissions
+build-capss-emissions: scrape-capss-emissions process-capss-emissions
+
+
 ## Build, audit, and merge per-subsidiary KEPCO monthly datasets (pollutant mass in kilograms)
 .PHONY: combine-kepco
 combine-kepco:

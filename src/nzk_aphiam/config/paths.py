@@ -37,3 +37,8 @@ WEATHER_PROCESSED_DIR = PROCESSED_DIR / "weather" / "kma"
 AIRKOREA_RAW_DIR = DATA_DIR / "raw" / "airkorea"
 AIRKOREA_STATION_RAW_DIR = AIRKOREA_RAW_DIR / "stations"
 AIRKOREA_INTERIM_DIR = DATA_DIR / "interim" / "air_quality"
+
+# CAPSS national air pollutant emissions inventory workbooks and normalized
+# long-form emissions tables.
+CAPSS_RAW_DIR = DATA_DIR / "raw" / "capss"
+CAPSS_INTERIM_DIR = DATA_DIR / "interim" / "capss"

@@ -26,6 +26,7 @@ from hashlib import sha256
 import json
 import os
 from pathlib import Path
+import re
 from typing import Any, Callable
 
 from dotenv import load_dotenv
@@ -39,6 +40,26 @@ PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "health" / "kosis"
 DEFAULT_START_YEAR = 2001
 DEFAULT_END_YEAR = 2024
+SINGLE_YEAR_AGE_BATCHES = (
+    "0401+0402+0403+0404+0405",
+    "0501+0502+0503+0504+0505",
+    "0701+0702+0703+0704+0705",
+    "1001+1002+1003+1004+1005",
+    "1201+1202+1203+1204+1205",
+    "1301+1302+1303+1304+1305",
+    "1501+1502+1503+1504+1505",
+    "1601+1602+1603+1604+1605",
+    "1801+1802+1803+1804+1805",
+    "1901+1902+1903+1904+1905",
+    "2101+2102+2103+2104+2105",
+    "2301+2302+2303+2304+2305",
+    "2601+2602+2603+2604+2605",
+    "2801+2802+2803+2804+2805",
+    "3101+3102+3103+3104+3105",
+    "3301+3302+3303+3304+3305",
+    "3601+3602+3603+3604+3605+3801+3802+3803+3804+3805+"
+    "4101+4102+4103+4104+4105+4301+4302+4303+4304+4305+440",
+)
 
 
 @dataclass(frozen=True)
@@ -55,6 +76,7 @@ class Dataset:
     dimensions: tuple[str, ...]
     output_columns: tuple[str, ...]
     normalizer: Callable[[dict[str, Any]], dict[str, Any]]
+    postprocessor: Callable[[list[dict[str, Any]]], list[dict[str, Any]]] | None = None
     chunk_months: int = 2
     last_year: int | None = None
 
@@ -204,6 +226,120 @@ def normalize_population(record: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def age_band_from_single_year(age_label: str, *, terminal_age: int = 80) -> str | None:
+    """Map KOSIS single-year age labels to standard five-year bands."""
+    if age_label == "계":
+        return None
+    match = re.match(r"(\d+)세", age_label.replace(" ", ""))
+    if not match:
+        return None
+    age = int(match.group(1))
+    if age >= terminal_age:
+        return f"{terminal_age}+"
+    lower = age - (age % 5)
+    return f"{lower}-{lower + 4}"
+
+
+def age_band_from_group_label(age_label: str, *, terminal_age: int = 80) -> str | None:
+    """Map KOSIS age-group labels to project five-year bands."""
+    label = age_label.replace(" ", "")
+    if label == "계" or "미상" in label:
+        return None
+    if "이상" in label:
+        match = re.match(r"(\d+)세이상", label)
+        if not match:
+            return None
+        age = int(match.group(1))
+        return f"{terminal_age}+" if age >= terminal_age else f"{age}+"
+    match = re.match(r"(\d+)-(\d+)세", label)
+    if match:
+        lower = int(match.group(1))
+        if lower < 5:
+            return "0-4"
+        if lower >= terminal_age:
+            return f"{terminal_age}+"
+        return f"{lower}-{min(int(match.group(2)), terminal_age - 1)}"
+    match = re.match(r"(\d+)세", label)
+    if match:
+        age = int(match.group(1))
+        if age >= terminal_age:
+            return f"{terminal_age}+"
+        lower = age - (age % 5)
+        return f"{lower}-{lower + 4}"
+    return None
+
+
+def sex_from_population_item(item_id: str, item_name: str) -> tuple[str, str]:
+    """Convert DT_1B04006 item IDs into sex-category fields."""
+    mapping = {
+        "T2": ("0", "계"),
+        "T3": ("1", "남자"),
+        "T4": ("2", "여자"),
+    }
+    return mapping.get(item_id, (item_id, item_name))
+
+
+def normalize_age_population(record: dict[str, Any]) -> dict[str, Any]:
+    period = str(record["PRD_DE"])
+    item_id = str(record["ITM_ID"])
+    sex_code, sex = sex_from_population_item(item_id, str(record["ITM_NM"]))
+    code = str(record["C1"])
+    age = str(record["C2_NM"])
+    row = {
+        "district_code": code,
+        "district_name": record["C1_NM"],
+        "geography_level": geography_level(code, str(record["C1_NM"])),
+        "year": int(period[:4]),
+        "sex_code": sex_code,
+        "sex": sex,
+        "age_code": str(record["C2"]),
+        "age": age,
+        "age_band": age_band_from_single_year(age),
+        "population": parse_integer(record.get("DT")),
+        "unit": record.get("UNIT_NM", "명"),
+    }
+    if len(period) > 4:
+        row["month"] = int(period[4:6])
+    return row
+
+
+def normalize_age_mortality(record: dict[str, Any]) -> dict[str, Any]:
+    code = str(record["C3"])
+    return {
+        "district_code": code,
+        "district_name": record["C3_NM"],
+        "geography_level": geography_level(code, str(record["C3_NM"])),
+        "year": int(str(record["PRD_DE"])[:4]),
+        "sex_code": str(record["C1"]),
+        "sex": record["C1_NM"],
+        "age_code": str(record["C2"]),
+        "age": record["C2_NM"],
+        "age_band": age_band_from_group_label(str(record["C2_NM"])),
+        "measure_code": str(record["ITM_ID"]),
+        "measure": clean_kosis_label(record["ITM_NM"]),
+        "value": parse_number(record.get("DT")),
+        "unit": record.get("UNIT_NM", ""),
+    }
+
+
+def normalize_age_population_projection(record: dict[str, Any]) -> dict[str, Any]:
+    code = str(record["C1"])
+    age = clean_kosis_label(record["ITM_NM"])
+    return {
+        "district_code": code,
+        "district_name": record["C1_NM"],
+        "geography_level": geography_level(code, str(record["C1_NM"])),
+        "year": int(str(record["PRD_DE"])[:4]),
+        "sex_code": str(record["C2"]),
+        "sex": record["C2_NM"],
+        "age_code": str(record["ITM_ID"]),
+        "age": age,
+        "age_band": age_band_from_group_label(age),
+        "population_projected": parse_integer(record.get("DT")),
+        "unit": record.get("UNIT_NM", "명"),
+    }
+
+
 def normalize_indicator(record: dict[str, Any]) -> dict[str, Any]:
     period = str(record["PRD_DE"])
     code = admin_code_from_record(record)
@@ -286,6 +422,128 @@ def normalize_classified_indicator(record: dict[str, Any]) -> dict[str, Any]:
     return row
 
 
+def aggregate_age_population(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Aggregate single-year KOSIS resident population rows into five-year bands."""
+    grouped: dict[tuple[Any, ...], dict[str, Any]] = {}
+    key_fields = [
+        "district_code",
+        "district_name",
+        "geography_level",
+        "year",
+        "sex_code",
+        "sex",
+        "age_band",
+        "unit",
+    ]
+    if rows and "month" in rows[0]:
+        key_fields.insert(4, "month")
+    for row in rows:
+        if row["age_band"] is None:
+            continue
+        key = tuple(row[field] for field in key_fields)
+        target = grouped.setdefault(
+            key,
+            {field: row[field] for field in key_fields} | {"population": 0},
+        )
+        if row["population"] is None or target["population"] is None:
+            target["population"] = None
+        else:
+            target["population"] += row["population"]
+    return list(grouped.values())
+
+
+def aggregate_age_population_projection(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Aggregate projection age groups into project-standard bands with 80+ open end."""
+    grouped: dict[tuple[Any, ...], dict[str, Any]] = {}
+    key_fields = (
+        "district_code",
+        "district_name",
+        "geography_level",
+        "year",
+        "sex_code",
+        "sex",
+        "age_band",
+        "unit",
+    )
+    for row in rows:
+        if row["age_band"] is None:
+            continue
+        key = tuple(row[field] for field in key_fields)
+        target = grouped.setdefault(
+            key,
+            {field: row[field] for field in key_fields} | {"population_projected": 0},
+        )
+        if row["population_projected"] is None or target["population_projected"] is None:
+            target["population_projected"] = None
+        else:
+            target["population_projected"] += row["population_projected"]
+    return list(grouped.values())
+
+
+def aggregate_age_mortality(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Aggregate age-specific deaths and derive 0-4 or 80+ mortality rates."""
+    grouped: dict[tuple[Any, ...], dict[str, Any]] = {}
+    deaths_by_source_age = {
+        (
+            row["district_code"],
+            row["year"],
+            row["sex_code"],
+            row["age_code"],
+        ): row["value"]
+        for row in rows
+        if row["measure_code"] == "T2"
+    }
+    key_fields = (
+        "district_code",
+        "district_name",
+        "geography_level",
+        "year",
+        "sex_code",
+        "sex",
+        "age_band",
+    )
+    for row in rows:
+        if row["age_band"] is None:
+            continue
+        key = tuple(row[field] for field in key_fields)
+        target = grouped.setdefault(
+            key,
+            {field: row[field] for field in key_fields}
+            | {
+                "deaths": 0,
+                "mortality_rate_per_100k": None,
+                "_rate_numerator": 0.0,
+                "_rate_denominator": 0.0,
+            },
+        )
+        value = row["value"]
+        if row["measure_code"] == "T2":
+            if value is None or target["deaths"] is None:
+                target["deaths"] = None
+            else:
+                target["deaths"] += int(value)
+        elif row["measure_code"] == "T4" and value is not None:
+            # KOSIS rates are per 100,000. Reconstruct a denominator for
+            # aggregate 0-4 and 80+ bands from each published sub-band.
+            deaths = deaths_by_source_age.get(
+                (row["district_code"], row["year"], row["sex_code"], row["age_code"])
+            )
+            if deaths is not None and value > 0:
+                target["_rate_numerator"] += deaths
+                target["_rate_denominator"] += deaths / value * 100000
+            elif deaths == 0:
+                target["_rate_denominator"] += 0
+
+    for target in grouped.values():
+        denominator = target.pop("_rate_denominator")
+        numerator = target.pop("_rate_numerator")
+        if denominator > 0:
+            target["mortality_rate_per_100k"] = numerator / denominator * 100000
+        elif target["deaths"] == 0:
+            target["mortality_rate_per_100k"] = 0.0
+    return list(grouped.values())
+
+
 DATASETS = {
     "monthly-deaths": Dataset(
         key="monthly-deaths",
@@ -355,6 +613,77 @@ DATASETS = {
             "unit",
         ),
         normalizer=normalize_population,
+    ),
+    "age-population": Dataset(
+        key="age-population",
+        org_id="101",
+        table_id="DT_1B04006",
+        title="KOSIS annual resident population by district, sex, and single-year age",
+        period="Y",
+        first_year=2008,
+        item_id="ALL",
+        dimensions=("ALL", "ALL"),
+        output_columns=(
+            "district_code",
+            "district_name",
+            "geography_level",
+            "year",
+            "sex_code",
+            "sex",
+            "age_band",
+            "population",
+            "unit",
+        ),
+        normalizer=normalize_age_population,
+        postprocessor=aggregate_age_population,
+        chunk_months=1,
+    ),
+    "age-mortality": Dataset(
+        key="age-mortality",
+        org_id="101",
+        table_id="DT_1B80A18",
+        title="KOSIS annual deaths and death rates by district, sex, and five-year age",
+        period="Y",
+        first_year=1997,
+        item_id="ALL",
+        dimensions=("ALL", "ALL", "ALL"),
+        output_columns=(
+            "district_code",
+            "district_name",
+            "geography_level",
+            "year",
+            "sex_code",
+            "sex",
+            "age_band",
+            "deaths",
+            "mortality_rate_per_100k",
+        ),
+        normalizer=normalize_age_mortality,
+        postprocessor=aggregate_age_mortality,
+    ),
+    "population-projection-age": Dataset(
+        key="population-projection-age",
+        org_id="101",
+        table_id="DT_1BPB002E",
+        title="KOSIS projected population by district, sex, and age group",
+        period="Y",
+        first_year=2022,
+        last_year=2042,
+        item_id="ALL",
+        dimensions=("ALL", "ALL"),
+        output_columns=(
+            "district_code",
+            "district_name",
+            "geography_level",
+            "year",
+            "sex_code",
+            "sex",
+            "age_band",
+            "population_projected",
+            "unit",
+        ),
+        normalizer=normalize_age_population_projection,
+        postprocessor=aggregate_age_population_projection,
     ),
     "aging": Dataset(
         key="aging",
@@ -683,6 +1012,7 @@ def build_params(
     start_period: str | None = None,
     end_period: str | None = None,
     dimensions: tuple[str, ...] | None = None,
+    item_id: str | None = None,
 ) -> dict[str, str]:
     """Build a documented KOSIS parameter-query request."""
     default_start = str(year) if dataset.period == "Y" else f"{year}01"
@@ -692,7 +1022,7 @@ def build_params(
         "apiKey": api_key,
         "orgId": dataset.org_id,
         "tblId": dataset.table_id,
-        "itmId": dataset.item_id,
+        "itmId": item_id or dataset.item_id,
         "prdSe": dataset.period,
         "startPrdDe": start_period or default_start,
         "endPrdDe": end_period or default_end,
@@ -717,6 +1047,12 @@ def validate_payload(payload: Any, dataset: Dataset, year: int) -> list[dict[str
     required = {"PRD_DE", "C1", "C1_NM", "DT"}
     if dataset.key == "cause-deaths":
         required.update({"C2", "C2_NM"})
+    if dataset.key == "age-population":
+        required.update({"C2", "C2_NM", "ITM_ID", "ITM_NM"})
+    if dataset.key == "age-mortality":
+        required.update({"C2", "C2_NM", "C3", "C3_NM", "ITM_ID", "ITM_NM"})
+    if dataset.key == "population-projection-age":
+        required.update({"C2", "C2_NM", "ITM_ID", "ITM_NM"})
     if dataset.key == "foreign-residents":
         required.update({"C2", "C2_NM", "C3", "C3_NM", "ITM_ID", "ITM_NM"})
     if dataset.normalizer in {normalize_indicator, normalize_classified_indicator}:
@@ -756,7 +1092,19 @@ def request_year(
 
     records: list[dict[str, Any]] = []
     try:
-        if dataset.period == "M":
+        if dataset.key == "age-population":
+            for age_batch in SINGLE_YEAR_AGE_BATCHES:
+                records.extend(
+                    request_chunk(
+                        build_params(
+                            dataset,
+                            year,
+                            api_key,
+                            dimensions=("ALL", age_batch),
+                        )
+                    )
+                )
+        elif dataset.period == "M":
             # KOSIS closes large responses; tables with multiple indicators
             # need one-month chunks while count-only tables fit two months.
             for first_month in range(1, 13, dataset.chunk_months):
@@ -794,6 +1142,18 @@ def request_year(
                             year,
                             api_key,
                             dimensions=(cause_batch, "ALL", "0"),
+                        )
+                    )
+                )
+        elif dataset.key == "age-mortality":
+            for sex_code in ("0", "1", "2"):
+                records.extend(
+                    request_chunk(
+                        build_params(
+                            dataset,
+                            year,
+                            api_key,
+                            dimensions=(sex_code, "ALL", "ALL"),
                         )
                     )
                 )
@@ -858,6 +1218,8 @@ def scrape_dataset(
             status = "downloaded"
 
         normalized = [dataset.normalizer(record) for record in payload]
+        if dataset.postprocessor:
+            normalized = dataset.postprocessor(normalized)
         rows.extend(normalized)
         files.append(
             {

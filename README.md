@@ -217,6 +217,23 @@ python -m nzk_aphiam.air_quality --years 2021 2022
 See [`docs/datasets/airkorea_hourly_qc.md`](docs/datasets/airkorea_hourly_qc.md)
 for the QC methodology, station-crosswalk logic, coverage, and output schema.
 
+## CAPSS Emissions Inventory
+
+Download Korea's CAPSS detailed emissions-statistics workbooks and parse them
+without aggregating away the native 시군구 × 배출원소분류 × 연료 granularity:
+
+```bash
+make scrape-capss-emissions PYTHON_INTERPRETER=.venv/bin/python
+make process-capss-emissions PYTHON_INTERPRETER=.venv/bin/python
+```
+
+Raw XLSX files are written under `data/raw/capss/emissions_statistics/`.
+Tidy long-form Parquet and metadata are written under
+`data/interim/capss/emissions_statistics/`. See
+[`docs/datasets/capss_emissions.md`](docs/datasets/capss_emissions.md) for
+coverage caveats, pollutant/unit checks, taxonomy-change flags, and validation
+source pages.
+
 ## KMA Weather and Dispersion Features
 
 Create a KMA API Hub account, activate the ASOS, radiosonde, radiosonde

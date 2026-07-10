@@ -20,6 +20,9 @@ converting the source data permanently to rates.
 | Monthly all-cause deaths | `DT_1B82A01` | Monthly | 2001–2024 | 89,892 | geography × month × selected sex category |
 | Cause-specific deaths | `DT_1B34E13` | Annual | 2001–2024 | 386,672 | geography × year × cause × selected sex category |
 | Resident population | `DT_1B040A3` | Monthly | 2011–2024 | 47,661 | geography × month × selected sex category |
+| Resident population by age | `DT_1B04006` | Annual | 2008–2024 | 245,310 | geography × year × sex × five-year age band |
+| All-cause mortality by age | `DT_1B80A18` | Annual | 2001–2024 | 383,265 | geography × year × sex × five-year age band |
+| Projected population by age | `DT_1BPB002E` | Annual | 2022–2042 | 236,691 | geography × year × sex × five-year age band |
 | Aged population indicators | `DT_1YL20631` | Monthly | monthly API available from 2008 | 150,966 | geography × month × indicator |
 | Sex-ratio indicators | `DT_1YL20701` | Monthly | monthly API available from 2008 | 150,966 | geography × month × indicator |
 | Foreign-resident composition | `TX_11025_A001_A` | Annual | available from 2015 | 86,402 | geography × year × resident category × sex |
@@ -40,6 +43,11 @@ project snapshot starts in 2001 to align with the AirKorea analysis window.
 Although the population table advertises older annual history, its monthly API
 series returns no data before 2011.
 
+The age-stratified resident population table `DT_1B04006` publishes single-year
+ages. The collector pulls those single-year rows and bins them to `0-4`,
+`5-9`, ..., `80+`. KOSIS district population projections in `DT_1BPB002E`
+currently end in 2042, so they do not support a district-level 2050+ horizon.
+
 ## Files
 
 ```text
@@ -54,6 +62,15 @@ data/raw/health/kosis/
 ├── population/
 │   ├── population.csv
 │   └── raw/DT_1B040A3_<year>.json
+├── age_population/
+│   ├── age_population.csv
+│   └── raw/DT_1B04006_<year>.json
+├── age_mortality/
+│   ├── age_mortality.csv
+│   └── raw/DT_1B80A18_<year>.json
+├── population_projection_age/
+│   ├── population_projection_age.csv
+│   └── raw/DT_1BPB002E_<year>.json
 ├── aging/
 │   ├── aging.csv
 │   └── raw/DT_1YL20631_<year>.json
@@ -89,6 +106,9 @@ Current normalized-file checksums:
 | `monthly_deaths/monthly_deaths.csv` | `f96974d5bd32484055e8c21b21aff4f56acf99e8c00dadf89aa5431f140228ad` |
 | `cause_deaths/cause_deaths.csv` | `7e96cc7618fdaf8b1bc37348f1ee01e6ef0ee71f0a7f3d20b8b901455ffdf24c` |
 | `population/population.csv` | `e3ccee16403d078465273465017855fe5a774b856f6580993995e3becebce0b8` |
+| `age_population/age_population.csv` | `5b443285172939fb7db1db884c4d96fd8a347fb8b99fa9ef9650c9b532dd9612` |
+| `age_mortality/age_mortality.csv` | `7f7fc038faedb6aa561f9c9e8b007931d7f246afec45bf5756af74a9a576709d` |
+| `population_projection_age/population_projection_age.csv` | `0d9a21c2645b5f21323d461e010041cb4be037d4f8dfb36634014aa15f1ed3f0` |
 
 ## Data dictionary
 
@@ -115,6 +135,13 @@ Dataset-specific fields:
 | Cause deaths | `deaths` | Death count for the cause group. |
 | Population | `month` | Calendar month, 1–12. |
 | Population | `population` | Resident population count. |
+| Age population | `age_band` | Project-standard five-year age band: `0-4`, `5-9`, ..., `80+`. |
+| Age population | `population` | Resident population count after summing KOSIS single-year ages into the age band. |
+| Age mortality | `age_band` | Project-standard five-year age band: `0-4`, `5-9`, ..., `80+`. |
+| Age mortality | `deaths` | All-cause death count. |
+| Age mortality | `mortality_rate_per_100k` | All-cause death rate per 100,000. The `0-4` and `80+` rates are recomputed from KOSIS sub-band deaths and rates. |
+| Population projection by age | `age_band` | Project-standard five-year age band: `0-4`, `5-9`, ..., `80+`. |
+| Population projection by age | `population_projected` | Projected resident population count after summing KOSIS 80+ sub-bands. |
 | Indicator files | `indicator_code` | KOSIS item code. |
 | Indicator files | `indicator` | KOSIS item label with HTML breaks removed. |
 | Indicator files | `value` | Numeric KOSIS value; counts and percentages are both retained as published. |
@@ -147,6 +174,14 @@ normalized to blank CSV cells, not zero.
 - Monthly mortality is all-cause. Public district-level cause-specific
   mortality in this collection is annual, so it cannot support monthly
   cause-specific inference.
+- The collector found an all-cause district × sex × five-year-age mortality
+  table (`DT_1B80A18`). It did not find a public KOSIS table that jointly
+  publishes cause × district × age; using national or province age-cause
+  structures for districts would be a methodological approximation that should
+  be documented separately.
+- District-level KOSIS population projections by age (`DT_1BPB002E`) cover
+  2022–2042. A 2050+ aging decomposition would need another projection source
+  or an explicitly documented extrapolation.
 - KOSIS does not publish race in the US Census sense. The foreign-resident
   composition table is an aggregate nationality/migration-status proxy, not a
   race measure.
