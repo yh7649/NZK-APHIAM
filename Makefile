@@ -181,6 +181,24 @@ process-capss-emissions:
 build-capss-emissions: scrape-capss-emissions process-capss-emissions
 
 
+MACRO_ACTIVITY ?= data/raw/macro/gcam_kaist_sector_fuel_activity.csv
+MACRO_MAPPING ?=
+MACRO_BASE_YEAR ?=
+MACRO_SCENARIO_COLUMNS ?= scenario
+MACRO_POLLUTANTS ?= SOx,NOx,NH3,VOCs,PM2.5
+
+
+## Integrate GCAM-KAIST/MACRO sector-fuel activity with CAPSS emission intensities
+.PHONY: integrate-macro-inputs
+integrate-macro-inputs:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.macro \
+		--gcam-activity $(MACRO_ACTIVITY) \
+		$(if $(MACRO_MAPPING),--mapping $(MACRO_MAPPING),) \
+		$(if $(MACRO_BASE_YEAR),--base-year $(MACRO_BASE_YEAR),) \
+		--scenario-columns $(MACRO_SCENARIO_COLUMNS) \
+		--pollutants $(MACRO_POLLUTANTS)
+
+
 ## Build, audit, and merge per-subsidiary KEPCO monthly datasets (pollutant mass in kilograms)
 .PHONY: combine-kepco
 combine-kepco:

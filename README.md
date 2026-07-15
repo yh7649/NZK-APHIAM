@@ -234,6 +234,22 @@ Tidy long-form Parquet and metadata are written under
 coverage caveats, pollutant/unit checks, taxonomy-change flags, and validation
 source pages.
 
+## MACRO/GCAM-KAIST Activity Integration
+
+GCAM-KAIST supplies sector-by-fuel activity rather than pollutant emissions.
+Combine it with CAPSS base-year sector-by-fuel pollutant intensities with:
+
+```bash
+make integrate-macro-inputs \
+  MACRO_ACTIVITY=data/raw/macro/gcam_kaist_sector_fuel_activity.csv \
+  MACRO_MAPPING=docs/references/macro/gcam_capss_sector_fuel_mapping.csv \
+  MACRO_BASE_YEAR=2023
+```
+
+Projected emissions, emission factors, diagnostics, and metadata are written
+under `data/processed/macro/`. See
+[`docs/datasets/macro_input_integration.md`](docs/datasets/macro_input_integration.md).
+
 ## KMA Weather and Dispersion Features
 
 Create a KMA API Hub account, activate the ASOS, radiosonde, radiosonde

@@ -42,3 +42,8 @@ AIRKOREA_INTERIM_DIR = DATA_DIR / "interim" / "air_quality"
 # long-form emissions tables.
 CAPSS_RAW_DIR = DATA_DIR / "raw" / "capss"
 CAPSS_INTERIM_DIR = DATA_DIR / "interim" / "capss"
+
+# MACRO/GCAM-KAIST integration products built from externally supplied
+# activity tables and CAPSS historical emissions intensities.
+MACRO_RAW_DIR = DATA_DIR / "raw" / "macro"
+MACRO_PROCESSED_DIR = PROCESSED_DIR / "macro"
