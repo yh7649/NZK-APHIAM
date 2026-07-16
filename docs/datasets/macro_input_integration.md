@@ -68,3 +68,64 @@ GCAM activity, and missing or zero base-year activity denominators.
 
 Default pollutants are `SOx`, `NOx`, `NH3`, `VOCs`, and `PM2.5`. Override with
 `--pollutants` or `MACRO_POLLUTANTS` when building broader inventories.
+
+## 2021 KEPCO EF back-cast validation
+
+The historical validation workflow is separate from the generic MACRO/CAPSS
+intensity integrator. It tests:
+
+```text
+KEPCO-derived 2021 emission factor
+× MACRO-reported 2021 generation
+= modeled 2021 pollutant emissions
+```
+
+and compares the modeled values with the CAPSS public-plus-private national
+power-sector actuals by aligned fuel, official CAPSS technology, and pollutant.
+It uses the generation-weighted KEPCO EF field `ef_kg_per_mwh`; it does not use
+plant-level arithmetic means and does not calculate EFs from CAPSS.
+
+Run after supplying the MACRO generation file:
+
+```bash
+make validate-macro-2021-kepco-ef \
+  MACRO_GENERATION=data/raw/macro/<team-supplied-generation-file>.csv
+```
+
+or directly:
+
+```bash
+PYTHONPATH=src python -m nzk_aphiam.integration.macro_kepco_validation \
+  --year 2021 \
+  --kepco-ef results/tables/kepco/annual_handoff/kepco_annual_ef_distribution_long_by_fuel_technology.csv \
+  --macro-generation data/raw/macro/<team-supplied-generation-file>.csv \
+  --capss-actual data/processed/capss/power_fuel_technology_2016_2023.parquet \
+  --crosswalk docs/references/macro/macro_kepco_capss_power_crosswalk.csv
+```
+
+The crosswalk is version controlled at:
+
+- `docs/references/macro/macro_kepco_capss_power_crosswalk.csv`
+
+Only rows marked `exact` or `documented_proxy` enter the primary comparison.
+Rows marked `unresolved` or `excluded` are preserved in diagnostics. This is
+important because MACRO generation technologies, KEPCO plant technologies, and
+CAPSS combustion-equipment categories are not identical ontologies.
+
+Outputs are:
+
+- `data/processed/macro/macro_2021_kepco_ef_modeled_emissions_by_province.csv`
+- `data/processed/macro/macro_2021_kepco_ef_modeled_emissions_by_province.parquet`
+- `results/tables/macro/macro_2021_kepco_ef_vs_capss_actual.csv`
+- `results/tables/macro/macro_2021_kepco_ef_vs_capss_summary.csv`
+- `results/diagnostics/macro/macro_2021_unmapped_generation.csv`
+- `results/diagnostics/macro/macro_2021_missing_kepco_ef.csv`
+- `results/diagnostics/macro/macro_2021_missing_capss_actual.csv`
+- `results/diagnostics/macro/macro_2021_duplicate_crosswalk_matches.csv`
+- `results/diagnostics/macro/macro_2021_validation_coverage.csv`
+- `results/diagnostics/macro/macro_2021_validation_metadata.json`
+- `results/figures/macro/validation_2021/`
+
+Interpret discrepancies as uncalibrated validation evidence. At minimum, review
+EF transfer error, classification mismatch, generation mismatch, and inventory-
+method mismatch before considering any EF calibration.

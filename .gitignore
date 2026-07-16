@@ -222,6 +222,9 @@ results/models/*
 # Generated analysis tables
 results/tables/
 
+# Generated analysis diagnostics
+results/diagnostics/
+
 # PyPI configuration file
 .pypirc
 

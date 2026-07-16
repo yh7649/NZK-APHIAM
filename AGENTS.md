@@ -10,3 +10,5 @@ Follow these repo-specific conventions before considering any task complete:
 - When touching DVC or new raw snapshot directories, make sure `.gitignore` permits the relevant `.dvc` pointer files, following the existing `!/data/raw/*.dvc` pattern.
 - Label paused/inactive work consistently. For annual non-KEPCO panel work, use `[PAUSED: annual non-KEPCO panel]` in Makefile targets and related docs.
 - Keep docs in sync with structure changes. If adding a top-level directory, update the root `README.md` project tree. If adding docs under `docs/`, link them from a discoverable location.
+
+Research progress and the Huang & Peng (2025) replication gap analysis are tracked in [`docs/project/progress.md`](docs/project/progress.md) — update it as the pipeline evolves rather than pasting progress reports into this file.

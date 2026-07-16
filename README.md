@@ -225,6 +225,7 @@ without aggregating away the native 시군구 × 배출원소분류 × 연료 gr
 ```bash
 make scrape-capss-emissions PYTHON_INTERPRETER=.venv/bin/python
 make process-capss-emissions PYTHON_INTERPRETER=.venv/bin/python
+make export-capss-power-fuel-technology PYTHON_INTERPRETER=.venv/bin/python
 ```
 
 Raw XLSX files are written under `data/raw/capss/emissions_statistics/`.
@@ -233,6 +234,12 @@ Tidy long-form Parquet and metadata are written under
 [`docs/datasets/capss_emissions.md`](docs/datasets/capss_emissions.md) for
 coverage caveats, pollutant/unit checks, taxonomy-change flags, and validation
 source pages.
+
+The power-sector export filters CAPSS to `에너지산업 연소` and the public/private
+power-facility subcategories, then aggregates nationally by official CAPSS
+combustion equipment, major/minor fuel, and pollutant. It writes canonical
+2016--2023 tables under `data/processed/capss/` and a key validation table under
+`results/tables/capss/`.
 
 ## MACRO/GCAM-KAIST Activity Integration
 
@@ -249,6 +256,17 @@ make integrate-macro-inputs \
 Projected emissions, emission factors, diagnostics, and metadata are written
 under `data/processed/macro/`. See
 [`docs/datasets/macro_input_integration.md`](docs/datasets/macro_input_integration.md).
+
+For the separate 2021 historical validation of MACRO generation multiplied by
+KEPCO-derived EFs against CAPSS actual power-sector emissions, run:
+
+```bash
+make validate-macro-2021-kepco-ef \
+  MACRO_GENERATION=data/raw/macro/<team-supplied-generation-file>.csv
+```
+
+This workflow requires the externally supplied MACRO generation file; it does
+not substitute CAPSS-derived EFs when that file is absent.
 
 ## KMA Weather and Dispersion Features
 

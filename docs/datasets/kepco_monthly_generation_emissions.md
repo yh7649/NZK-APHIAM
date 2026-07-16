@@ -429,6 +429,29 @@ For a quick local summary, read the local current-values file that
 cat data/processed/kepco/README.md
 ```
 
+## External Emission-Factor Validation
+
+Once `data/processed/kepco/kepco_monthly_generation_emissions.csv` exists, run
+the offline plant-boundary validation workflow with:
+
+```bash
+make validate-kepco-emission-factors
+```
+
+This downstream workflow does not modify subsidiary scrapers, cleaners,
+processed monthly outputs, or audit results. It reads the processed KEPCO
+monthly file, applies the reviewed crosswalk in
+`docs/references/emission_factor_validation/`, and writes deterministic tables
+under `results/tables/kepco/emission_factor_validation/` plus SVG figures under
+`results/figures/kepco/emission_factor_validation/`.
+
+The primary direct numeric benchmark is Lee et al. (2025),
+`doi:10.5572/KOSAE.2025.41.6.976`, Table 1. That comparison is useful as an
+external data-pipeline validation, but it is not fully independent measurement
+evidence because the paper relies on CleanSYS TMS annual emissions and EPSIS
+annual generation. KEEI Table 3-17 is retained only as a historical
+company-origin combined `NOx+SOx+TSP` benchmark.
+
 ## Notes
 
 For the foreseeable future, analysis should prioritize this monthly KEPCO

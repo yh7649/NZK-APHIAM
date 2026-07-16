@@ -176,9 +176,17 @@ process-capss-emissions:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.capss
 
 
+## Export CAPSS power-sector fuel x official technology emissions tables
+.PHONY: export-capss-power-fuel-technology
+export-capss-power-fuel-technology: process-capss-emissions
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.capss_power_fuel_technology \
+		--start-year 2016 \
+		--end-year 2023
+
+
 ## Download and parse CAPSS detailed annual emissions statistics
 .PHONY: build-capss-emissions
-build-capss-emissions: scrape-capss-emissions process-capss-emissions
+build-capss-emissions: scrape-capss-emissions process-capss-emissions export-capss-power-fuel-technology
 
 
 MACRO_ACTIVITY ?= data/raw/macro/gcam_kaist_sector_fuel_activity.csv
@@ -186,6 +194,10 @@ MACRO_MAPPING ?=
 MACRO_BASE_YEAR ?=
 MACRO_SCENARIO_COLUMNS ?= scenario
 MACRO_POLLUTANTS ?= SOx,NOx,NH3,VOCs,PM2.5
+MACRO_GENERATION ?=
+KEPCO_EF ?= results/tables/kepco/annual_handoff/kepco_annual_ef_distribution_long_by_fuel_technology.csv
+CAPSS_POWER_ACTUAL ?= data/processed/capss/power_fuel_technology_2016_2023.parquet
+MACRO_KEPCO_CAPSS_CROSSWALK ?= docs/references/macro/macro_kepco_capss_power_crosswalk.csv
 
 
 ## Integrate GCAM-KAIST/MACRO sector-fuel activity with CAPSS emission intensities
@@ -197,6 +209,26 @@ integrate-macro-inputs:
 		$(if $(MACRO_BASE_YEAR),--base-year $(MACRO_BASE_YEAR),) \
 		--scenario-columns $(MACRO_SCENARIO_COLUMNS) \
 		--pollutants $(MACRO_POLLUTANTS)
+
+
+## Validate 2021 MACRO generation times KEPCO EFs against CAPSS actual power emissions
+.PHONY: validate-macro-2021-kepco-ef
+validate-macro-2021-kepco-ef: export-capss-power-fuel-technology
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.integration.macro_kepco_validation \
+		--year 2021 \
+		--kepco-ef $(KEPCO_EF) \
+		$(if $(MACRO_GENERATION),--macro-generation $(MACRO_GENERATION),) \
+		--capss-actual $(CAPSS_POWER_ACTUAL) \
+		--crosswalk $(MACRO_KEPCO_CAPSS_CROSSWALK)
+
+
+## Validate 2021 observed EPSIS generation times KEPCO EFs against CAPSS actual power emissions
+.PHONY: validate-epsis-2021-kepco-ef
+validate-epsis-2021-kepco-ef: export-capss-power-fuel-technology
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.integration.epsis_kepco_capss_validation \
+		--year 2021 \
+		--kepco-ef $(KEPCO_EF) \
+		--capss-actual $(CAPSS_POWER_ACTUAL)
 
 
 ## Build, audit, and merge per-subsidiary KEPCO monthly datasets (pollutant mass in kilograms)
@@ -232,6 +264,12 @@ map-gwr-plant-air-quality:
 .PHONY: audit-kepco
 audit-kepco:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.audit.thermal
+
+
+## Validate KEPCO plant emission factors against tracked external literature tables
+.PHONY: validate-kepco-emission-factors
+validate-kepco-emission-factors:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.validation.emission_factors
 
 
 ## Clean, standardize, audit, and merge every implemented KEPCO thermal subsidiary dataset
@@ -447,6 +485,32 @@ scrape-demographics:
 .PHONY: scrape-social-determinants
 scrape-social-determinants:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.health.kosis registered-disability health-insurance-population one-person-households one-person-households-age-sex migration old-housing vacant-housing longterm-care-facilities medical-coverage-seoul-incheon-gyeonggi-gangwon medical-coverage-daejeon-sejong-chungcheong medical-coverage-gwangju-jeolla-jeju medical-coverage-busan-daegu-ulsan-gyeongsang medical-institutions-seoul-incheon-gyeonggi-gangwon medical-institutions-daejeon-sejong-chungcheong medical-institutions-gwangju-jeolla-jeju medical-institutions-busan-daegu-ulsan-gyeongsang medical-workforce-seoul-incheon-gyeonggi-gangwon medical-workforce-daejeon-sejong-chungcheong medical-workforce-gwangju-jeolla-jeju medical-workforce-busan-daegu-ulsan-gyeongsang insurance-premiums-seoul-incheon-gyeonggi-gangwon insurance-premiums-daejeon-sejong-chungcheong insurance-premiums-gwangju-jeolla-jeju insurance-premiums-busan-daegu-ulsan-gyeongsang --start-year $(HEALTH_START_YEAR) --end-year $(HEALTH_END_YEAR)
+
+
+HEALTH_IMPACT_INPUT ?= data/processed/health/health_impact_input.csv
+HEALTH_IMPACT_OUTPUT ?= results/tables/health/attributable_deaths.csv
+HEALTH_IMPACT_CRF_ID ?= krewski_2009_acs_extended
+HEALTH_IMPACT_MODE ?= totals
+HEALTH_IMPACT_BASELINE_SCENARIO ?=
+HEALTH_IMPACT_COMPARISON_SCENARIO ?=
+
+
+## Compute PM2.5-attributable deaths from a tidy scenario CSV (see docs/methods/health_impact_assessment.md)
+.PHONY: health-impact
+health-impact:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.health \
+		--input $(HEALTH_IMPACT_INPUT) \
+		--output $(HEALTH_IMPACT_OUTPUT) \
+		--crf-id $(HEALTH_IMPACT_CRF_ID) \
+		--mode $(HEALTH_IMPACT_MODE) \
+		$(if $(HEALTH_IMPACT_BASELINE_SCENARIO),--baseline-scenario $(HEALTH_IMPACT_BASELINE_SCENARIO),) \
+		$(if $(HEALTH_IMPACT_COMPARISON_SCENARIO),--comparison-scenario $(HEALTH_IMPACT_COMPARISON_SCENARIO),)
+
+
+## Run health-impact assessment tests only (CRF, attributable deaths, decomposition)
+.PHONY: test-health
+test-health:
+	$(PYTHON_INTERPRETER) -m pytest tests/test_health_crf.py tests/test_health_impact.py tests/test_health_decomposition.py
 
 
 ## [PAUSED: annual non-KEPCO panel] Download ENV-INFO annual power-sector facility air pollutant emissions
