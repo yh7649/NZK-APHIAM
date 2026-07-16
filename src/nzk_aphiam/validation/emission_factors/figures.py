@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
+import subprocess
+from xml.sax.saxutils import escape
 
 import pandas as pd
 
@@ -160,3 +163,176 @@ def write_timeseries_svg(
             )
     parts.append("</svg>")
     output_path.write_text("\n".join(parts), encoding="utf-8")
+
+
+def write_comparison_table_images(
+    readable_comparison: pd.DataFrame,
+    readable_comparison_wide: pd.DataFrame,
+    output_dir: Path,
+) -> None:
+    """Write styled SVG and PNG table images for the readable EF comparisons."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    tidy = _format_tidy_table(readable_comparison)
+    wide = _format_wide_table(readable_comparison_wide)
+    for name, table, title in [
+        (
+            "ef_comparison_table",
+            tidy,
+            "KEPCO EF validation against Lee et al. (2025), by pollutant",
+        ),
+        (
+            "ef_comparison_wide_table",
+            wide,
+            "KEPCO EF validation against Lee et al. (2025), by plant",
+        ),
+    ]:
+        svg_path = output_dir / f"{name}.svg"
+        png_path = output_dir / f"{name}.png"
+        _write_table_svg(table, title, svg_path)
+        _convert_svg_to_png(svg_path, png_path)
+
+
+def _format_tidy_table(data: pd.DataFrame) -> pd.DataFrame:
+    columns = [
+        "plant",
+        "pollutant",
+        "other_source_ef_kg_per_mwh",
+        "hand_calculated_ef_kg_per_mwh",
+        "ef_percent_error",
+    ]
+    if data.empty:
+        return pd.DataFrame(columns=["Plant", "Pollutant", "Source EF", "Project EF", "Error"])
+    table = data[columns].copy()
+    table["other_source_ef_kg_per_mwh"] = table["other_source_ef_kg_per_mwh"].map(
+        lambda value: f"{value:.6f}"
+    )
+    table["hand_calculated_ef_kg_per_mwh"] = table["hand_calculated_ef_kg_per_mwh"].map(
+        lambda value: f"{value:.6f}"
+    )
+    table["ef_percent_error"] = table["ef_percent_error"].map(lambda value: f"{value:.2f}%")
+    return table.rename(
+        columns={
+            "plant": "Plant",
+            "pollutant": "Pollutant",
+            "other_source_ef_kg_per_mwh": "Source EF",
+            "hand_calculated_ef_kg_per_mwh": "Project EF",
+            "ef_percent_error": "Error",
+        }
+    )
+
+
+def _format_wide_table(data: pd.DataFrame) -> pd.DataFrame:
+    if data.empty:
+        return pd.DataFrame()
+    table = data.copy()
+    table = table.drop(columns=["source", "year"], errors="ignore")
+    rename = {
+        "plant": "Plant",
+        "nox_other_source_ef_kg_per_mwh": "NOx source",
+        "nox_hand_calculated_ef_kg_per_mwh": "NOx project",
+        "nox_percent_error": "NOx error",
+        "sox_other_source_ef_kg_per_mwh": "SOx source",
+        "sox_hand_calculated_ef_kg_per_mwh": "SOx project",
+        "sox_percent_error": "SOx error",
+        "tsp_other_source_ef_kg_per_mwh": "TSP source",
+        "tsp_hand_calculated_ef_kg_per_mwh": "TSP project",
+        "tsp_percent_error": "TSP error",
+        "combined_other_source_ef_kg_per_mwh": "Combined source",
+        "combined_hand_calculated_ef_kg_per_mwh": "Combined project",
+        "combined_percent_error": "Combined error",
+    }
+    table = table.rename(columns=rename)
+    for column in table.columns:
+        if column == "Plant":
+            continue
+        if column.endswith("error"):
+            table[column] = pd.to_numeric(table[column], errors="coerce").map(
+                lambda value: f"{value:.2f}%" if pd.notna(value) else ""
+            )
+        else:
+            table[column] = pd.to_numeric(table[column], errors="coerce").map(
+                lambda value: f"{value:.6f}" if pd.notna(value) else ""
+            )
+    return table
+
+
+def _write_table_svg(data: pd.DataFrame, title: str, output_path: Path) -> None:
+    columns = list(data.columns)
+    rows = data.fillna("").astype(str).to_dict("records")
+    char_width = 7
+    padding_x = 12
+    title_height = 58
+    header_height = 42
+    row_height = 30
+    min_widths = {"Plant": 130, "Pollutant": 88}
+    widths = []
+    for column in columns:
+        max_len = max([len(str(column)), *[len(str(row[column])) for row in rows]], default=0)
+        widths.append(max(min_widths.get(column, 86), max_len * char_width + 2 * padding_x))
+    table_width = sum(widths) + 2
+    title_width = len(title) * 12 + 28
+    subtitle_width = 650
+    width = max(table_width, title_width, subtitle_width)
+    height = title_height + header_height + row_height * max(len(rows), 1) + 2
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
+        '<rect width="100%" height="100%" fill="#ffffff"/>',
+        f'<text x="14" y="28" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#17202a">{escape(title)}</text>',
+        '<text x="14" y="48" font-family="Arial, Helvetica, sans-serif" font-size="11" fill="#5f6b7a">EF units are kg/MWh. Error is (project - source) / source.</text>',
+    ]
+    x = 1
+    y = title_height
+    for column, column_width in zip(columns, widths, strict=True):
+        parts.append(
+            f'<rect x="{x}" y="{y}" width="{column_width}" height="{header_height}" fill="#20384f"/>'
+        )
+        parts.append(
+            f'<text x="{x + padding_x}" y="{y + 26}" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700" fill="#ffffff">{escape(column)}</text>'
+        )
+        x += column_width
+    for row_index, row in enumerate(rows):
+        y = title_height + header_height + row_index * row_height
+        fill = "#f7f9fc" if row_index % 2 == 0 else "#ffffff"
+        x = 1
+        for column, column_width in zip(columns, widths, strict=True):
+            parts.append(
+                f'<rect x="{x}" y="{y}" width="{column_width}" height="{row_height}" fill="{fill}" stroke="#d9e1ea" stroke-width="1"/>'
+            )
+            color = _table_text_color(column, row[column])
+            anchor = "start" if column in {"Plant", "Pollutant"} else "end"
+            text_x = x + padding_x if anchor == "start" else x + column_width - padding_x
+            parts.append(
+                f'<text x="{text_x}" y="{y + 20}" text-anchor="{anchor}" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="{color}">{escape(row[column])}</text>'
+            )
+            x += column_width
+    if not rows:
+        parts.append(
+            f'<text x="14" y="{title_height + header_height + 22}" font-family="Arial, Helvetica, sans-serif" font-size="12" fill="#5f6b7a">No comparable rows.</text>'
+        )
+    parts.append("</svg>")
+    output_path.write_text("\n".join(parts), encoding="utf-8")
+
+
+def _table_text_color(column: str, value: str) -> str:
+    if not column.endswith("error") and column != "Error":
+        return "#1f2933"
+    try:
+        number = float(value.replace("%", ""))
+    except ValueError:
+        return "#1f2933"
+    if number > 0:
+        return "#9b2c2c"
+    if number < 0:
+        return "#1f5f99"
+    return "#1f2933"
+
+
+def _convert_svg_to_png(svg_path: Path, png_path: Path) -> None:
+    command = shutil.which("magick") or shutil.which("convert")
+    if command is None:
+        return
+    if Path(command).name == "magick":
+        args = [command, "-background", "white", "-density", "180", str(svg_path), str(png_path)]
+    else:
+        args = [command, "-background", "white", "-density", "180", str(svg_path), str(png_path)]
+    subprocess.run(args, check=True)

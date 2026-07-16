@@ -16,6 +16,7 @@ from nzk_aphiam.validation.emission_factors.compare import (
     prepare_literature_output,
 )
 from nzk_aphiam.validation.emission_factors.crosswalk import project_boundaries_from_crosswalk
+from nzk_aphiam.validation.emission_factors.figures import write_comparison_table_images
 from nzk_aphiam.validation.emission_factors.references import load_literature_benchmarks
 
 
@@ -309,3 +310,32 @@ def test_readable_comparison_tables_include_source_hand_calc_and_percent_error()
     assert wide.loc[0, "nox_other_source_ef_kg_per_mwh"] == 0.2
     assert wide.loc[0, "nox_hand_calculated_ef_kg_per_mwh"] == 0.22
     assert wide.loc[0, "nox_percent_error"] == 10.0
+
+
+def test_comparison_table_image_outputs_are_written(tmp_path: Path) -> None:
+    tidy = pd.DataFrame(
+        {
+            "plant": ["Plant"],
+            "pollutant": ["NOx"],
+            "other_source_ef_kg_per_mwh": [0.2],
+            "hand_calculated_ef_kg_per_mwh": [0.22],
+            "ef_percent_error": [10.0],
+        }
+    )
+    wide = pd.DataFrame(
+        {
+            "source": ["Lee et al. (2025) Table 1"],
+            "year": [2022],
+            "plant": ["Plant"],
+            "nox_other_source_ef_kg_per_mwh": [0.2],
+            "nox_hand_calculated_ef_kg_per_mwh": [0.22],
+            "nox_percent_error": [10.0],
+        }
+    )
+
+    write_comparison_table_images(tidy, wide, tmp_path)
+
+    assert (tmp_path / "ef_comparison_table.svg").exists()
+    assert (tmp_path / "ef_comparison_wide_table.svg").exists()
+    assert (tmp_path / "ef_comparison_table.png").exists()
+    assert (tmp_path / "ef_comparison_wide_table.png").exists()

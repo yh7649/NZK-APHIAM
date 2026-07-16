@@ -24,6 +24,7 @@ from nzk_aphiam.validation.emission_factors.crosswalk import (
     project_boundaries_from_crosswalk,
 )
 from nzk_aphiam.validation.emission_factors.figures import (
+    write_comparison_table_images,
     write_percent_difference_svg,
     write_scatter_svg,
     write_timeseries_svg,
@@ -124,6 +125,11 @@ def run_validation(
         project_annual,
         literature_output,
         figure_output_dir / "project_ef_timeseries_with_literature.svg",
+    )
+    write_comparison_table_images(
+        readable_comparison,
+        readable_comparison_wide,
+        figure_output_dir,
     )
 
     metadata = build_metadata(input_path, reference_dir, catalog)
