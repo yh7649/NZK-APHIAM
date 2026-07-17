@@ -10,11 +10,11 @@ from typing import Iterable
 
 import pandas as pd
 
-from nzk_aphiam.config.paths import CAPSS_INTERIM_DIR, MACRO_PROCESSED_DIR, MACRO_RAW_DIR
+from nzk_aphiam.config.paths import CAPSS_INTERIM_DIR, MACRO_EXTERNAL_DIR, MACRO_PROCESSED_DIR
 from nzk_aphiam.data.process.capss.processor import normalize_label
 
 DEFAULT_CAPSS_PATH = CAPSS_INTERIM_DIR / "emissions_statistics" / "capss_emissions_tidy.parquet"
-DEFAULT_GCAM_PATH = MACRO_RAW_DIR / "gcam_kaist_sector_fuel_activity.csv"
+DEFAULT_GCAM_PATH = MACRO_EXTERNAL_DIR / "gcam_kaist_sector_fuel_activity.csv"
 DEFAULT_POLLUTANTS = ("SOx", "NOx", "NH3", "VOCs", "PM2.5")
 MAPPING_COLUMNS = ("gcam_sector", "gcam_fuel", "capss_sector", "capss_fuel")
 

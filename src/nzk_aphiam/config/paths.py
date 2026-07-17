@@ -43,7 +43,13 @@ AIRKOREA_INTERIM_DIR = DATA_DIR / "interim" / "air_quality"
 CAPSS_RAW_DIR = DATA_DIR / "raw" / "capss"
 CAPSS_INTERIM_DIR = DATA_DIR / "interim" / "capss"
 
+# Third-party model/dataset deliverables that this repo cannot reproduce by
+# scraping or transformation (e.g. team-supplied GCAM-KAIST/MACRO tables).
+# Unlike data/raw/, this directory is not gitignored: the files placed here
+# are the only copy and must be tracked directly in Git.
+EXTERNAL_DIR = DATA_DIR / "external"
+
 # MACRO/GCAM-KAIST integration products built from externally supplied
 # activity tables and CAPSS historical emissions intensities.
-MACRO_RAW_DIR = DATA_DIR / "raw" / "macro"
+MACRO_EXTERNAL_DIR = EXTERNAL_DIR / "macro"
 MACRO_PROCESSED_DIR = PROCESSED_DIR / "macro"

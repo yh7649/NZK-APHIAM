@@ -10,6 +10,15 @@
 /data/raw/kepco_subsidiaries/*
 !/data/raw/kepco_subsidiaries/*.dvc
 
+# Third-party deliverables this repo cannot re-scrape or regenerate (e.g.
+# team-supplied MACRO/GCAM-KAIST tables). Unlike the rest of /data/, these are
+# tracked directly in Git -- see data/external/README.md.
+!/data/external/
+
+# Compiled macOS drag-and-drop app (rebuild locally with
+# `make build-macro-generation-dropper`; the .applescript source is tracked)
+/tools/macos/*.app
+
 # IDE
 .vscode/
 

@@ -1,0 +1,22 @@
+{
+  "kind": "generation",
+  "original_filename": "generation_by_province_long.csv",
+  "original_path": "/Users/yehyunhong/Desktop/NZK-APHIAM/data/external/generation_by_province_long.csv",
+  "ingested_at_utc": "2026-07-17T10:22:24.956446+00:00",
+  "contributor": null,
+  "note": "Placed directly in data/external/ by user before the ingestion tool existed; moved into data/external/macro/ and registered",
+  "sha256": "1c400931c29542199d14090874d97807c83aa4a5fd573b552c8f94d15998847f",
+  "size_bytes": 20920,
+  "row_count": 578,
+  "columns": [
+    "Year",
+    "Province",
+    "Technology",
+    "Generation_TWh"
+  ],
+  "detected_columns": [
+    "Year",
+    "Generation_TWh",
+    "Technology"
+  ]
+}

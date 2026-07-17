@@ -103,7 +103,10 @@ def split_macro_type(value: object) -> tuple[str, str]:
 
 
 def discover_macro_generation() -> Path:
-    roots = [PROJECT_ROOT / "data" / stage / "macro" for stage in ("raw", "interim", "processed")]
+    roots = [
+        PROJECT_ROOT / "data" / stage / "macro"
+        for stage in ("external", "raw", "interim", "processed")
+    ]
     candidates: list[Path] = []
     for root in roots:
         if root.exists():

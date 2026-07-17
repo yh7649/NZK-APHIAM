@@ -243,12 +243,33 @@ combustion equipment, major/minor fuel, and pollutant. It writes canonical
 
 ## MACRO/GCAM-KAIST Activity Integration
 
+GCAM-KAIST/MACRO activity and generation tables are third-party model
+deliverables, not something this repo scrapes, so they are placed under
+`data/external/macro/` (tracked directly in Git, unlike gitignored
+`data/raw/`) rather than copied in by hand:
+
+```bash
+make ingest-macro-external \
+  MACRO_INGEST_SOURCE=~/Downloads/gcam_kaist_sector_fuel_activity.csv \
+  MACRO_INGEST_KIND=activity
+```
+
+This validates the file has the columns the downstream step needs, copies it
+into `data/external/macro/`, and writes a metadata sidecar recording who
+supplied it and its checksum. Use `MACRO_INGEST_KIND=generation` for the
+validation workflow's generation file.
+
+Teammates who prefer not to use the terminal can build
+`tools/macos/Add MACRO Generation File.app` once with
+`make build-macro-generation-dropper`, then just drag a MACRO generation file
+onto it. See [`tools/macos/README.md`](tools/macos/README.md).
+
 GCAM-KAIST supplies sector-by-fuel activity rather than pollutant emissions.
 Combine it with CAPSS base-year sector-by-fuel pollutant intensities with:
 
 ```bash
 make integrate-macro-inputs \
-  MACRO_ACTIVITY=data/raw/macro/gcam_kaist_sector_fuel_activity.csv \
+  MACRO_ACTIVITY=data/external/macro/gcam_kaist_sector_fuel_activity.csv \
   MACRO_MAPPING=docs/references/macro/gcam_capss_sector_fuel_mapping.csv \
   MACRO_BASE_YEAR=2023
 ```
@@ -262,7 +283,7 @@ KEPCO-derived EFs against CAPSS actual power-sector emissions, run:
 
 ```bash
 make validate-macro-2021-kepco-ef \
-  MACRO_GENERATION=data/raw/macro/<team-supplied-generation-file>.csv
+  MACRO_GENERATION=data/external/macro/<team-supplied-generation-file>.csv
 ```
 
 This workflow requires the externally supplied MACRO generation file; it does

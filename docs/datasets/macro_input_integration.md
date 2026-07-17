@@ -5,18 +5,48 @@ historical CAPSS emissions to create projected non-power emissions inputs.
 GCAM-KAIST is treated as an activity model, not an emissions model: it supplies
 sector-by-fuel activity, while CAPSS supplies the base-year pollutant intensity.
 
+## Placing the team-supplied file
+
+GCAM-KAIST/MACRO activity and generation tables are third-party model outputs:
+this repo has no scraper for them, so they cannot be regenerated the way
+`data/raw/` contents can. They live under `data/external/macro/`, which is
+tracked directly in Git (unlike `data/raw/`, `data/interim/`, and
+`data/processed/`, which are gitignored).
+
+Rather than copying the file in by hand, ingest it so the correct location,
+schema check, and provenance record all happen in one step:
+
+```bash
+make ingest-macro-external \
+  MACRO_INGEST_SOURCE=~/Downloads/gcam_kaist_sector_fuel_activity.csv \
+  MACRO_INGEST_KIND=activity \
+  MACRO_INGEST_CONTRIBUTOR="GCAM-KAIST team" \
+  MACRO_INGEST_NOTE="2026-07 baseline scenario"
+```
+
+Use `MACRO_INGEST_KIND=generation` for the 2021 KEPCO EF validation's
+generation file instead. The command validates that the file has the columns
+the downstream step needs (failing fast with the actual column names
+otherwise), copies it into `data/external/macro/`, and writes a
+`<name>.metadata.json` sidecar recording the original filename/path, ingestion
+timestamp, contributor, note, SHA-256, and detected columns. It then prints
+the exact follow-up `make` command to run. See
+[`src/nzk_aphiam/data/external/ingest_macro.py`](../../src/nzk_aphiam/data/external/ingest_macro.py).
+
+## Running the integration
+
 Run:
 
 ```bash
 make integrate-macro-inputs \
-  MACRO_ACTIVITY=data/raw/macro/gcam_kaist_sector_fuel_activity.csv \
+  MACRO_ACTIVITY=data/external/macro/gcam_kaist_sector_fuel_activity.csv \
   MACRO_MAPPING=docs/references/macro/gcam_capss_sector_fuel_mapping.csv \
   MACRO_BASE_YEAR=2023
 ```
 
 The default GCAM activity file is:
 
-- `data/raw/macro/gcam_kaist_sector_fuel_activity.csv`
+- `data/external/macro/gcam_kaist_sector_fuel_activity.csv`
 
 Expected activity columns are:
 
@@ -85,11 +115,12 @@ power-sector actuals by aligned fuel, official CAPSS technology, and pollutant.
 It uses the generation-weighted KEPCO EF field `ef_kg_per_mwh`; it does not use
 plant-level arithmetic means and does not calculate EFs from CAPSS.
 
-Run after supplying the MACRO generation file:
+Run after supplying the MACRO generation file (see "Placing the team-supplied
+file" above):
 
 ```bash
 make validate-macro-2021-kepco-ef \
-  MACRO_GENERATION=data/raw/macro/<team-supplied-generation-file>.csv
+  MACRO_GENERATION=data/external/macro/<team-supplied-generation-file>.csv
 ```
 
 or directly:

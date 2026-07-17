@@ -189,7 +189,7 @@ export-capss-power-fuel-technology: process-capss-emissions
 build-capss-emissions: scrape-capss-emissions process-capss-emissions export-capss-power-fuel-technology
 
 
-MACRO_ACTIVITY ?= data/raw/macro/gcam_kaist_sector_fuel_activity.csv
+MACRO_ACTIVITY ?= data/external/macro/gcam_kaist_sector_fuel_activity.csv
 MACRO_MAPPING ?=
 MACRO_BASE_YEAR ?=
 MACRO_SCENARIO_COLUMNS ?= scenario
@@ -198,6 +198,30 @@ MACRO_GENERATION ?=
 KEPCO_EF ?= results/tables/kepco/annual_handoff/kepco_annual_ef_distribution_long_by_fuel_technology.csv
 CAPSS_POWER_ACTUAL ?= data/processed/capss/power_fuel_technology_2016_2023.parquet
 MACRO_KEPCO_CAPSS_CROSSWALK ?= docs/references/macro/macro_kepco_capss_power_crosswalk.csv
+MACRO_INGEST_SOURCE ?=
+MACRO_INGEST_KIND ?= activity
+MACRO_INGEST_DEST_NAME ?=
+MACRO_INGEST_CONTRIBUTOR ?=
+MACRO_INGEST_NOTE ?=
+
+
+## Place a team-supplied MACRO/GCAM-KAIST file under data/external/macro/ with provenance
+.PHONY: ingest-macro-external
+ingest-macro-external:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.external.ingest_macro \
+		$(if $(MACRO_INGEST_SOURCE),--source $(MACRO_INGEST_SOURCE),) \
+		--kind $(MACRO_INGEST_KIND) \
+		$(if $(MACRO_INGEST_DEST_NAME),--dest-name $(MACRO_INGEST_DEST_NAME),) \
+		$(if $(MACRO_INGEST_CONTRIBUTOR),--contributor "$(MACRO_INGEST_CONTRIBUTOR)",) \
+		$(if $(MACRO_INGEST_NOTE),--note "$(MACRO_INGEST_NOTE)",)
+
+
+## Build the double-clickable macOS app for adding a MACRO generation file (no terminal needed afterward)
+.PHONY: build-macro-generation-dropper
+build-macro-generation-dropper:
+	osacompile -o "tools/macos/Add MACRO Generation File.app" tools/macos/add_macro_generation_file.applescript
+	@echo "Built tools/macos/Add MACRO Generation File.app"
+	@echo "Drag it to the Desktop or Dock, then drop a MACRO generation file onto it any time."
 
 
 ## Integrate GCAM-KAIST/MACRO sector-fuel activity with CAPSS emission intensities
