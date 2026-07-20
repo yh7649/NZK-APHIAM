@@ -20,6 +20,7 @@ REFERENCE_FILES = {
     "benchmarks": "literature_benchmarks.csv",
     "crosswalk": "literature_plant_crosswalk.csv",
     "catalog": "literature_catalog.csv",
+    "pdf_inventory": "literature_pdf_inventory.csv",
 }
 
 ANALYSIS_VARIANTS = {

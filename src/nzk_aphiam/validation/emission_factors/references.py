@@ -13,7 +13,26 @@ from nzk_aphiam.validation.emission_factors.schema import (
     reference_path,
 )
 
-REFERENCE_KEY = ["reference_id", "plant_group_id", "data_year", "pollutant_scope"]
+REFERENCE_KEY = [
+    "reference_id",
+    "plant_group_id",
+    "data_year",
+    "pollutant_scope",
+    "normalization_basis",
+]
+OPTIONAL_BENCHMARK_COLUMNS = {
+    "pdf_filename": "",
+    "source_page": pd.NA,
+    "aggregation_scope": "",
+    "source_fuel_label": "",
+    "source_technology_label": "",
+    "normalization_basis": "output_generation_kg_per_mwh",
+    "original_value": pd.NA,
+    "original_unit": "",
+    "benchmark_class": "",
+    "direct_comparator": "",
+    "review_status": "",
+}
 
 
 def load_literature_benchmarks(reference_dir: Path) -> pd.DataFrame:
@@ -33,19 +52,28 @@ def load_literature_benchmarks(reference_dir: Path) -> pd.DataFrame:
     missing = required - set(data.columns)
     if missing:
         raise ValueError(f"Literature benchmarks missing columns: {sorted(missing)}")
+    for column, default in OPTIONAL_BENCHMARK_COLUMNS.items():
+        if column not in data.columns:
+            data[column] = default
 
     data["pollutant"] = data["pollutant"].replace({"Dust": "TSP"})
-    valid_pollutants = set(POLLUTANT_COLUMNS) | {COMBINED_POLLUTANT}
+    valid_pollutants = set(POLLUTANT_COLUMNS) | {COMBINED_POLLUTANT, "PM2.5", "PM10"}
     unknown = set(data["pollutant"].dropna()) - valid_pollutants
     if unknown:
         raise ValueError(f"Unknown literature pollutants: {sorted(unknown)}")
 
-    scalar_columns = ["generation_mwh", "emissions_kg", "reported_ef_kg_per_mwh"]
+    scalar_columns = [
+        "generation_mwh",
+        "emissions_kg",
+        "reported_ef_kg_per_mwh",
+        "recalculated_ef_kg_per_mwh",
+    ]
     for column in scalar_columns:
         data[column] = pd.to_numeric(data[column], errors="coerce")
 
-    data["recalculated_ef_kg_per_mwh"] = data["emissions_kg"] / data["generation_mwh"].where(
-        data["generation_mwh"].gt(0)
+    calculated = data["emissions_kg"] / data["generation_mwh"].where(data["generation_mwh"].gt(0))
+    data["recalculated_ef_kg_per_mwh"] = data["recalculated_ef_kg_per_mwh"].combine_first(
+        calculated
     )
     data["reference_ef_kg_per_mwh"] = data["recalculated_ef_kg_per_mwh"].combine_first(
         data["reported_ef_kg_per_mwh"]
@@ -93,6 +121,11 @@ def load_crosswalk(reference_dir: Path) -> pd.DataFrame:
 def load_catalog(reference_dir: Path) -> pd.DataFrame:
     """Load literature source catalog."""
     return pd.read_csv(reference_path("catalog", reference_dir))
+
+
+def load_pdf_inventory(reference_dir: Path) -> pd.DataFrame:
+    """Load reviewed local PDF inventory."""
+    return pd.read_csv(reference_path("pdf_inventory", reference_dir))
 
 
 def parse_unit_scope(scope: str) -> set[float] | None:

@@ -1,4 +1,5 @@
 dvc
+geopandas
 ipython
 jupyterlab
 loguru
@@ -8,6 +9,7 @@ numpy
 pandas
 openpyxl
 pyarrow
+pyshp
 pypdf
 pyyaml
 pip

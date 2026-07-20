@@ -29,12 +29,19 @@ def prepare_literature_output(references: pd.DataFrame) -> pd.DataFrame:
             "plant_name_en",
             "plant_name_ko",
             "unit_scope",
+            "aggregation_scope",
             "fuel_type",
+            "source_fuel_label",
             "technology",
+            "source_technology_label",
+            "normalization_basis",
+            "benchmark_class",
             "source_data_origin",
             "validation_role",
             "independence_class",
+            "direct_comparator",
             "comparability_notes",
+            "review_status",
             "access_date",
         ],
         as_index=False,
@@ -49,6 +56,215 @@ def prepare_literature_output(references: pd.DataFrame) -> pd.DataFrame:
     combined["reference_generation_mwh"] = combined["generation_mwh"]
     combined["reference_emissions_kg"] = combined["emissions_kg"]
     return pd.concat([base, combined], ignore_index=True, sort=False)
+
+
+def compare_fuel_technology_year(
+    project_fuel_technology: pd.DataFrame,
+    literature: pd.DataFrame,
+) -> pd.DataFrame:
+    """Compare KEPCO fuel-technology-year EFs to compatible literature rows."""
+    if project_fuel_technology.empty or literature.empty:
+        return pd.DataFrame()
+    literature = literature.copy()
+    if "aggregation_scope" not in literature.columns:
+        literature["aggregation_scope"] = ""
+    direct = literature.loc[
+        literature["normalization_basis"].eq("output_generation_kg_per_mwh")
+        & literature["direct_comparator"].astype(str).str.startswith("yes")
+        & literature["aggregation_scope"].isin(["national_fuel_fleet", "anonymized_unit"])
+        & literature["reference_ef_kg_per_mwh"].notna()
+        & ~literature["pollutant"].isin(["PM2.5", "PM10"])
+        & ~literature["pollutant"].eq(COMBINED_POLLUTANT)
+    ].copy()
+    if direct.empty:
+        return pd.DataFrame()
+    merged = project_fuel_technology.merge(
+        direct,
+        left_on=["year", "fuel_type", "pollutant_scope"],
+        right_on=["data_year", "fuel_type", "pollutant_scope"],
+        how="inner",
+        suffixes=("_project", "_literature"),
+    )
+    if merged.empty:
+        return merged
+    merged = merged.loc[merged["pollutant_project"].eq(merged["pollutant_literature"])].copy()
+    if merged.empty:
+        return merged
+    merged["fuel_match_status"] = "exact"
+    merged["technology_match_status"] = merged.apply(_technology_match_status, axis=1)
+    merged["pollutant_match_status"] = "exact"
+    merged["scope_match_status"] = (
+        merged["aggregation_scope"]
+        .map(
+            {
+                "national_fuel_fleet": "national_fuel_year",
+                "anonymized_unit": "methodological_precedent",
+            }
+        )
+        .fillna("fuel_technology_year")
+    )
+    merged["validation_class"] = merged.apply(_validation_class, axis=1)
+    merged["kepco_ef_kg_per_mwh"] = merged["ef_kg_per_mwh"]
+    merged["literature_ef_kg_per_mwh"] = merged["reference_ef_kg_per_mwh"]
+    merged["absolute_difference_kg_per_mwh"] = (
+        merged["kepco_ef_kg_per_mwh"] - merged["literature_ef_kg_per_mwh"]
+    )
+    merged["percent_difference"] = percent_difference(
+        merged["kepco_ef_kg_per_mwh"], merged["literature_ef_kg_per_mwh"]
+    )
+    merged["symmetric_percent_difference"] = symmetric_percent_difference(
+        merged["kepco_ef_kg_per_mwh"], merged["literature_ef_kg_per_mwh"]
+    )
+    merged["ratio"] = merged["kepco_ef_kg_per_mwh"] / merged["literature_ef_kg_per_mwh"].where(
+        merged["literature_ef_kg_per_mwh"].ne(0)
+    )
+    if "reference_id_literature" in merged.columns:
+        merged["reference_id"] = merged["reference_id_literature"]
+    elif "reference_id_y" in merged.columns:
+        merged["reference_id"] = merged["reference_id_y"]
+    columns = [
+        "reference_id",
+        "source_title",
+        "analysis_variant",
+        "data_year",
+        "fuel_type",
+        "technology_project",
+        "technology_literature",
+        "pollutant_project",
+        "kepco_ef_kg_per_mwh",
+        "literature_ef_kg_per_mwh",
+        "absolute_difference_kg_per_mwh",
+        "percent_difference",
+        "symmetric_percent_difference",
+        "ratio",
+        "fuel_match_status",
+        "technology_match_status",
+        "pollutant_match_status",
+        "scope_match_status",
+        "validation_class",
+        "comparability_notes",
+    ]
+    return merged[columns].rename(
+        columns={
+            "data_year": "matching_year",
+            "technology_project": "kepco_technology",
+            "technology_literature": "literature_technology",
+            "pollutant_project": "pollutant",
+        }
+    )
+
+
+def _technology_match_status(row: pd.Series) -> str:
+    literature_technology = str(row.get("technology_literature", ""))
+    project_technology = str(row.get("technology_project", ""))
+    if literature_technology == project_technology:
+        return "exact"
+    if literature_technology in {"mixed_or_unspecified_fleet", "unspecified_oil_thermal"}:
+        return "literature_unspecified"
+    return "different"
+
+
+def _validation_class(row: pd.Series) -> str:
+    role = str(row.get("validation_role", ""))
+    if role == "national_fuel_year":
+        return "national_fuel_year"
+    if role == "methodological_precedent":
+        return "methodological_precedent"
+    if row.get("technology_match_status") == "exact":
+        return "exact_fuel_technology_year"
+    return "supporting_not_comparable"
+
+
+def build_source_coverage_matrix(literature: pd.DataFrame) -> pd.DataFrame:
+    """Summarize which fuel/technology/year/pollutant cells have external evidence."""
+    work = literature.copy()
+    work["evidence_count"] = 1
+    return (
+        work.groupby(
+            [
+                "reference_id",
+                "benchmark_class",
+                "data_year",
+                "fuel_type",
+                "technology",
+                "pollutant_scope",
+                "normalization_basis",
+                "direct_comparator",
+            ],
+            dropna=False,
+            as_index=False,
+        )
+        .agg(evidence_count=("evidence_count", "sum"))
+        .sort_values(["fuel_type", "technology", "data_year", "pollutant_scope"])
+    )
+
+
+def build_unmatched_literature_benchmarks(
+    literature: pd.DataFrame, fuel_comparisons: pd.DataFrame
+) -> pd.DataFrame:
+    """Return literature rows that did not enter fuel-technology comparisons."""
+    comparable_key = [
+        "reference_id",
+        "matching_year",
+        "fuel_type",
+        "literature_technology",
+        "pollutant",
+    ]
+    if fuel_comparisons.empty:
+        matched = set()
+    else:
+        matched = {
+            tuple(row)
+            for row in fuel_comparisons[comparable_key].itertuples(index=False, name=None)
+        }
+    rows = []
+    for row in literature.to_dict("records"):
+        key = (
+            row.get("reference_id"),
+            row.get("data_year"),
+            row.get("fuel_type"),
+            row.get("technology"),
+            row.get("pollutant"),
+        )
+        if key in matched:
+            continue
+        reason = "not_direct_kg_per_mwh_comparator"
+        if row.get("normalization_basis") == "output_generation_kg_per_mwh":
+            reason = "no_compatible_kepco_fuel_technology_year_match"
+        if row.get("pollutant") == "PM2.5":
+            reason = "pm25_not_matched_to_tsp"
+        rows.append({**row, "unmatched_reason": reason})
+    return pd.DataFrame(rows)
+
+
+def build_presentation_summary(fuel_comparisons: pd.DataFrame) -> pd.DataFrame:
+    """Return concise presentation table for literature-vs-KEPCO fuel comparisons."""
+    if fuel_comparisons.empty:
+        return pd.DataFrame(
+            columns=[
+                "Source",
+                "Data year",
+                "Fuel",
+                "Technology",
+                "Pollutant",
+                "Literature EF",
+                "KEPCO EF",
+                "Validation type",
+            ]
+        )
+    reported = fuel_comparisons.loc[fuel_comparisons["analysis_variant"].eq("reported")].copy()
+    return pd.DataFrame(
+        {
+            "Source": reported["source_title"],
+            "Data year": reported["matching_year"],
+            "Fuel": reported["fuel_type"],
+            "Technology": reported["literature_technology"],
+            "Pollutant": reported["pollutant"],
+            "Literature EF": reported["literature_ef_kg_per_mwh"].round(6),
+            "KEPCO EF": reported["kepco_ef_kg_per_mwh"].round(6),
+            "Validation type": reported["validation_class"],
+        }
+    )
 
 
 def compare_to_literature(

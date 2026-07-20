@@ -234,6 +234,9 @@ results/tables/
 # Generated analysis diagnostics
 results/diagnostics/
 
+# Generated Korean thermal-power replication runs and downloaded model inputs
+results/mvp/
+
 # PyPI configuration file
 .pypirc
 

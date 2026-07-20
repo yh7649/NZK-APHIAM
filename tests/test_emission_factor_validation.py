@@ -12,12 +12,17 @@ from nzk_aphiam.validation.emission_factors.annualize import (
 )
 from nzk_aphiam.validation.emission_factors.compare import (
     build_readable_comparison_tables,
+    compare_fuel_technology_year,
     compare_to_literature,
     prepare_literature_output,
 )
 from nzk_aphiam.validation.emission_factors.crosswalk import project_boundaries_from_crosswalk
 from nzk_aphiam.validation.emission_factors.figures import write_comparison_table_images
-from nzk_aphiam.validation.emission_factors.references import load_literature_benchmarks
+from nzk_aphiam.validation.emission_factors.references import (
+    load_catalog,
+    load_literature_benchmarks,
+    load_pdf_inventory,
+)
 
 
 REFERENCE_DIR = Path("docs/references/emission_factor_validation")
@@ -267,7 +272,7 @@ def test_taean_2022_literature_fixture_reproduces_expected_values() -> None:
 def test_reference_csvs_have_no_duplicate_keys() -> None:
     literature = load_literature_benchmarks(REFERENCE_DIR)
     assert not literature.duplicated(
-        ["reference_id", "plant_group_id", "data_year", "pollutant_scope"]
+        ["reference_id", "plant_group_id", "data_year", "pollutant_scope", "normalization_basis"]
     ).any()
 
 
@@ -339,3 +344,103 @@ def test_comparison_table_image_outputs_are_written(tmp_path: Path) -> None:
     assert (tmp_path / "ef_comparison_wide_table.svg").exists()
     assert (tmp_path / "ef_comparison_table.png").exists()
     assert (tmp_path / "ef_comparison_wide_table.png").exists()
+
+
+def test_seo_kim_jeon_is_present_in_catalog() -> None:
+    catalog = load_catalog(REFERENCE_DIR)
+    assert "seo_2019_bio_heavy_oil" in set(catalog["reference_id"])
+
+
+def test_seo_rows_cover_2015_2017_fuels_and_pollutants() -> None:
+    literature = load_literature_benchmarks(REFERENCE_DIR)
+    seo = literature.loc[literature["reference_id"].eq("seo_2019_bio_heavy_oil")]
+    assert set(seo["data_year"].dropna().astype(int)) == {2015, 2016, 2017}
+    assert set(seo["fuel_type"]) == {"oil", "bio_oil_and_diesel"}
+    assert {"NOx", "SOx", "TSP", "PM2.5"}.issubset(set(seo["pollutant"]))
+
+
+def test_seo_reported_and_reference_efs_agree_within_rounding() -> None:
+    literature = load_literature_benchmarks(REFERENCE_DIR)
+    seo = literature.loc[
+        literature["reference_id"].eq("seo_2019_bio_heavy_oil")
+        & literature["pollutant"].eq("SOx")
+        & literature["fuel_type"].eq("oil")
+        & literature["data_year"].eq(2015)
+    ].iloc[0]
+    assert seo["reported_ef_kg_per_mwh"] == pytest.approx(1.314)
+    assert seo["reference_ef_kg_per_mwh"] == pytest.approx(1.314)
+
+
+def test_publication_year_is_not_substituted_for_seo_data_year() -> None:
+    literature = load_literature_benchmarks(REFERENCE_DIR)
+    seo_years = set(
+        literature.loc[
+            literature["reference_id"].eq("seo_2019_bio_heavy_oil"), "data_year"
+        ].astype(int)
+    )
+    assert 2019 not in seo_years
+
+
+def test_input_based_factors_do_not_enter_direct_fuel_comparison() -> None:
+    project = pd.DataFrame(
+        {
+            "year": [2022],
+            "fuel_type": ["coal"],
+            "technology": ["public_generation_boiler"],
+            "pollutant": ["NOx"],
+            "pollutant_scope": ["NOx"],
+            "analysis_variant": ["reported"],
+            "ef_kg_per_mwh": [0.1],
+        }
+    )
+    literature = pd.DataFrame(
+        {
+            "reference_id": ["capss"],
+            "source_title": ["CAPSS"],
+            "data_year": [2022],
+            "fuel_type": ["coal"],
+            "technology": ["public_generation_boiler"],
+            "pollutant": ["NOx"],
+            "pollutant_scope": ["NOx"],
+            "normalization_basis": ["fuel_input_kg_per_tonne_coal"],
+            "direct_comparator": ["no"],
+            "reference_ef_kg_per_mwh": [7.5],
+        }
+    )
+    assert compare_fuel_technology_year(project, literature).empty
+
+
+def test_national_fuel_average_is_not_plant_level_match() -> None:
+    literature = load_literature_benchmarks(REFERENCE_DIR)
+    motie = literature.loc[literature["reference_id"].eq("motie_2019_lng_coal_clarification")]
+    assert set(motie["aggregation_scope"]) == {"national_fuel_fleet"}
+    assert motie["plant_group_id"].str.contains("motie_2017").all()
+
+
+def test_missing_seo_technology_is_explicitly_unknown() -> None:
+    literature = load_literature_benchmarks(REFERENCE_DIR)
+    seo = literature.loc[literature["reference_id"].eq("seo_2019_bio_heavy_oil")]
+    assert set(seo["technology"]) == {"unspecified_oil_thermal"}
+
+
+def test_every_benchmark_has_page_and_table_provenance() -> None:
+    literature = load_literature_benchmarks(REFERENCE_DIR)
+    assert literature["source_page"].notna().all()
+    assert literature["source_table"].fillna("").ne("").all()
+
+
+def test_every_pdf_has_checksum_and_inventory_entry() -> None:
+    inventory = load_pdf_inventory(REFERENCE_DIR)
+    assert len(inventory) == 7
+    assert inventory["sha256"].str.fullmatch(r"[0-9a-f]{64}").all()
+    assert "Seo_Kim_Jeon_2019_bio_heavy_oil_EFs.pdf" in set(inventory["filename"])
+
+
+def test_keei_combined_factor_recalculation_still_matches() -> None:
+    literature = load_literature_benchmarks(REFERENCE_DIR)
+    dangjin = literature.loc[
+        literature["plant_group_id"].eq("keei_dangjin_1_8")
+        & literature["pollutant"].eq("combined")
+    ].iloc[0]
+    assert dangjin["reported_ef_kg_per_mwh"] == pytest.approx(0.680)
+    assert dangjin["recalculated_ef_kg_per_mwh"] == pytest.approx(17890000 / 26303000)

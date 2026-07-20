@@ -192,6 +192,157 @@ def write_comparison_table_images(
         _convert_svg_to_png(svg_path, png_path)
 
 
+def write_literature_ranges_svg(literature: pd.DataFrame, output_path: Path) -> None:
+    """Write literature EF ranges by fuel/technology/year/pollutant."""
+    data = literature.loc[
+        literature["normalization_basis"].eq("output_generation_kg_per_mwh")
+        & literature["reference_ef_kg_per_mwh"].notna()
+        & ~literature["pollutant"].isin(["PM2.5", "PM10"])
+    ].copy()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    width, height = 1100, max(320, 30 * len(data) + 90)
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
+        '<rect width="100%" height="100%" fill="white"/>',
+        '<text x="24" y="34" font-size="20" font-family="Arial, Helvetica, sans-serif" font-weight="700">Literature EF values by source cell</text>',
+    ]
+    if not data.empty:
+        max_value = float(data["reference_ef_kg_per_mwh"].max() * 1.1)
+        x0, x1 = 460, 1040
+        for i, row in enumerate(
+            data.sort_values(["fuel_type", "technology", "data_year", "pollutant"]).to_dict(
+                "records"
+            )
+        ):
+            y = 70 + i * 28
+            x = float(
+                _scale(pd.Series([row["reference_ef_kg_per_mwh"]]), 0, max_value, x0, x1).iloc[0]
+            )
+            label = f"{row['reference_id']} | {row['data_year']} | {row['fuel_type']} | {row['pollutant']}"
+            parts.append(
+                f'<text x="24" y="{y + 4}" font-size="11" font-family="Arial, Helvetica, sans-serif" fill="#1f2933">{escape(label[:72])}</text>'
+            )
+            parts.append(
+                f'<line x1="{x0}" y1="{y}" x2="{x:.1f}" y2="{y}" stroke="#8aa7c7" stroke-width="5"/>'
+            )
+            parts.append(f'<circle cx="{x:.1f}" cy="{y}" r="4" fill="#20384f"/>')
+            parts.append(
+                f'<text x="{x + 8:.1f}" y="{y + 4}" font-size="11" font-family="Arial, Helvetica, sans-serif" fill="#1f2933">{row["reference_ef_kg_per_mwh"]:.3f}</text>'
+            )
+    parts.append("</svg>")
+    output_path.write_text("\n".join(parts), encoding="utf-8")
+
+
+def write_fuel_technology_trends_svg(
+    project_fuel_technology: pd.DataFrame,
+    literature: pd.DataFrame,
+    output_path: Path,
+) -> None:
+    """Write KEPCO annual fuel-technology trends with literature points overlaid."""
+    project = project_fuel_technology.loc[
+        project_fuel_technology["analysis_variant"].eq("reported")
+        & project_fuel_technology["pollutant"].isin(["NOx", "SOx", "TSP"])
+    ].copy()
+    lit = literature.loc[
+        literature["normalization_basis"].eq("output_generation_kg_per_mwh")
+        & literature["reference_ef_kg_per_mwh"].notna()
+        & literature["pollutant"].isin(["NOx", "SOx", "TSP"])
+    ].copy()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    width, height = 1100, 650
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
+        '<rect width="100%" height="100%" fill="white"/>',
+        '<text x="24" y="34" font-size="20" font-family="Arial, Helvetica, sans-serif" font-weight="700">KEPCO fuel-technology EF trends with literature points</text>',
+    ]
+    if not project.empty:
+        years = sorted(project["year"].dropna().unique())
+        max_value = float(
+            max(project["ef_kg_per_mwh"].max(), lit["reference_ef_kg_per_mwh"].max()) * 1.1
+        )
+        x0, y0, x1, y1 = 70, 570, 1030, 80
+        parts.append(f'<line x1="{x0}" y1="{y0}" x2="{x1}" y2="{y0}" stroke="#222"/>')
+        parts.append(f'<line x1="{x0}" y1="{y0}" x2="{x0}" y2="{y1}" stroke="#222"/>')
+        colors = {"NOx": "#1f77b4", "SOx": "#d62728", "TSP": "#2ca02c"}
+        for pollutant, subset in project.groupby("pollutant"):
+            yearly = subset.groupby("year", as_index=False).agg(ef=("ef_kg_per_mwh", "mean"))
+            xs = _scale(yearly["year"], min(years), max(years), x0, x1)
+            ys = _scale(yearly["ef"], 0, max_value, y0, y1)
+            points = " ".join(f"{x:.1f},{y:.1f}" for x, y in zip(xs, ys, strict=True))
+            if points:
+                parts.append(
+                    f'<polyline points="{points}" fill="none" stroke="{colors[pollutant]}" stroke-width="2"/>'
+                )
+        for row in lit.to_dict("records"):
+            if pd.isna(row.get("data_year")) or row["data_year"] == "":
+                continue
+            x = float(
+                _scale(pd.Series([float(row["data_year"])]), min(years), max(years), x0, x1).iloc[
+                    0
+                ]
+            )
+            y = float(
+                _scale(pd.Series([row["reference_ef_kg_per_mwh"]]), 0, max_value, y0, y1).iloc[0]
+            )
+            color = colors.get(row["pollutant"], "#444")
+            parts.append(
+                f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4" fill="{color}" opacity="0.7"><title>{escape(str(row["reference_id"]))}</title></circle>'
+            )
+    parts.append("</svg>")
+    output_path.write_text("\n".join(parts), encoding="utf-8")
+
+
+def write_source_coverage_matrix_svg(coverage: pd.DataFrame, output_path: Path) -> None:
+    """Write a compact source coverage matrix SVG."""
+    data = coverage.copy()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    rows = data.head(80).to_dict("records")
+    cell = 18
+    left = 360
+    top = 70
+    sources = list(dict.fromkeys(data["reference_id"].astype(str)))
+    combo_series = (
+        data["data_year"].fillna("unknown_year").astype(str)
+        + " | "
+        + data["fuel_type"].fillna("unknown_fuel").astype(str)
+        + " | "
+        + data["pollutant_scope"].fillna("unknown_pollutant").astype(str)
+    )
+    combos = [str(combo) for combo in dict.fromkeys(combo_series)][:80]
+    width = left + cell * len(sources) + 80
+    height = top + cell * len(combos) + 80
+    parts = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
+        '<rect width="100%" height="100%" fill="white"/>',
+        '<text x="24" y="34" font-size="20" font-family="Arial, Helvetica, sans-serif" font-weight="700">Literature source coverage matrix</text>',
+    ]
+    for j, source in enumerate(sources):
+        x = left + j * cell + 12
+        parts.append(
+            f'<text x="{x}" y="62" font-size="9" font-family="Arial, Helvetica, sans-serif" transform="rotate(-45 {x},62)">{escape(source)}</text>'
+        )
+    present = {
+        (
+            f"{row['data_year']} | {row['fuel_type']} | {row['pollutant_scope']}",
+            str(row["reference_id"]),
+        )
+        for row in rows
+    }
+    for i, combo in enumerate(combos):
+        y = top + i * cell
+        parts.append(
+            f'<text x="24" y="{y + 13}" font-size="10" font-family="Arial, Helvetica, sans-serif">{escape(str(combo)[:55])}</text>'
+        )
+        for j, source in enumerate(sources):
+            x = left + j * cell
+            fill = "#20384f" if (combo, source) in present else "#eef2f6"
+            parts.append(
+                f'<rect x="{x}" y="{y}" width="14" height="14" fill="{fill}" stroke="#d9e1ea"/>'
+            )
+    parts.append("</svg>")
+    output_path.write_text("\n".join(parts), encoding="utf-8")
+
+
 def _format_tidy_table(data: pd.DataFrame) -> pd.DataFrame:
     columns = [
         "plant",

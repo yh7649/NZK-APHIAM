@@ -259,6 +259,41 @@ into `data/external/macro/`, and writes a metadata sidecar recording who
 supplied it and its checksum. Use `MACRO_INGEST_KIND=generation` for the
 validation workflow's generation file.
 
+## Korean Thermal-Power Replication MVP
+
+The screening-level Huang–Peng replication chain now connects observed EPSIS
+generation and the local MACRO pathway to physical thermal sites, the existing
+generation-weighted KEPCO emission factors, Global InMAP, national exposure,
+and the existing health-impact model. The current local comparison is explicitly
+`historical_to_scenario`; it is not presented as a causal net-zero policy benefit.
+
+Run the resumable workflow with:
+
+```bash
+make peng-mvp PYTHON_INTERPRETER=.venv/bin/python
+```
+
+For a faster real-binary plumbing proof that writes diagnostic, explicitly
+non-converged exposure output and never runs health impacts, use:
+
+```bash
+make peng-mvp-poc PYTHON_INTERPRETER=.venv/bin/python
+```
+
+The first 200-iteration dual-scenario POC completed on 20 July 2026. Its values
+are retained only as execution diagnostics; strict-convergence exposure and health
+results remain pending.
+
+To confirm health-module plumbing and sign using those non-converged values, without
+creating a normal analytical health output, run:
+
+```bash
+make peng-mvp-poc-health-diagnostic PYTHON_INTERPRETER=.venv/bin/python
+```
+
+See [`docs/methods/peng_replication_mvp.md`](docs/methods/peng_replication_mvp.md)
+for inputs, assumptions, safeguards, component commands, and interpretation.
+
 Teammates who prefer not to use the terminal can build
 `tools/macos/Add MACRO Generation File.app` once with
 `make build-macro-generation-dropper`, then just drag a MACRO generation file

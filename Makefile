@@ -203,6 +203,9 @@ MACRO_INGEST_KIND ?= activity
 MACRO_INGEST_DEST_NAME ?=
 MACRO_INGEST_CONTRIBUTOR ?=
 MACRO_INGEST_NOTE ?=
+PENG_MVP_CONFIG ?= configs/scenarios/peng_replication_mvp.yaml
+PENG_MVP_ARGS ?=
+PENG_MVP_POC_ITERATIONS ?= 200
 
 
 ## Place a team-supplied MACRO/GCAM-KAIST file under data/external/macro/ with provenance
@@ -253,6 +256,79 @@ validate-epsis-2021-kepco-ef: export-capss-power-fuel-technology
 		--year 2021 \
 		--kepco-ef $(KEPCO_EF) \
 		--capss-actual $(CAPSS_POWER_ACTUAL)
+
+
+## Audit all local inputs for the Korean thermal-power replication MVP
+.PHONY: peng-mvp-audit
+peng-mvp-audit:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage audit $(PENG_MVP_ARGS)
+
+
+## Build fleet allocation, emissions, stack diagnostics, and InMAP point inputs
+.PHONY: peng-mvp-inventory
+peng-mvp-inventory:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage inventory $(PENG_MVP_ARGS)
+
+
+## Install the pinned official InMAP binary and Global InMAP data in the ignored cache
+.PHONY: peng-mvp-install-inmap
+peng-mvp-install-inmap:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage install $(PENG_MVP_ARGS)
+
+
+## Run both Global InMAP inventories with resumable input/version caching
+.PHONY: peng-mvp-run-inmap
+peng-mvp-run-inmap:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage run $(PENG_MVP_ARGS)
+
+
+## Difference real Global InMAP outputs and aggregate South Korean exposure
+.PHONY: peng-mvp-exposure
+peng-mvp-exposure:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage exposure --resume $(PENG_MVP_ARGS)
+
+
+## Pass real exposure through the existing verified health-impact API
+.PHONY: peng-mvp-health
+peng-mvp-health:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage health --resume $(PENG_MVP_ARGS)
+
+
+## Execute the resumable end-to-end Korean thermal-power replication MVP
+.PHONY: peng-mvp
+peng-mvp:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage all --resume $(PENG_MVP_ARGS)
+
+
+## Run a real-binary, fixed-iteration InMAP diagnostic; health output is prohibited
+.PHONY: peng-mvp-poc
+peng-mvp-poc:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage all --resume \
+		--inmap-poc-iterations $(PENG_MVP_POC_ITERATIONS) $(PENG_MVP_ARGS)
+
+
+## Opt in to a separately labeled, non-inferential health diagnostic from the InMAP POC
+.PHONY: peng-mvp-poc-health-diagnostic
+peng-mvp-poc-health-diagnostic:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage all --resume \
+		--inmap-poc-iterations $(PENG_MVP_POC_ITERATIONS) \
+		--write-diagnostic-poc-health $(PENG_MVP_ARGS)
+
+
+## Run synthetic unit/integration tests for the replication MVP only
+.PHONY: test-peng-mvp
+test-peng-mvp:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m pytest \
+		tests/test_peng_mvp.py tests/test_inmap_integration.py
 
 
 ## Build, audit, and merge per-subsidiary KEPCO monthly datasets (pollutant mass in kilograms)

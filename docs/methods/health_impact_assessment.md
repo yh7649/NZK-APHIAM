@@ -7,10 +7,11 @@ and attributable-deaths calculation are implemented by hand in `crf.py` and
 `impact.py`; the decomposition is implemented in `decomposition.py`.
 
 This module is deliberately self-contained: it takes PM2.5 concentrations,
-population, and baseline mortality rates as arguments. It does not run, call,
-or depend on InMAP, meteorology, emissions, downscaling, exposure aggregation
-to 시군구, or scenario definitions -- none of that exists upstream yet. See
-`docs/project/progress.md` for the full replication gap analysis.
+population, and baseline mortality rates as arguments. It does not itself run,
+call, or depend on InMAP. The thermal-power MVP now supplies a separate adapter
+at `mvp/peng_replication/health_adapter.py`; see
+[`peng_replication_mvp.md`](peng_replication_mvp.md). District exposure and
+boundary harmonization remain unavailable.
 
 ## Concentration-response function
 
@@ -174,6 +175,6 @@ technicality.
 
 InMAP, meteorology, emissions, downscaling, exposure aggregation to 시군구,
 scenario definitions, boundary harmonization, GEMM, infant-mortality
-endpoints, and the CAPSS 시군구 code join are all out of scope for this
-module. If a future task seems to require touching one of these to use
-`health/`, the interface boundary is wrong -- the fix is upstream, not here.
+endpoints, and the CAPSS 시군구 code join remain out of scope for this core
+health module. The thermal MVP keeps those responsibilities in an upstream
+adapter rather than duplicating the verified health equations here.

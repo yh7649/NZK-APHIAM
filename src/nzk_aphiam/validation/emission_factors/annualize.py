@@ -145,6 +145,13 @@ def aggregate_boundary(
                     "n_generation_months": int(group["energy_generated_mwh"].notna().sum()),
                     "n_pollutant_months": int(group[column].notna().sum()),
                     "n_matched_months": int(matched.sum()),
+                    "n_plants": int(group["plant_name"].nunique())
+                    if "plant_name" in group
+                    else pd.NA,
+                    "n_units": int(group["reporting_unit_id"].nunique())
+                    if "reporting_unit_id" in group
+                    else pd.NA,
+                    "coverage_fraction": matched.mean(),
                     "complete_calendar_year": bool(
                         set(group.loc[matched, "month"]) == set(range(1, 13))
                     ),
@@ -174,6 +181,11 @@ def aggregate_boundary(
                 "n_generation_months": int(group["energy_generated_mwh"].notna().sum()),
                 "n_pollutant_months": int(group[all_columns].notna().all(axis=1).sum()),
                 "n_matched_months": int(matched_all.sum()),
+                "n_plants": int(group["plant_name"].nunique()) if "plant_name" in group else pd.NA,
+                "n_units": int(group["reporting_unit_id"].nunique())
+                if "reporting_unit_id" in group
+                else pd.NA,
+                "coverage_fraction": matched_all.mean(),
                 "complete_calendar_year": bool(
                     set(group.loc[matched_all, "month"]) == set(range(1, 13))
                 ),

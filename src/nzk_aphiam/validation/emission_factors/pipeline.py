@@ -14,7 +14,11 @@ from nzk_aphiam.validation.emission_factors.annualize import (
     prepare_project_data,
 )
 from nzk_aphiam.validation.emission_factors.compare import (
+    build_presentation_summary,
     build_readable_comparison_tables,
+    build_source_coverage_matrix,
+    build_unmatched_literature_benchmarks,
+    compare_fuel_technology_year,
     compare_to_literature,
     prepare_literature_output,
     summarize_by_pollutant,
@@ -25,14 +29,18 @@ from nzk_aphiam.validation.emission_factors.crosswalk import (
 )
 from nzk_aphiam.validation.emission_factors.figures import (
     write_comparison_table_images,
+    write_fuel_technology_trends_svg,
+    write_literature_ranges_svg,
     write_percent_difference_svg,
     write_scatter_svg,
+    write_source_coverage_matrix_svg,
     write_timeseries_svg,
 )
 from nzk_aphiam.validation.emission_factors.references import (
     load_catalog,
     load_crosswalk,
     load_literature_benchmarks,
+    load_pdf_inventory,
 )
 from nzk_aphiam.validation.emission_factors.schema import (
     ANALYSIS_VARIANTS,
@@ -61,6 +69,7 @@ def run_validation(
     literature_output = prepare_literature_output(references)
     crosswalk = load_crosswalk(reference_dir)
     catalog = load_catalog(reference_dir)
+    pdf_inventory = load_pdf_inventory(reference_dir)
 
     annual_frames: list[pd.DataFrame] = []
     boundary_frames: list[pd.DataFrame] = []
@@ -74,6 +83,13 @@ def run_validation(
                 analysis_variant=variant,
             )
         )
+        annual_frames.append(
+            aggregate_boundary(
+                variant_data,
+                group_columns=["fuel_type", "technology"],
+                analysis_variant=f"{variant}_fuel_technology",
+            )
+        )
         boundary_data, boundary_status = project_boundaries_from_crosswalk(
             variant_data, crosswalk, analysis_variant=variant
         )
@@ -81,11 +97,28 @@ def run_validation(
         exclusion_frames.append(exclusions)
         exclusion_frames.append(boundary_status)
 
-    project_annual = pd.concat(annual_frames, ignore_index=True)
+    all_annual = pd.concat(annual_frames, ignore_index=True)
+    project_annual = all_annual.loc[
+        ~all_annual["analysis_variant"].str.endswith("_fuel_technology")
+    ].copy()
+    project_fuel_technology = all_annual.loc[
+        all_annual["analysis_variant"].str.endswith("_fuel_technology")
+    ].copy()
+    project_fuel_technology["analysis_variant"] = project_fuel_technology[
+        "analysis_variant"
+    ].str.replace("_fuel_technology", "", regex=False)
     project_boundaries = pd.concat(boundary_frames, ignore_index=True)
     comparisons = compare_to_literature(project_boundaries, literature_output)
+    fuel_technology_comparisons = compare_fuel_technology_year(
+        project_fuel_technology, literature_output
+    )
     summary = summarize_by_pollutant(comparisons)
     readable_comparison, readable_comparison_wide = build_readable_comparison_tables(comparisons)
+    coverage_matrix = build_source_coverage_matrix(literature_output)
+    unmatched_literature = build_unmatched_literature_benchmarks(
+        literature_output, fuel_technology_comparisons
+    )
+    presentation_summary = build_presentation_summary(fuel_technology_comparisons)
 
     unmatched = nonmatched_crosswalk_rows(crosswalk)
     boundary_status = pd.concat(
@@ -103,9 +136,16 @@ def run_validation(
     outputs = {
         "project_annual_emission_factors": project_annual,
         "literature_reference_emission_factors": literature_output,
+        "literature_pdf_inventory": pdf_inventory,
+        "literature_ef_benchmarks_complete": literature_output,
+        "project_fuel_technology_year_efs": project_fuel_technology,
         "matched_literature_comparisons": comparisons,
+        "fuel_technology_year_comparisons": fuel_technology_comparisons,
         "ef_comparison_readable": readable_comparison,
         "ef_comparison_readable_wide": readable_comparison_wide,
+        "literature_source_coverage_matrix": coverage_matrix,
+        "unmatched_literature_benchmarks": unmatched_literature,
+        "fuel_technology_validation_summary_table": presentation_summary,
         "validation_summary_by_pollutant": summary,
         "unmatched_or_noncomparable_boundaries": unmatched_output,
         "excluded_observation_summary": excluded_summary,
@@ -130,6 +170,17 @@ def run_validation(
         readable_comparison,
         readable_comparison_wide,
         figure_output_dir,
+    )
+    write_literature_ranges_svg(
+        literature_output, figure_output_dir / "literature_ef_ranges_by_source_cell.svg"
+    )
+    write_fuel_technology_trends_svg(
+        project_fuel_technology,
+        literature_output,
+        figure_output_dir / "fuel_technology_ef_trends_with_literature.svg",
+    )
+    write_source_coverage_matrix_svg(
+        coverage_matrix, figure_output_dir / "literature_source_coverage_matrix.svg"
     )
 
     metadata = build_metadata(input_path, reference_dir, catalog)
