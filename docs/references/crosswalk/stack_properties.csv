@@ -12,7 +12,9 @@ Korea East-West Power,Dangjin,korea_east_west_power_dangjin_stack_9,eastwest_pow
 Korea East-West Power,Donghae,korea_east_west_power_donghae_stack_1,eastwest_power:Donghae:1,150.0,4.0,154.0,16.154,37.2907,129.085,matched,crea_hia_south_korea_2021_appendix_2
 Korea East-West Power,Donghae,korea_east_west_power_donghae_stack_2,eastwest_power:Donghae:2,150.0,4.0,154.0,16.154,37.2909,129.085,matched,crea_hia_south_korea_2021_appendix_2
 Korea East-West Power,Honam,korea_east_west_power_honam_stack_1_2,,150.0,7.0,90.0,6.566,34.511,127.44,matched,crea_hia_south_korea_2021_appendix_2
+Korea Midland Power,Boryeong,korea_midland_power_boryeong_unmatched,midland_power:보령기력,,,,,,,unmatched,crea_hia_south_korea_2021_appendix_2
 Korea Midland Power,Seocheon,korea_midland_power_seocheon_stack_plant,midland_power:신서천화력,150.0,7.4,90.0,21.004,35.239,126.502,matched,crea_hia_south_korea_2021_appendix_2
+Korea Midland Power,Shin-Boryeong,korea_midland_power_shin_boryeong_unmatched,midland_power:신보령기력,,,,,,,unmatched,crea_hia_south_korea_2021_appendix_2
 Korea South-East Power,Samcheonpo,korea_south_east_power_samcheonpo_stack_1,southeast_power:삼천포:1,200.0,5.3,119.0,37.531,34.9117,128.109,matched,crea_hia_south_korea_2021_appendix_2
 Korea South-East Power,Samcheonpo,korea_south_east_power_samcheonpo_stack_2,southeast_power:삼천포:2,200.0,5.3,109.0,37.531,34.9117,128.109,matched,crea_hia_south_korea_2021_appendix_2
 Korea South-East Power,Samcheonpo,korea_south_east_power_samcheonpo_stack_3,southeast_power:삼천포:3,200.0,5.3,95.0,37.531,34.9117,128.109,matched,crea_hia_south_korea_2021_appendix_2

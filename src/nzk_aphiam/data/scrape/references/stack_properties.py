@@ -141,6 +141,34 @@ SOURCE_MAPPING = {
 
 UNMATCHED_ROWS = [
     {
+        "subsidiary_company": "Korea Midland Power",
+        "plant_name": "Boryeong",
+        "stack_id": "korea_midland_power_boryeong_unmatched",
+        "reporting_unit_id": "midland_power:보령기력",
+        "stack_height_m": "",
+        "stack_diameter_m": "",
+        "exit_temp_c": "",
+        "flue_gas_velocity_m_s": "",
+        "stack_latitude": "",
+        "stack_longitude": "",
+        "match_status": "unmatched",
+        "evidence_id": "crea_hia_south_korea_2021_appendix_2",
+    },
+    {
+        "subsidiary_company": "Korea Midland Power",
+        "plant_name": "Shin-Boryeong",
+        "stack_id": "korea_midland_power_shin_boryeong_unmatched",
+        "reporting_unit_id": "midland_power:신보령기력",
+        "stack_height_m": "",
+        "stack_diameter_m": "",
+        "exit_temp_c": "",
+        "flue_gas_velocity_m_s": "",
+        "stack_latitude": "",
+        "stack_longitude": "",
+        "match_status": "unmatched",
+        "evidence_id": "crea_hia_south_korea_2021_appendix_2",
+    },
+    {
         "subsidiary_company": "Korea South-East Power",
         "plant_name": "Yeongdong",
         "stack_id": "korea_south_east_power_yeongdong_unmatched",
@@ -153,7 +181,7 @@ UNMATCHED_ROWS = [
         "stack_longitude": "",
         "match_status": "unmatched",
         "evidence_id": "crea_hia_south_korea_2021_appendix_2",
-    }
+    },
 ]
 
 
@@ -313,8 +341,10 @@ def build_crosswalk_tables(
                     "diameter, exit temperature, and flue gas velocity used as CALPUFF "
                     "model inputs for South Korean coal-fired power plants. KEPCO coal "
                     "plants present in this project are matched by source plant name and "
-                    "unit number; Yeongdong is explicitly unmatched because the appendix "
-                    "does not include a Yeongdong row."
+                    "unit number. Boryeong and Shin-Boryeong remain explicitly "
+                    "unmatched pending review of source stack units against their new "
+                    "provider aggregate boundaries; Yeongdong is unmatched because the "
+                    "appendix does not include a Yeongdong row."
                 ),
             }
         ],
