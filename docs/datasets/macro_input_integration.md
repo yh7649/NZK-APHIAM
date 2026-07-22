@@ -78,6 +78,14 @@ labels such as `도로이동오염원` and already-normalized keys such as
 passed through as CAPSS keys; this is mainly useful for tests or hand-aligned
 inputs.
 
+The tracked legacy mapping is currently header-only because the team-supplied
+non-power GCAM-KAIST taxonomy is not present; it deliberately makes no guessed
+native mappings. The populated one-to-many research crosswalk and legal EF
+denominators are documented in
+[`nonpower_sector_inventory.md`](nonpower_sector_inventory.md). That framework
+will eventually augment or replace the aggregate intensity method below, but
+does not change this integrator in inventory version `0.1.0`.
+
 Outputs are written under:
 
 - `data/processed/macro/macro_projected_emissions.csv`
@@ -91,6 +99,11 @@ The method is:
 2. aggregate GCAM-KAIST base-year activity by scenario and sector/fuel;
 3. calculate `emission_factor_kg_per_activity`;
 4. multiply every projected activity row by that emission factor.
+
+This is a clearly labeled fallback/validation intensity rather than the primary
+future EF database. It assumes one sector, one fuel, one base-year intensity,
+and one direct mapping, so it cannot yet represent separate process and
+combustion sources or annual technology/fleet/control weighting.
 
 Review `macro_input_diagnostics.csv` before using the output. It flags GCAM
 activity without CAPSS emissions, CAPSS emissions without matching base-year
