@@ -247,15 +247,13 @@ repeating one generator's MWh across multiple emissions stacks.
 
 East-West and Western source values are converted from metric tonnes to
 kilograms by multiplying by `1,000`. Southern and South-East values are already
-reported in kilograms. For Midland, the Incheon, Jeju, Sejong, and Seocheon
-facility-status sources contain pollutant concentrations and stack flow. The
-cleaner derives approximate row-level pollutant mass, aggregates component
-turbines/units to the monthly plant/technology boundary reported by Midland's
-generation API, and joins generation and capacity at that boundary. This
-supports emission-factor analysis without duplicating a plant subtotal across
-its component turbines. Boryeong, Seoul, and Shin-Boryeong remain raw-only
-because their facility endpoints expose TMS instrument diagnostics rather than
-the pollutant-concentration and stack-flow fields required for mass derivation.
+reported in kilograms. Midland's January 2024--December 2025 values are monthly
+kilograms reported directly in KOMIPO's provider-response workbook. The cleaner
+verifies the immutable workbook checksum, preserves blank pollutant cells as
+missing, aggregates stack/outlet mass to ten generation subtotals, and joins
+KOMIPO's existing public monthly generation at that boundary. No
+concentration-to-mass calculation is used for active Midland rows. The previous
+concentration/flow estimator is retained only in the documented archive.
 
 Oxygen, flue-gas flow, and temperature are not included in this processed
 monthly mass dataset because they are not consistently populated across the

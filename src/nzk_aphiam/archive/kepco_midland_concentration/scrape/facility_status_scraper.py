@@ -5,7 +5,7 @@ These datasets are separate from KOMIPO's monthly emissions API. Each facility
 is published as an odcloud file-backed API with its own namespace and endpoint.
 
 Run from the project root:
-    python -m nzk_aphiam.data.scrape.thermal.midland_power facility-status
+    python -m nzk_aphiam.archive.kepco_midland_concentration.scrape facility-status
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ from dotenv import load_dotenv
 import pandas as pd
 import requests
 
+from nzk_aphiam.config.paths import ARCHIVE_RAW_DIR
 from nzk_aphiam.data.scrape.thermal.midland_power.generation_scraper import (
     ensure_outputs_available,
     redact_url,
@@ -30,8 +31,7 @@ from nzk_aphiam.data.scrape.thermal.midland_power.generation_scraper import (
 
 API_KEY_ENV = "DATA_GO_KR_API_KEY"
 DEFAULT_PER_PAGE = 1000
-PROJECT_ROOT = Path(__file__).resolve().parents[6]
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "kepco_subsidiaries" / "midland_power"
+DEFAULT_OUTPUT_DIR = ARCHIVE_RAW_DIR / "kepco_midland_concentration"
 BASE_API_URL = "https://api.odcloud.kr/api"
 
 

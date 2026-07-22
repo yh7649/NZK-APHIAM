@@ -1,1 +1,1 @@
-"""Scrapers for Korea Midland Power raw datasets."""
+"""Active Korea Midland Power monthly generation scraper."""

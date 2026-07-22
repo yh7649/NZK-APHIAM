@@ -1,4 +1,4 @@
-"""Clean Korea Midland Power thermal facility data."""
+"""Clean Korea Midland Power directly reported monthly emissions."""
 
 from nzk_aphiam.data.clean.thermal.midland_power.cleaner import clean_midland_power
 

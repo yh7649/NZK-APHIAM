@@ -1,277 +1,162 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
 from nzk_aphiam.data.clean.thermal.midland_power import cleaner
+from nzk_aphiam.data.clean.thermal.midland_power.reported_mass_workbook import (
+    EXPECTED_WORKBOOK_SHA256,
+    REPORTED_MASS_COLUMNS,
+    parse_reported_mass_workbook,
+    verify_workbook_sha256,
+    workbook_sha256,
+)
 from nzk_aphiam.data.clean.thermal.schema import THERMAL_OUTPUT_COLUMNS
 
 
-def test_clean_midland_power_derives_monthly_mass_from_usable_facility_rows() -> None:
-    raw = pd.DataFrame(
+def _reported_rows(
+    *,
+    boundary: str = "보령기력",
+    sheet: str = "보령",
+    plant: str = "한국중부발전㈜보령발전본부",
+) -> pd.DataFrame:
+    return pd.DataFrame(
         [
             {
-                "source_facility": "seocheon",
-                "source_korean_facility_name": "서천발전소",
-                "source_english_facility_name": "Seocheon",
-                "usable_for_mass_derivation": True,
-                "발전소 호기": "서천 1호기",
-                "처리일": "2025-06-01 00:00",
-                "황산화물": "11.78",
-                "질소 산화물": "27.37",
-                "먼지": "5.01",
-                "산소": "6.61",
-                "유량": "72495.55",
-                "온도": "91.87",
-            },
-            {
-                "source_facility": "seocheon",
-                "source_korean_facility_name": "서천발전소",
-                "source_english_facility_name": "Seocheon",
-                "usable_for_mass_derivation": True,
-                "발전소 호기": "서천 1호기",
-                "처리일": "202506010100",
-                "황산화물": "1",
-                "질소 산화물": "2",
-                "먼지": "3",
-                "산소": None,
-                "유량": "1000",
-                "온도": None,
-            },
-            {
-                "source_facility": "boryeong",
-                "source_korean_facility_name": "보령발전소",
-                "source_english_facility_name": "Boryeong",
-                "usable_for_mass_derivation": False,
-                "발전소 호기": None,
-                "처리일": "2025-06-01 00:00",
-                "황산화물": None,
-                "질소 산화물": None,
-                "먼지": None,
-                "산소": None,
-                "유량": None,
-                "온도": None,
-            },
-        ]
+                "date": "2024-01-01",
+                "source_sheet": sheet,
+                "source_plant_name": plant,
+                "source_unit": pd.NA,
+                "source_outlet": outlet,
+                "source_component_label": f"배출구 {outlet}",
+                "generation_orgnm": boundary,
+                "nox": nox,
+                "sox": sox,
+                "dust_tsp": dust,
+            }
+            for outlet, nox, sox, dust in [
+                ("3", 10.0, 1.0, 0.1),
+                ("4", 20.0, 2.0, 0.2),
+            ]
+        ],
+        columns=REPORTED_MASS_COLUMNS,
     )
 
-    generation = pd.DataFrame(
+
+def _generation_row(
+    *, boundary: str = "보령기력", fuel: str = "석탄"
+) -> pd.DataFrame:
+    return pd.DataFrame(
         [
             {
-                "orgnm": "신서천화력",
-                "ym": 202506,
+                "orgnm": boundary,
+                "ym": 202401,
                 "hokinm": "소계",
-                "capacity": 1018,
-                "qvodgen": 334311,
+                "capacity": 3000,
+                "qvodgen": 500_000,
                 "tper": 0,
-                "uper": "45.00",
-                "gennm": "석탄",
+                "uper": "50.00",
+                "gennm": fuel,
             }
         ]
     )
-    result = cleaner.clean_midland_power(raw, generation)
+
+
+def test_tracked_provider_workbook_checksum_and_layout() -> None:
+    path = cleaner.DEFAULT_REPORTED_MASS_INPUT_PATH
+
+    assert path.is_file()
+    assert workbook_sha256(path) == EXPECTED_WORKBOOK_SHA256
+    verify_workbook_sha256(path)
+    reported = parse_reported_mass_workbook(path)
+
+    assert list(reported.columns) == REPORTED_MASS_COLUMNS
+    assert len(reported) == 744
+    assert reported["date"].min() == pd.Timestamp("2024-01-01")
+    assert reported["date"].max() == pd.Timestamp("2025-12-01")
+    assert reported["source_sheet"].nunique() == 7
+    assert reported["generation_orgnm"].nunique() == 10
+    assert not reported.duplicated(["source_sheet", "date", "source_outlet"]).any()
+
+
+def test_checksum_rejects_modified_workbook(tmp_path: Path) -> None:
+    modified = tmp_path / "modified.xlsx"
+    modified.write_bytes(b"not the provider workbook")
+
+    with pytest.raises(ValueError, match="checksum mismatch"):
+        verify_workbook_sha256(modified)
+
+
+def test_clean_midland_power_uses_reported_mass_without_recalculation() -> None:
+    result = cleaner.clean_midland_power(_reported_rows(), _generation_row())
 
     assert list(result.columns) == THERMAL_OUTPUT_COLUMNS
     assert len(result) == 1
-    assert result.loc[0, "date"] == pd.Timestamp("2025-06-01")
-    assert result.loc[0, "plant_name"] == "Seocheon"
-    assert pd.isna(result.loc[0, "plant_number"])
-    assert result.loc[0, "energy_generated_mwh"] == 334311
-    assert result.loc[0, "energy_capacity_mw"] == 1018
-    assert result.loc[0, "fuel_type"] == "coal"
+    assert result.loc[0, "date"] == pd.Timestamp("2024-01-01")
+    assert result.loc[0, "plant_name"] == "Boryeong"
+    assert result.loc[0, "reporting_unit_id"] == "midland_power:보령기력"
+    assert result.loc[0, "component_count"] == 2
+    assert result.loc[0, "energy_generated_mwh"] == 500_000
+    assert result.loc[0, "energy_capacity_mw"] == 3000
+    assert result.loc[0, "nox"] == pytest.approx(30.0)
+    assert result.loc[0, "sox"] == pytest.approx(3.0)
+    assert result.loc[0, "dust_tsp"] == pytest.approx(0.3)
     assert result.loc[0, "technology"] == "conventional_steam_turbine"
-    assert result.loc[0, "reporting_unit_id"] == "midland_power:신서천화력"
-    assert result.loc[0, "observation_level"] == "generation_block"
-    assert result.loc[0, "component_count"] == 1
-    expected_nox = 27.37 * 72495.55 * 46 / (22.4 * 1_000_000) + 2 * 1000 * 46 / (22.4 * 1_000_000)
-    expected_sox = 11.78 * 72495.55 * 64 / (22.4 * 1_000_000) + 1 * 1000 * 64 / (22.4 * 1_000_000)
-    expected_dust = 5.01 * 72495.55 / 1_000_000 + 3 * 1000 / 1_000_000
-    assert result.loc[0, "nox"] == pytest.approx(expected_nox)
-    assert result.loc[0, "sox"] == pytest.approx(expected_sox)
-    assert result.loc[0, "dust_tsp"] == pytest.approx(expected_dust)
     assert result.loc[0, "pollutant_measurement_basis"] == "mass"
-    assert result.loc[0, "nox_unit"] == "kilograms"
-    assert "Generation is not allocated" in result.loc[0, "original_korean_note"]
+    assert "No concentration-to-mass calculation" in result.loc[
+        0, "original_korean_note"
+    ]
     assert pd.notna(result.loc[0, "plant_opening_date"])
     assert pd.notna(result.loc[0, "plant_latitude"])
-    assert str(result["plant_number"].dtype) == "Int64"
+    assert str(result["component_count"].dtype) == "Int64"
     assert str(result["nox"].dtype) == "Float64"
+
+
+def test_clean_midland_power_preserves_missing_pollutants() -> None:
+    reported = _reported_rows(
+        boundary="인천복합",
+        sheet="인천",
+        plant="한국중부발전㈜ 인천발전본부",
+    )
+    reported[["sox", "dust_tsp"]] = pd.NA
+    generation = _generation_row(boundary="인천복합", fuel="복합")
+
+    result = cleaner.clean_midland_power(reported, generation)
+
+    assert result.loc[0, "nox"] == pytest.approx(30.0)
+    assert pd.isna(result.loc[0, "sox"])
+    assert pd.isna(result.loc[0, "dust_tsp"])
+    assert result.loc[0, "pollutant_data_pattern"] == "nox_only"
+
+
+def test_complete_provider_workbook_maps_to_all_generation_boundaries() -> None:
+    reported = parse_reported_mass_workbook(cleaner.DEFAULT_REPORTED_MASS_INPUT_PATH)
+    generation = reported[["date", "generation_orgnm"]].drop_duplicates()
+    generation = generation.assign(
+        ym=lambda data: data["date"].dt.strftime("%Y%m"),
+        hokinm="소계",
+        capacity=1,
+        qvodgen=1,
+        tper=0,
+        uper="0",
+        gennm="provider-boundary fixture",
+    ).rename(columns={"generation_orgnm": "orgnm"})
+
+    result = cleaner.clean_midland_power(reported, generation)
+
+    assert len(result) == 240
+    assert result["date"].min() == pd.Timestamp("2024-01-01")
+    assert result["date"].max() == pd.Timestamp("2025-12-01")
+    assert result["reporting_unit_id"].nunique() == 10
+    assert result["energy_generated_mwh"].notna().all()
+    assert result["energy_capacity_mw"].notna().all()
+    assert result["nox"].notna().all()
 
 
 def test_clean_midland_power_rejects_missing_required_columns() -> None:
     with pytest.raises(ValueError, match="missing columns"):
         cleaner.clean_midland_power(
-            pd.DataFrame({"source_facility": ["seocheon"]}), pd.DataFrame()
+            pd.DataFrame({"source_sheet": ["보령"]}), pd.DataFrame()
         )
-
-
-def test_clean_midland_power_aggregates_components_before_joining_generation() -> None:
-    facility = pd.DataFrame(
-        [
-            {
-                "source_facility": "incheon",
-                "source_korean_facility_name": "인천발전소",
-                "source_english_facility_name": "Incheon",
-                "usable_for_mass_derivation": True,
-                "발전소 호기": unit,
-                "처리일": "2024-01-01 00:00",
-                "황산화물": 0,
-                "질소 산화물": 10,
-                "먼지": 1,
-                "유량": 1000,
-            }
-            for unit in ["인천 GT1", "인천 GT2"]
-        ]
-    )
-    generation = pd.DataFrame(
-        [
-            {
-                "orgnm": "인천복합",
-                "ym": 202401,
-                "hokinm": "소계",
-                "capacity": 1462,
-                "qvodgen": 500000,
-                "tper": 0,
-                "uper": "50.00",
-                "gennm": "복합",
-            }
-        ]
-    )
-
-    result = cleaner.clean_midland_power(facility, generation)
-
-    assert len(result) == 1
-    assert result.loc[0, "component_count"] == 2
-    assert result.loc[0, "energy_generated_mwh"] == 500000
-    expected_nox = 2 * 10 * 1000 * 46 / (22.4 * 1_000_000)
-    assert result.loc[0, "nox"] == pytest.approx(expected_nox)
-
-
-def _make_incheon_facility(date: str = "2024-01-01 00:00") -> pd.DataFrame:
-    return pd.DataFrame(
-        [
-            {
-                "source_facility": "incheon",
-                "source_korean_facility_name": "인천발전소",
-                "source_english_facility_name": "Incheon",
-                "usable_for_mass_derivation": True,
-                "발전소 호기": "인천 GT1",
-                "처리일": date,
-                "황산화물": 0,
-                "질소 산화물": 20,
-                "먼지": 0,
-                "유량": 500_000,
-            }
-        ]
-    )
-
-
-def test_clean_midland_power_with_aggregate_back_fill() -> None:
-    """Historical Incheon rows from aggregate API are estimated and appended."""
-    # One odcloud row for 2024-01 (provides the flow proxy)
-    facility = _make_incheon_facility("2024-01-01 00:00")
-
-    # Aggregate row for 2015-06 (historical — not covered by odcloud)
-    aggregate = pd.DataFrame(
-        [["인천화력", "201506", "복합", 50, 15.0, 280, 20.0, 25, 0.5]],
-        columns=cleaner.AGGREGATE_SOURCE_COLUMNS,
-    )
-
-    generation = pd.DataFrame(
-        [
-            {
-                "orgnm": "인천복합",
-                "ym": 202401,
-                "hokinm": "소계",
-                "capacity": 1462,
-                "qvodgen": 500_000,
-                "tper": 0,
-                "uper": "50.00",
-                "gennm": "복합",
-            },
-            {
-                "orgnm": "인천복합",
-                "ym": 201506,
-                "hokinm": "소계",
-                "capacity": 1012,
-                "qvodgen": 400_000,
-                "tper": 0,
-                "uper": "45.00",
-                "gennm": "복합",
-            },
-        ]
-    )
-
-    result = cleaner.clean_midland_power(facility, generation, aggregate)
-
-    assert list(result.columns) == THERMAL_OUTPUT_COLUMNS
-    # Both 2015-06 (estimated) and 2024-01 (direct) should appear
-    assert len(result) == 2
-    dates = set(result["date"].dt.strftime("%Y-%m"))
-    assert "2015-06" in dates
-    assert "2024-01" in dates
-
-    # Estimated row uses PROXY_NOTE
-    hist_row = result[result["date"] == pd.Timestamp("2015-06-01")].iloc[0]
-    assert "proxy" in hist_row["original_korean_note"].lower()
-    assert pd.isna(hist_row["component_count"])
-
-    # Direct row uses DERIVATION_NOTE
-    direct_row = result[result["date"] == pd.Timestamp("2024-01-01")].iloc[0]
-    assert "Generation is not allocated" in direct_row["original_korean_note"]
-    assert direct_row["component_count"] == 1
-
-    # Estimated NOx should be positive (avg_nox_ppm=20, proxy_flow>0, gen=400000 MWh)
-    assert hist_row["nox"] > 0
-
-
-def test_aggregate_back_fill_skips_months_covered_by_odcloud() -> None:
-    """Aggregate rows for months already in odcloud data are dropped."""
-    facility = _make_incheon_facility("2024-01-01 00:00")
-    # Aggregate row for the SAME month as the odcloud row
-    aggregate = pd.DataFrame(
-        [["인천화력", "202401", "복합", 50, 15.0, 280, 20.0, 25, 0.5]],
-        columns=cleaner.AGGREGATE_SOURCE_COLUMNS,
-    )
-    generation = pd.DataFrame(
-        [
-            {
-                "orgnm": "인천복합",
-                "ym": 202401,
-                "hokinm": "소계",
-                "capacity": 1462,
-                "qvodgen": 500_000,
-                "tper": 0,
-                "uper": "50.00",
-                "gennm": "복합",
-            }
-        ]
-    )
-    result = cleaner.clean_midland_power(facility, generation, aggregate)
-    # Overlap is excluded → only the direct odcloud row survives
-    assert len(result) == 1
-    direct_row = result.iloc[0]
-    assert "Generation is not allocated" in direct_row["original_korean_note"]
-
-
-def test_clean_midland_power_rejects_unmapped_facility_identity() -> None:
-    facility = pd.DataFrame(
-        [
-            {
-                "source_facility": "jeju",
-                "source_korean_facility_name": "제주발전소",
-                "source_english_facility_name": "Jeju",
-                "usable_for_mass_derivation": True,
-                "발전소 호기": "새로운호기",
-                "처리일": "2024-01-01",
-                "황산화물": 0,
-                "질소 산화물": 1,
-                "먼지": 0,
-                "유량": 100,
-            }
-        ]
-    )
-    generation = pd.DataFrame(columns=cleaner.GENERATION_SOURCE_COLUMNS)
-
-    with pytest.raises(ValueError, match="Unmapped Midland facility reporting identities"):
-        cleaner.clean_midland_power(facility, generation)

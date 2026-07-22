@@ -5,11 +5,14 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from nzk_aphiam.data.scrape.thermal.midland_power import (
+from nzk_aphiam.archive.kepco_midland_concentration.scrape import (
     emissions_scraper,
     facility_status_scraper,
-    generation_scraper,
 )
+from nzk_aphiam.archive.kepco_midland_concentration.scrape.boryeong import (
+    scraper as archived_boryeong_scraper,
+)
+from nzk_aphiam.data.scrape.thermal.midland_power import generation_scraper
 
 
 def test_generation_build_params_preserves_filters_and_replaces_secret() -> None:
@@ -143,6 +146,19 @@ def test_facility_status_annotation_preserves_provider_fields() -> None:
             "유량": 1000,
         }
     ]
+
+
+def test_archived_site_wrapper_forwards_cli_arguments(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    received: list[str] = []
+    monkeypatch.setattr(
+        facility_status_scraper, "main", lambda argv: received.extend(argv)
+    )
+
+    archived_boryeong_scraper.main(["--help"])
+
+    assert received == ["--facility", "boryeong", "--help"]
 
 
 def test_existing_raw_outputs_are_protected(tmp_path: Path) -> None:

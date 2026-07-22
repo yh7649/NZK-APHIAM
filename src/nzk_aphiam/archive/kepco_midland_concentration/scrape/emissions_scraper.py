@@ -8,7 +8,7 @@ Required .env value:
     DATA_GO_KR_API_KEY=...
 
 Run from the project root:
-    python -m nzk_aphiam.data.scrape.thermal.midland_power emissions
+    python -m nzk_aphiam.archive.kepco_midland_concentration.scrape emissions
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ from dotenv import load_dotenv
 import pandas as pd
 import requests
 
+from nzk_aphiam.config.paths import ARCHIVE_RAW_DIR
 from nzk_aphiam.data.scrape.common.period_snapshot import save_period_snapshots
 from nzk_aphiam.data.scrape.thermal.midland_power.generation_scraper import (
     ensure_outputs_available,
@@ -42,8 +43,7 @@ DATE_COLUMN = "ym"
 DATE_FORMAT = "%Y%m"
 DEFAULT_START_MONTH = "201201"
 
-PROJECT_ROOT = Path(__file__).resolve().parents[6]
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "kepco_subsidiaries" / "midland_power"
+DEFAULT_OUTPUT_DIR = ARCHIVE_RAW_DIR / "kepco_midland_concentration"
 
 
 def get_required_env(name: str) -> str:

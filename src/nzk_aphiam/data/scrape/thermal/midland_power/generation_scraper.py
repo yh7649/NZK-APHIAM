@@ -8,7 +8,7 @@ Required .env value:
     DATA_GO_KR_API_KEY=...
 
 Run from the project root:
-    python -m nzk_aphiam.data.scrape.thermal.midland_power generation
+    python -m nzk_aphiam.data.scrape.thermal.midland_power
 """
 
 from __future__ import annotations
