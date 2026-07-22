@@ -189,6 +189,41 @@ export-capss-power-fuel-technology: process-capss-emissions
 build-capss-emissions: scrape-capss-emissions process-capss-emissions export-capss-power-fuel-technology
 
 
+## Validate the tracked non-power sector inventory without generating outputs
+.PHONY: validate-nonpower-sector-inventory
+validate-nonpower-sector-inventory:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.nonpower_sector_inventory --validate-only
+
+
+## Validate and export the canonical non-power sector inventory and diagnostics
+.PHONY: build-nonpower-sector-inventory
+build-nonpower-sector-inventory:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.nonpower_sector_inventory
+
+
+## Validate tracked non-power emission-factor evidence without generating outputs
+.PHONY: validate-nonpower-emission-factors
+validate-nonpower-emission-factors:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.nonpower_emission_factors --validate-only
+
+
+## Export provisional non-power factors, inventory links, and coverage diagnostics
+.PHONY: build-nonpower-emission-factors
+build-nonpower-emission-factors:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.nonpower_emission_factors
+
+
+## Extract inventory-targeted pages and factor-table titles from official CAPSS VII
+.PHONY: scrape-capss-vii-nonpower-efs
+scrape-capss-vii-nonpower-efs:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.capss.nonpower_emission_factors
+
+
+## Build the non-power inventory and provisional factor-evidence products
+.PHONY: build-nonpower-emissions
+build-nonpower-emissions: build-nonpower-sector-inventory build-nonpower-emission-factors
+
+
 MACRO_ACTIVITY ?= data/external/macro/gcam_kaist_sector_fuel_activity.csv
 MACRO_MAPPING ?=
 MACRO_BASE_YEAR ?=
@@ -398,57 +433,19 @@ clean-southeast-power:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.clean.thermal.southeast_power
 
 
-## Download Midland Power emissions data
-.PHONY: scrape-midland-power-emissions
-scrape-midland-power-emissions:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power emissions --overwrite
-
-
 ## Download Midland Power generation data
 .PHONY: scrape-midland-power-generation
 scrape-midland-power-generation:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power generation --overwrite
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power --overwrite
 
 
-## Download Midland Power emissions and generation data
+## Download Midland Power generation data (reported mass is a tracked provider workbook)
 .PHONY: scrape-midland-power
 scrape-midland-power:
-	$(MAKE) scrape-midland-power-emissions
 	$(MAKE) scrape-midland-power-generation
-	$(MAKE) scrape-midland-power-facility-status
 
 
-## Download Midland Power facility air-status data
-.PHONY: scrape-midland-power-facility-status
-scrape-midland-power-facility-status:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power facility-status --overwrite
-
-
-## Download individual Midland Power facility air-status datasets
-.PHONY: scrape-midland-power-boryeong scrape-midland-power-seoul scrape-midland-power-seocheon scrape-midland-power-sejong scrape-midland-power-shin-boryeong scrape-midland-power-jeju scrape-midland-power-incheon
-scrape-midland-power-boryeong:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.boryeong --overwrite
-
-scrape-midland-power-seoul:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.seoul --overwrite
-
-scrape-midland-power-seocheon:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.seocheon --overwrite
-
-scrape-midland-power-sejong:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.sejong --overwrite
-
-scrape-midland-power-shin-boryeong:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.shin_boryeong --overwrite
-
-scrape-midland-power-jeju:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.jeju --overwrite
-
-scrape-midland-power-incheon:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.incheon --overwrite
-
-
-## Clean Midland Power facility air-status data
+## Join Midland Power's directly reported monthly mass to monthly generation
 .PHONY: clean-midland-power
 clean-midland-power:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.clean.thermal.midland_power
@@ -518,37 +515,6 @@ AIRKOREA_END_YEAR ?=
 .PHONY: scrape-airkorea
 scrape-airkorea:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.airkorea --start-year $(AIRKOREA_START_YEAR) $(if $(AIRKOREA_END_YEAR),--end-year $(AIRKOREA_END_YEAR),)
-
-
-KMA_START_YEAR ?= 2001
-KMA_END_YEAR ?= 2024
-KMA_PROFILER_START_YEAR ?= 2004
-KMA_PROFILER_END_YEAR ?= 2004
-
-
-## Download core KMA surface, station, radiosonde, and stability observations
-.PHONY: scrape-kma-weather
-scrape-kma-weather:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.weather.kma core --start-year $(KMA_START_YEAR) --end-year $(KMA_END_YEAR)
-
-
-## Download high-volume hourly KMA Wind Profiler data (one year by default)
-.PHONY: scrape-kma-profiler
-scrape-kma-profiler:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.weather.kma profiler --start-year $(KMA_PROFILER_START_YEAR) --end-year $(KMA_PROFILER_END_YEAR)
-
-
-## Normalize KMA observations and derive mixing-height/inversion features
-.PHONY: process-kma-weather
-process-kma-weather:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.weather.kma --start-year $(KMA_START_YEAR) --end-year $(KMA_END_YEAR)
-
-
-## Version KMA annual raw snapshots with local DVC
-.PHONY: track-kma-snapshots
-track-kma-snapshots:
-	$(DVC) add data/raw/weather/kma
-	@echo "KMA snapshots staged for git (review with 'git status', then commit)."
 
 
 ## Archive official plant-location/date evidence for offline reproducibility
@@ -680,13 +646,10 @@ check-scraper-cli:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southern_power annual-generation --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southeast_power --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southeast_power.generation_scraper --help
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power emissions --help
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power generation --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.epsis --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.airkorea --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.health.kosis --help
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.weather.kma --help
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.weather.kma --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.cleansys --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.env_info --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.process.crosswalk --help

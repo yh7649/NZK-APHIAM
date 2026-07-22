@@ -131,10 +131,11 @@ make r-analysis
 
 The R entry point is `analysis/kepco/kepco_monthly_analysis.R`, with shared path helpers
 under `analysis/R/`. Generated figures, tables, analysis objects, and models are
-written under `results/`. Data remains local under `data/` and is ignored by
-Git. The RStudio project and analysis scripts are tracked source files, so they
-are already present after cloning; `make r-analysis` rebuilds the combined
-processed data before running the script.
+written under `results/`. Data remains local under `data/` and is generally
+ignored by Git; narrowly documented provider/external inputs that cannot be
+regenerated are tracked directly. The RStudio project and analysis scripts are
+tracked source files, so they are already present after cloning; `make
+r-analysis` rebuilds the combined processed data before running the script.
 
 Run every thermal subsidiary scraper sequentially with:
 
@@ -143,14 +144,13 @@ make scrape-thermal
 ```
 
 This is a **networked** workflow: it contacts data.go.kr and subsidiary
-websites and replaces the reproducible raw outputs with a fresh download.
-Midland Power includes both the original monthly APIs and facility-status
-datasets that can derive approximate pollutant mass where stack flow is
-reported. Its cleaner aggregates the derived unit/turbine emissions to the
-matching plant/technology subtotal before joining monthly generation, so the
-same generation total is never repeated across components. The command stops
-if any scraper fails. Individual subsidiary,
-facility, and dataset targets are available through `make help`.
+websites and replaces reproducible raw outputs with a fresh download. Midland
+is the exception for emissions: its directly supplied, checksum-verified
+2024--2025 mass workbook is tracked as immutable raw data, while only its
+monthly generation is refreshed from the public API. Its cleaner aggregates
+provider-reported stack mass to the matching plant/technology subtotal before
+the one-to-one generation join. The command stops if any scraper fails.
+Individual subsidiary and dataset targets are available through `make help`.
 
 Each subsidiary's raw output is written as immutable per-year snapshot files
 plus a combined file in the shape cleaners expect, so re-running a scraper
@@ -241,6 +241,34 @@ combustion equipment, major/minor fuel, and pollutant. It writes canonical
 2016--2023 tables under `data/processed/capss/` and a key validation table under
 `results/tables/capss/`.
 
+## Korean Non-Power Emissions Inventory
+
+The version-controlled non-power framework maps conceptual GCAM-KAIST annual
+activities to native CAPSS categories, canonical pollutants, official Korean
+activity-source leads, and pollutant-specific legal EF denominators. It keeps
+process, combustion, fugitive, and electricity-only boundaries explicit and
+preserves unresolved research gaps rather than converting them to zero.
+
+Validate the tracked registries and provisional factor evidence, or build their
+canonical Parquet tables and diagnostics:
+
+```bash
+make validate-nonpower-sector-inventory PYTHON_INTERPRETER=.venv/bin/python
+make validate-nonpower-emission-factors PYTHON_INTERPRETER=.venv/bin/python
+make build-nonpower-emissions PYTHON_INTERPRETER=.venv/bin/python
+make scrape-capss-vii-nonpower-efs PYTHON_INTERPRETER=.venv/bin/python
+```
+
+The build writes ignored outputs under `data/processed/nonpower_emissions/`
+and `results/diagnostics/nonpower_emissions/`. The scrape writes ignored,
+checksum-linked page text, a 2025 Handbook VII factor-table index, and inventory
+coverage under `data/interim/nonpower_emissions/`. The imported 2023 Handbook VI
+rows and Korean literature rows are candidate evidence only: none is enabled for
+production emissions, and all VI rows require an official VII row-level diff. See
+[`docs/datasets/nonpower_sector_inventory.md`](docs/datasets/nonpower_sector_inventory.md)
+for schemas, validation, known gaps, and the migration from the current
+aggregate MACRO/CAPSS base-year intensity method.
+
 ## MACRO/GCAM-KAIST Activity Integration
 
 GCAM-KAIST/MACRO activity and generation tables are third-party model
@@ -324,43 +352,18 @@ make validate-macro-2021-kepco-ef \
 This workflow requires the externally supplied MACRO generation file; it does
 not substitute CAPSS-derived EFs when that file is absent.
 
-## KMA Weather and Dispersion Features
+## Atmospheric Dispersion
 
-Create a KMA API Hub account, activate the ASOS, radiosonde, radiosonde
-stability-analysis, Wind Profiler, and upper-air station-information APIs, and
-add the issued key to `.env`:
+The active air-quality pathway uses annual Global InMAP with the model's
+packaged global meteorology and built-in bias correction. Hourly KMA weather is
+therefore outside the current research design and is not an input to the Global
+InMAP workflow.
 
-```dotenv
-KMA_API_HUB_KEY=...
-```
-
-Download the core 2001–2024 observations. These include ASOS surface weather,
-station history, twice-daily radiosonde profiles, and KMA stability indices:
-
-```bash
-make scrape-kma-weather PYTHON_INTERPRETER=.venv/bin/python
-```
-
-Wind Profiler is intentionally separate because hourly nationwide retrieval
-requires about 8,760 requests per year. Its Make target downloads one year by
-default; change the explicit year variables to retrieve another batch:
-
-```bash
-make scrape-kma-profiler KMA_PROFILER_START_YEAR=2015 KMA_PROFILER_END_YEAR=2015
-```
-
-Normalize timestamps and units and derive sounding-time mixing-height and
-surface-inversion features with:
-
-```bash
-make process-kma-weather PYTHON_INTERPRETER=.venv/bin/python
-```
-
-Raw and processed files remain partitioned by calendar year under
-`data/raw/weather/kma/` and `data/processed/weather/kma/`. No observations are
-interpolated or imputed. See
-[`docs/datasets/kma_weather.md`](docs/datasets/kma_weather.md) for variable,
-coverage, request-budget, and methodological details.
+The former KMA ASOS, radiosonde, stability-index, and Wind Profiler pipeline is
+preserved under `src/nzk_aphiam/archive/kma_weather/` for provenance and possible
+future reuse. Its active Makefile targets and data-package entry points were
+removed. See [`docs/archive/kma_weather.md`](docs/archive/kma_weather.md) for the
+archived scope, storage locations, and explicit restoration commands.
 
 ## Public Health And Demographic Baseline
 
@@ -406,6 +409,23 @@ To add the broader social-determinants scrape:
 make scrape-social-determinants PYTHON_INTERPRETER=.venv/bin/python
 ```
 
+## Health-Impact Assessment
+
+The CRF, attributable-deaths, and decomposition functions in
+`src/nzk_aphiam/health/` implement the
+`ΔY = (1 − e^(−β·ΔPM)) · Y₀ · Pop` estimator (Krewski et al. 2009 by
+default) independent of any specific exposure pipeline. Given a tidy
+scenario CSV of PM2.5 exposure by population group, compute
+PM2.5-attributable deaths with:
+
+```bash
+make health-impact PYTHON_INTERPRETER=.venv/bin/python
+```
+
+See [`docs/methods/health_impact_assessment.md`](docs/methods/health_impact_assessment.md)
+for the input schema, CRF parameters, decomposition method, and
+interpretation caveats.
+
 ## KEPCO Data Documentation
 
 Detailed source-specific documentation for Western, East-West, Southern,
@@ -429,7 +449,8 @@ dataset rules, lives in
 ├── requirements       <- Python and R dependency lists
 ├── configs            <- Event and pipeline YAML configuration files
 ├── analysis           <- Main R analysis workspace and shared R helpers
-├── data               <- Local raw, interim, and processed data; ignored by Git
+├── data               <- Local data; mostly ignored, with documented tracked exceptions
+│   └── external       <- Team-supplied third-party data deliverables; tracked directly in Git
 ├── .dvc               <- Local DVC cache/config for versioning raw-data snapshots
 ├── results
 │   ├── figures        <- Saved plots and graphics
@@ -437,5 +458,6 @@ dataset rules, lives in
 │   ├── objects        <- Serialized analysis objects
 │   └── models         <- Trained and serialized models
 ├── src/nzk_aphiam     <- Python package for scraping, cleaning, and processing
+├── tools              <- Non-terminal helper tools (e.g. macOS drag-and-drop apps)
 └── tests              <- Python test suite
 ```

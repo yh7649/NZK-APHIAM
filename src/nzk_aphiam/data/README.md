@@ -14,9 +14,10 @@ make scrape-thermal
 ```
 
 This is a networked workflow that contacts data.go.kr and subsidiary websites.
-Midland Power is included even though its current emissions API is not
-sufficient for monthly emission-factor calculations. Individual subsidiary
-and dataset targets are available through `make help`.
+Midland Power generation is refreshed from its public API; its 2024--2025
+pollutant mass comes from the immutable workbook supplied directly by the
+provider. Individual subsidiary and dataset targets are available through
+`make help`.
 
 Rebuild every currently implemented cleaner:
 
@@ -49,6 +50,13 @@ make verify-facility-crosswalk-offline PYTHON_INTERPRETER=.venv/bin/python
 
 The offline command fails if any required raw response is absent. Override the
 common period with `FACILITY_START_YEAR` and `FACILITY_END_YEAR`.
+
+The non-power emissions lane is documented separately in
+[`docs/datasets/nonpower_sector_inventory.md`](../../../docs/datasets/nonpower_sector_inventory.md).
+Use `make build-nonpower-emissions` for the tracked inventory and provisional
+factor-evidence products, and `make scrape-capss-vii-nonpower-efs` for the
+official Handbook VII page-text/table-index extraction. Imported Handbook VI
+and literature factors are candidates only and are never production-enabled.
 
 **[PAUSED: annual non-KEPCO panel]** Build the final annual plant-level
 generation and emissions panel from the preserved inputs:
@@ -412,8 +420,8 @@ The command also writes
 It contains ordered `varname` and `label` fields for every column, including
 units in quantitative labels.
 
-Midland facility-status rows are included where the source reports stack
-pollutant concentrations and flue-gas flow.
+Midland rows use pollutant mass reported directly by the provider and monthly
+generation from the existing public API extract.
 
 ## Audit Stage
 
@@ -510,63 +518,53 @@ have been aggregated to that boundary.
 
 ## Midland Power
 
-Midland Power exposes monthly generation and air-pollutant measurements through
-data.go.kr XML APIs, plus facility-specific air-status datasets through
-odcloud file-backed APIs:
+Midland Power supplied a workbook of monthly NOx, SOx, and TSP mass in
+kilograms for January 2024 through December 2025. The exact received bytes are
+tracked at:
+
+```text
+data/raw/kepco_subsidiaries/midland_power/provider_responses/대기오염물질 배출량(24-25년)_kg자료.xlsx
+```
+
+The adjacent `metadata.json` records its SHA-256 digest, coverage, and delivery
+provenance. Do not edit or resave the workbook. The cleaner verifies its digest
+before parsing it and preserves provider blanks as missing values rather than
+zeros.
+
+Monthly generation still comes from KOMIPO's public data.go.kr generation API
+(dataset `15084753`). Refresh only that reproducible source, then clean the
+direct mass and generation together:
 
 ```bash
 make scrape-midland-power
 make clean-midland-power
 ```
 
-The commands retain source field names and values, save XML responses, CSV
-extracts, and redacted metadata under:
+The generation scraper retains source field names and values and writes XML
+snapshots, a normalized CSV extract, and redacted request metadata under:
 
 ```text
 data/raw/kepco_subsidiaries/midland_power/
 ```
 
-They refuse to replace existing outputs unless `--overwrite` is explicitly
-provided. Optional endpoint overrides are
-`MIDLAND_POWER_GENERATION_API_URL` and `MIDLAND_POWER_EMISSIONS_API_URL`.
+It refuses to replace existing outputs unless `--overwrite` is explicitly
+provided. `MIDLAND_POWER_GENERATION_API_URL` optionally overrides the endpoint.
+The retained local generation file contains 4,424 source records from January
+2012 through May 2026. Its `qvodgen` field supplies monthly generation in MWh;
+the 2024--2025 provider-workbook boundaries all have matching generation rows.
 
-The verified June 12, 2026 pull contains 4,424 generation records from January
-2012 through May 2026 and 853 emissions records for five thermal plants. The
-emissions API returns no records for December 2019, December 2020, or July
-2023; the scraper preserves those source gaps.
-
-The monthly emissions API returns pollutant standards and average concentration
-values, but not flue-gas flow, so it is not used for mass derivation. The newer
-facility-status APIs are saved under:
-
-```text
-data/raw/kepco_subsidiaries/midland_power/facilities/
-```
-
-Each facility has its own subdirectory, and the scraper also writes:
+The cleaner maps the workbook's stack/outlet rows to ten generation subtotals:
+`보령기력`, `보령복합`, `신보령기력`, `신서천화력`, `인천복합`, `서울복합`,
+`세종천연가스`, `제주기력`, `제주내연`, and `제주복합`. It sums reported mass
+to those boundaries before a one-to-one generation join, producing 240
+boundary-month rows at:
 
 ```text
-data/raw/kepco_subsidiaries/midland_power/facilities/midland_power_facility_air_status.csv
+data/interim/kepco_subsidiaries/midland_power/midland_power_monthly_generation_emissions.csv
 ```
 
-The cleaner reads that merged raw file and writes:
-
-```text
-data/interim/kepco_subsidiaries/midland_power/midland_power_monthly_derived_emissions.csv
-```
-
-For Seocheon, Sejong, Jeju, and Incheon, the facility-status APIs report
-pollutant concentrations and stack `유량`, so the cleaner derives row-level mass
-and sums to month/unit rows:
-
-```text
-SOx kg  = SOx ppm * flow Sm3 * 64 / (22.4 * 1,000,000)
-NOx kg  = NOx ppm * flow Sm3 * 46 / (22.4 * 1,000,000)
-Dust kg = dust mg/Sm3 * flow Sm3 / 1,000,000
-```
-
-Boryeong, Seoul, and Shin-Boryeong are retained as raw facility datasets, but
-they expose TMS diagnostic/calibration fields rather than stack pollutant
-concentrations plus stack flow, so the cleaner excludes them from mass
-derivation. Generation, capacity, and fuel type remain null in the derived
-facility-status output.
+No concentration-to-mass formula is used by the active Midland pipeline. The
+superseded monthly-emissions and facility-status scrapers and the former
+concentration/flow mass estimator remain available for provenance under
+`src/nzk_aphiam/archive/kepco_midland_concentration/`; see
+`docs/archive/kepco_midland_concentration.md`.

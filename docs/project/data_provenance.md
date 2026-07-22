@@ -5,9 +5,11 @@
 The MIT license in `LICENSE` applies to the software and documentation created
 for this repository. It does not grant rights to third-party source data.
 
-Raw and generated datasets under `data/` are intentionally ignored by Git.
-Users reproduce them locally from the original providers using the repository's
-scrapers, cleaners, and processing commands.
+Raw and generated datasets under `data/` are intentionally ignored by Git by
+default. Users reproduce them locally from the original providers using the
+repository's scrapers, cleaners, and processing commands. Narrow exceptions
+are tracked when a provider deliverable cannot be regenerated publicly; each
+exception has an explicit `.gitignore` allow-list and local provenance record.
 
 ## Source Data
 
@@ -22,6 +24,27 @@ The machine-readable source catalog is
 the provider, dataset, coverage, granularity, units, public page, data
 endpoint, access date, and important scope limitations.
 
+The non-power EF lane keeps the official 2025 CAPSS Handbook VII PDF under
+`docs/references/emission_factor_validation/korea_ef_references/` and records
+its SHA-256 in every first-pass extraction metadata file. The user-supplied v1
+collection contributes 912 provisional mass-normalized records, six
+non-mass-normalized evidence rows, and nine explicit gaps. Its generated XLSX,
+derived coverage CSV, duplicate portable-environment requirements, and
+standalone script bundle are not copied into the repository; their useful
+validation, mapping, extraction, and build behavior is integrated in the
+package and Makefile. The 887 rows originating in a Handbook VI secondary
+mirror are marked superseded and cannot be production-enabled before a
+row-level comparison to the official VII PDF. Generated Handbook page text and
+factor-table indices remain ignored under `data/interim/nonpower_emissions/`.
+
+Korea Midland Power's direct response workbook at
+`data/raw/kepco_subsidiaries/midland_power/provider_responses/` is one such
+exception. It is preserved byte-for-byte, its SHA-256 digest is recorded in the
+adjacent `metadata.json`, and the active cleaner verifies that digest before
+use. The workbook reports monthly pollutant mass in kilograms for 2024--2025;
+provider blanks remain missing. Midland generation remains reproducible from
+the public data.go.kr generation API and is not tracked directly in Git.
+
 CleanSYS annual records are facility-level totals for pollutants measured by
 stack TMS instruments. They do not represent every emission source at a
 facility and do not identify individual generating units.
@@ -33,15 +56,15 @@ communications problems; these values are source missing-value codes, not
 pollution concentrations. A year marked with an asterisk on the source page is
 based on monthly-report statistics and may change during annual finalization.
 
-KMA meteorology is retrieved from the official KMA API Hub using a private
-project-local credential. Surface ASOS timestamps are KST; radiosonde,
-stability-analysis, and Wind Profiler timestamps are UTC. Raw KMA fields are
-preserved in immutable annual snapshots with checksums and request counts.
-Processed weather partitions convert surface times to UTC, apply physical
-bounds, derive vector wind components, and estimate mixing height and surface
-inversions from radiosonde potential-temperature profiles. These derived
-upper-air values are labeled estimates and are not interpolated or represented
-as directly observed KMA variables.
+**The KMA hourly-weather pipeline was archived on 22 July 2026.** The active
+atmospheric-dispersion design uses annual Global InMAP with packaged global
+meteorology and built-in bias correction, so ASOS, radiosonde,
+stability-analysis, and Wind Profiler observations are not active model inputs.
+The former collector and processor remain under
+`src/nzk_aphiam/archive/kma_weather/`, default to ignored
+`data/archive/{raw,processed}/weather/kma/` locations, and are documented in
+[`docs/archive/kma_weather.md`](../archive/kma_weather.md). No KMA observations
+or generated weather products are committed to Git.
 
 The public-health baseline preserves annual KOSIS API responses for monthly
 all-cause mortality, annual cause-specific mortality, and monthly resident

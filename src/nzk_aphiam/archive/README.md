@@ -1,4 +1,28 @@
-# Archived CleanSYS TMS Scripts
+# Archived Pipelines
+
+Code in this package is retained for research provenance or possible explicit
+reuse. It is not part of the repository's active pipeline.
+
+## Midland concentration/flow estimator
+
+`kepco_midland_concentration/` contains the former Midland monthly-emissions
+API scraper, per-site facility-status scrapers, and concentration/flow mass
+estimator. They were superseded on 22 July 2026 when KOMIPO supplied direct
+monthly pollutant mass for 2024--2025. The archive remains runnable only by
+explicit module path and writes to ignored `data/archive/` locations. See
+[`docs/archive/kepco_midland_concentration.md`](../../../docs/archive/kepco_midland_concentration.md).
+
+## KMA Hourly Weather
+
+`kma_weather/` contains the superseded KMA ASOS, radiosonde,
+stability-analysis, station-history, and Wind Profiler collector and processor.
+The team archived it on 22 July 2026 after selecting annual Global InMAP with
+packaged global meteorology and built-in bias correction. It is no longer
+reachable through active Makefile targets. See
+[`docs/archive/kma_weather.md`](../../../docs/archive/kma_weather.md) for its
+scope and explicit module commands.
+
+## CleanSYS TMS Scripts
 
 This folder contains archived CleanSYS TMS scripts that convert raw downloaded
 API responses into analysis-ready CSV files. They are retained for reference
