@@ -129,7 +129,7 @@ DATASET_SPECS = (
         THERMAL_INTERIM_DIR
         / "kepco_subsidiaries"
         / "midland_power"
-        / "midland_power_monthly_derived_emissions.csv",
+        / "midland_power_monthly_generation_emissions.csv",
     ),
 )
 
