@@ -85,6 +85,11 @@ mortality-column map; no InMAP mortality variable is requested, and this input c
 enter exposure or health calculations. Health mortality comes only from the documented
 KOSIS input.
 
+This annual Global InMAP dataset and its built-in bias correction are the active
+meteorological layer for the research design. The workflow does not ingest or
+temporally aggregate hourly KMA observations. The superseded KMA pipeline is
+retained only under [`docs/archive/kma_weather.md`](../archive/kma_weather.md).
+
 The official v1.9.6 release tag points to commit
 `7b665744065a447d2f2a64aa7124c043ef5b8b2e`, whose upstream `framework.go` still
 sets the internal version string to `1.9.0`. The installer therefore expects the

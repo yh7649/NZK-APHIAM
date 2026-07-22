@@ -1,4 +1,4 @@
-"""Documented column order for KMA API Hub type-01 text responses."""
+"""Documented column order for archived KMA API Hub type-01 text responses."""
 
 ASOS_COLUMNS = [
     "TM",

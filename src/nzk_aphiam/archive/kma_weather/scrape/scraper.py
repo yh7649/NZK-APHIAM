@@ -1,4 +1,4 @@
-"""Download KMA surface and upper-air observations as immutable annual snapshots.
+"""Archived KMA surface and upper-air snapshot collector.
 
 The KMA type-01 APIs return whitespace-delimited text. This collector preserves
 their documented source fields without imputing missing values. ASOS timestamps
@@ -6,6 +6,9 @@ are KST; radiosonde, stability, and Wind Profiler timestamps are UTC.
 
 KMA requires both an API Hub key and a separate usage activation for each API.
 Put the key in ``KMA_API_HUB_KEY`` in the project ``.env`` file.
+
+This pipeline was archived on 2026-07-22 after the project selected annual
+Global InMAP with its packaged meteorology and built-in bias correction.
 """
 
 from __future__ import annotations
@@ -26,8 +29,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from nzk_aphiam.config.paths import PROJECT_ROOT, WEATHER_RAW_DIR
-from nzk_aphiam.data.scrape.weather.kma.schemas import (
+from nzk_aphiam.archive.kma_weather.scrape.schemas import (
     ASOS_COLUMNS,
     PROFILER_COLUMNS,
     PROFILER_STATION_COLUMNS,
@@ -35,6 +37,7 @@ from nzk_aphiam.data.scrape.weather.kma.schemas import (
     STABILITY_COLUMNS,
     STATION_COLUMNS,
 )
+from nzk_aphiam.config.paths import KMA_WEATHER_ARCHIVE_RAW_DIR, PROJECT_ROOT
 
 API_KEY_ENV = "KMA_API_HUB_KEY"
 BASE_URL = "https://apihub.kma.go.kr/api/typ01/url"
@@ -462,14 +465,14 @@ def scrape(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Download KMA meteorology as immutable annual source snapshots."
+        description="Archived KMA collector for immutable annual source snapshots."
     )
     parser.add_argument(
         "dataset", choices=("core", "surface", "radiosonde", "stability", "profiler", "stations")
     )
     parser.add_argument("--start-year", type=int, default=2001)
     parser.add_argument("--end-year", type=int, default=2024)
-    parser.add_argument("--output-dir", type=Path, default=WEATHER_RAW_DIR)
+    parser.add_argument("--output-dir", type=Path, default=KMA_WEATHER_ARCHIVE_RAW_DIR)
     parser.add_argument("--timeout", type=int, default=120)
     parser.add_argument("--delay-seconds", type=float, default=0.05)
     parser.add_argument("--overwrite", action="store_true")

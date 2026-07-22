@@ -1,9 +1,15 @@
-# KMA Meteorology for Pollutant-Dispersion Modeling
+# Archived KMA Hourly Weather Pipeline
+
+> **Archived 22 July 2026.** The research team selected annual Global InMAP,
+> which supplies global meteorology and built-in bias correction. Hourly KMA
+> weather therefore does not support the active atmospheric-dispersion design.
+> The implementation is retained for provenance and possible future reuse, but
+> it is no longer exposed through Makefile targets or the active data packages.
 
 ## Purpose
 
-This pipeline collects meteorology needed to connect KEPCO plant emissions to
-hourly AirKorea concentrations. The nine feature groups are:
+This superseded pipeline collected meteorology intended to connect KEPCO plant
+emissions to hourly AirKorea concentrations. The nine feature groups were:
 
 1. temperature;
 2. humidity and dew point;
@@ -47,16 +53,16 @@ Raw source columns are saved without imputation as immutable annual CSV
 snapshots:
 
 ```text
-data/raw/weather/kma/<dataset>/<dataset>.source.<year>.csv
+data/archive/raw/weather/kma/<dataset>/<dataset>.source.<year>.csv
 ```
 
 An existing year is reused unless `--overwrite` is explicit. Writes go through
 a `.part` file and replace the target only after the full year succeeds.
 `metadata.json` records source pages, timestamp conventions, hashes, sizes,
-row counts, and request counts. Run `make track-kma-snapshots` to add this raw
-domain to local DVC tracking.
+row counts, and request counts. The archived pipeline has no DVC or Makefile
+target.
 
-Processed annual partitions under `data/processed/weather/kma/` include
+Processed annual partitions under `data/archive/processed/weather/kma/` include
 `station_history`, `surface_hourly`, `radiosonde_profile`,
 `stability_indices`, `upper_air_dispersion`, and, when downloaded,
 `profiler_wind`.
@@ -64,8 +70,8 @@ Processed annual partitions under `data/processed/weather/kma/` include
 ## Current Coverage
 
 Coverage values are defined by the generated outputs after a team member runs
-`make process-kma-weather`. They are intentionally not hard-coded here because
-adding a year or the Wind Profiler batch changes them.
+the archived processor directly. They are intentionally not hard-coded here
+because adding a year or the Wind Profiler batch changes them.
 
 Current-value variables:
 
@@ -75,7 +81,28 @@ Current-value variables:
 
 A local current-values file may be kept beside the processed data at:
 
-- `data/processed/weather/kma/README.md`
+- `data/archive/processed/weather/kma/README.md`
+
+## Archived execution
+
+The old implementation remains runnable only by explicit module path. This is
+for provenance or a deliberately restored hourly-monitor study, not for the
+active annual Global InMAP workflow.
+
+```bash
+PYTHONPATH=src python -m nzk_aphiam.archive.kma_weather.scrape \
+  core --start-year 2001 --end-year 2024
+
+PYTHONPATH=src python -m nzk_aphiam.archive.kma_weather.process \
+  --start-year 2001 --end-year 2024
+```
+
+Wind Profiler collection remains a separate high-volume command:
+
+```bash
+PYTHONPATH=src python -m nzk_aphiam.archive.kma_weather.scrape \
+  profiler --start-year 2015 --end-year 2015
+```
 
 ## Derived fields
 
@@ -107,7 +134,7 @@ above `--max-requests`.
 
 The core 2001–2024 pull is approximately 18,000 calls, dominated by twice-daily
 radiosondes. Hourly Wind Profiler data require roughly 8,760 calls per year and
-therefore have a separate target intended for year-by-year batches. Existing
+therefore use a separate command intended for year-by-year batches. Existing
 annual snapshots cost no calls unless `--overwrite` is used.
 
 ## Limitations

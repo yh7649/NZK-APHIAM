@@ -5,14 +5,21 @@ This pilot implements the two-stage design discussed for plant events. It uses
 synthetic control (`augsynth`) on weekly outcomes. Actual wind remains available
 for plume validation; it must not be inferred from the randomized-weather outcome.
 
+The pilot remains available, but the repository no longer provides an active
+KMA weather-ingestion dependency. The KMA collector and processor were archived
+on 22 July 2026 when the main atmospheric-dispersion design moved to annual
+Global InMAP. See [`docs/archive/kma_weather.md`](../archive/kma_weather.md) if
+this hourly design is deliberately restored.
+
 ## Required hourly input
 
-Join the AirKorea QC output to the nearest defensible KMA observation before
-running this workflow. The CSV must contain `datetime`, `monitor_id`, `pollutant`,
-`concentration`, monitor `latitude` and `longitude`, and the KMA columns consumed
-by `normalize_weather.R`. The panel command adds `plant_monitor_distance_km`
-and `target_exposure` from those coordinates and winds. Preserve monitor type,
-relocation flags, and known overlapping plant events when available.
+Supply an hourly AirKorea QC table already joined to a defensible external
+meteorology source before running this workflow. The CSV must contain `datetime`,
+`monitor_id`, `pollutant`, `concentration`, monitor `latitude` and `longitude`,
+and the meteorology columns consumed by `normalize_weather.R`. The panel command
+adds `plant_monitor_distance_km` and `target_exposure` from those coordinates and
+winds. Preserve monitor type, relocation flags, and known overlapping plant events
+when available.
 
 Copy `configs/plant_events/example_event.yml`, replace all placeholders with a
 single verified intervention, and run:

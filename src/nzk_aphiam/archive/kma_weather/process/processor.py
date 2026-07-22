@@ -1,4 +1,4 @@
-"""Build analysis-ready KMA meteorology and upper-air dispersion features.
+"""Build archived KMA meteorology and upper-air dispersion features.
 
 Outputs remain partitioned by year so a single new year does not rewrite the
 entire historical dataset. No weather observations are interpolated or imputed.
@@ -6,6 +6,9 @@ Radiosonde-derived mixing height uses the documented HYSPLIT potential-
 temperature method: the first level at least 2 K warmer in potential temperature
 than the profile minimum. It is an estimate at sounding time, not a directly
 observed KMA variable.
+
+This pipeline was archived on 2026-07-22 after the project selected annual
+Global InMAP with its packaged meteorology and built-in bias correction.
 """
 
 from __future__ import annotations
@@ -19,7 +22,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from nzk_aphiam.config.paths import WEATHER_PROCESSED_DIR, WEATHER_RAW_DIR
+from nzk_aphiam.config.paths import (
+    KMA_WEATHER_ARCHIVE_PROCESSED_DIR,
+    KMA_WEATHER_ARCHIVE_RAW_DIR,
+)
 
 SURFACE_RENAME = {
     "TM": "timestamp_kst",
@@ -507,7 +513,7 @@ def process(
 
 def build_local_readme(outputs: list[dict[str, object]], start_year: int, end_year: int) -> str:
     """Render current-value coverage matching the placeholders in
-    docs/datasets/kma_weather.md, so the local snapshot tracks whatever this
+    docs/archive/kma_weather.md, so the local snapshot tracks whatever this
     processing run just produced.
     """
     by_dataset: dict[str, dict[str, object]] = {}
@@ -526,16 +532,16 @@ def build_local_readme(outputs: list[dict[str, object]], start_year: int, end_ye
     return f"""# KMA Weather Dataset: Current Local Values
 
 This local file records the current generated values for the partitioned
-outputs under `data/processed/weather/kma/`.
+outputs under `data/archive/processed/weather/kma/`.
 
 The tracked dataset description is:
 
-- `docs/datasets/kma_weather.md`
+- `docs/archive/kma_weather.md`
 
-This folder is ignored by git, so these values are local snapshots. Running
-`make process-kma-weather` regenerates this file every time it regenerates
-the dataset, so it should never go stale relative to the data actually on
-disk. This snapshot reflects the last processed range, `{start_year}-{end_year}`;
+This folder is ignored by git, so these values are local snapshots. The
+archived processor regenerates this file every time it regenerates the
+dataset, so it should never go stale relative to the data actually on disk.
+This snapshot reflects the last processed range, `{start_year}-{end_year}`;
 existing years outside that range keep their own annual files but are not
 recounted here unless reprocessed.
 
@@ -550,7 +556,8 @@ Rows by processed dataset (summed across annual partitions from this run):
 These values are written automatically by:
 
 ```bash
-make process-kma-weather
+PYTHONPATH=src python -m nzk_aphiam.archive.kma_weather.process \\
+  --start-year {start_year} --end-year {end_year}
 ```
 """
 
@@ -564,10 +571,10 @@ def save_local_readme(readme_text: str, readme_path: Path) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Normalize KMA observations and derive upper-air dispersion features."
+        description="Archived KMA normalization and upper-air feature derivation."
     )
-    parser.add_argument("--raw-dir", type=Path, default=WEATHER_RAW_DIR)
-    parser.add_argument("--output-dir", type=Path, default=WEATHER_PROCESSED_DIR)
+    parser.add_argument("--raw-dir", type=Path, default=KMA_WEATHER_ARCHIVE_RAW_DIR)
+    parser.add_argument("--output-dir", type=Path, default=KMA_WEATHER_ARCHIVE_PROCESSED_DIR)
     parser.add_argument("--start-year", type=int, default=2001)
     parser.add_argument("--end-year", type=int, default=2024)
     return parser

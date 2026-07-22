@@ -5,8 +5,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from nzk_aphiam.data.scrape.weather.kma import scraper
-from nzk_aphiam.data.scrape.weather.kma.schemas import ASOS_COLUMNS
+from nzk_aphiam.archive.kma_weather.scrape import scraper
+from nzk_aphiam.archive.kma_weather.scrape.schemas import ASOS_COLUMNS
 
 
 def test_parse_text_response_skips_kma_markers_and_preserves_source_strings() -> None:
@@ -28,6 +28,12 @@ def test_parse_text_response_rejects_schema_drift() -> None:
 def test_request_estimate_keeps_one_core_year_below_daily_limit() -> None:
     assert scraper.estimate_requests("core", 2001, 2001, 1) == 757
     assert scraper.estimate_requests("profiler", 2001, 2001, 1) == 8760
+
+
+def test_archived_cli_defaults_to_archived_storage() -> None:
+    args = scraper.build_parser().parse_args(["surface"])
+
+    assert args.output_dir.as_posix().endswith("data/archive/raw/weather/kma")
 
 
 def test_save_snapshot_is_atomic_and_requires_overwrite_for_revision(tmp_path: Path) -> None:
