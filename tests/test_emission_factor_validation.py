@@ -11,21 +11,41 @@ from nzk_aphiam.validation.emission_factors.annualize import (
     prepare_project_data,
 )
 from nzk_aphiam.validation.emission_factors.compare import (
+    INCLUDED_DIRECT,
     build_readable_comparison_tables,
     compare_fuel_technology_year,
     compare_to_literature,
     prepare_literature_output,
 )
-from nzk_aphiam.validation.emission_factors.crosswalk import project_boundaries_from_crosswalk
+from nzk_aphiam.validation.emission_factors.crosswalk import (
+    project_boundaries_from_crosswalk,
+)
 from nzk_aphiam.validation.emission_factors.figures import write_comparison_table_images
+from nzk_aphiam.validation.emission_factors.pipeline import run_validation
 from nzk_aphiam.validation.emission_factors.references import (
+    apply_comparison_rules,
     load_catalog,
+    load_comparison_rules,
     load_literature_benchmarks,
     load_pdf_inventory,
 )
 
 
 REFERENCE_DIR = Path("docs/references/emission_factor_validation")
+
+
+def reviewed_literature() -> pd.DataFrame:
+    literature = prepare_literature_output(load_literature_benchmarks(REFERENCE_DIR))
+    return apply_comparison_rules(literature, load_comparison_rules(REFERENCE_DIR))
+
+
+@pytest.fixture(scope="module")
+def validation_outputs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, pd.DataFrame]:
+    root = tmp_path_factory.mktemp("ef-validation")
+    return run_validation(
+        table_output_dir=root / "tables",
+        figure_output_dir=root / "figures",
+    )
 
 
 def row(
@@ -220,41 +240,23 @@ def test_combined_keei_factor_cannot_match_individual_pollutant() -> None:
     assert compare_to_literature(project, literature).empty
 
 
-def test_partial_unit_boundaries_are_marked_non_strict() -> None:
-    literature = pd.DataFrame(
-        {
-            "reference_id": ["ref"],
-            "plant_group_id": ["group"],
-            "data_year": [2022],
-            "pollutant": ["NOx"],
-            "pollutant_scope": ["NOx"],
-            "reference_ef_kg_per_mwh": [0.1],
-            "reference_generation_mwh": [100.0],
-            "reference_emissions_kg": [10.0],
-            "validation_role": ["primary_same_year_external_pipeline_validation"],
-            "comparability_notes": [""],
-            "plant_name_en": ["Plant"],
-        }
-    )
-    project = pd.DataFrame(
-        {
-            "reference_id": ["ref"],
-            "plant_group_id": ["group"],
-            "year": [2022],
-            "pollutant": ["NOx"],
-            "pollutant_scope": ["NOx"],
-            "analysis_variant": ["reported"],
-            "generation_mwh_sum": [100.0],
-            "pollutant_mass_kg_sum": [10.0],
-            "ef_kg_per_mwh": [0.1],
-            "n_matched_months": [12],
-            "complete_calendar_year": [True],
-            "boundary_match_status": ["partial_units"],
-            "project_plant_name": ["Plant"],
-        }
-    )
-    comparison = compare_to_literature(project, literature)
-    assert comparison["comparability_status"].iloc[0] == "non_strict_or_historical_benchmark"
+def test_incomplete_pollutant_year_coverage_blocks_direct_comparison(
+    validation_outputs: dict[str, pd.DataFrame],
+) -> None:
+    direct = validation_outputs["direct_validation_comparisons"]
+    assert direct.loc[
+        direct["plant_group_id"].eq("lee_taean_1_10")
+        & direct["pollutant"].eq("NOx")
+    ].empty
+    reconciliation = validation_outputs["plant_input_reconciliation"]
+    taean = reconciliation.loc[
+        reconciliation["plant_group_id"].eq("lee_taean_1_10")
+        & reconciliation["pollutant"].eq("NOx")
+        & reconciliation["analysis_variant"].eq("reported")
+    ].iloc[0]
+    assert taean["comparison_status"] == "excluded_coverage_mismatch"
+    assert taean["comparison_class"] == "D_contextual_benchmark"
+    assert taean["coverage_fraction"] < 1
 
 
 def test_taean_2022_literature_fixture_reproduces_expected_values() -> None:
@@ -283,38 +285,45 @@ def test_audit_flags_remain_available_in_output() -> None:
     assert nox["audit_issue_code_values"] == "fixture_issue"
 
 
-def test_readable_comparison_tables_include_source_hand_calc_and_percent_error() -> None:
+def test_readable_comparison_tables_include_mass_generation_and_ef_reconciliation() -> None:
     comparisons = pd.DataFrame(
         {
             "reference_id": ["lee_2025_kosae", "lee_2025_kosae"],
             "year": [2022, 2022],
             "plant_name_en": ["Plant", "Plant"],
             "pollutant": ["NOx", "SOx"],
-            "reference_ef_kg_per_mwh": [0.2, 0.1],
-            "project_ef_kg_per_mwh": [0.22, 0.09],
-            "ef_percent_difference": [10.0, -10.0],
-            "generation_percent_difference": [1.0, 2.0],
-            "emissions_percent_difference": [11.0, -8.0],
-            "n_matched_months": [12, 12],
-            "coverage_status": ["complete_matched_calendar_year", "complete_matched_calendar_year"],
-            "boundary_match_status": ["exact", "exact"],
-            "comparability_status": [
-                "strict_same_year_comparable",
-                "strict_same_year_comparable",
-            ],
+            "external_generation_mwh": [100.0, 100.0],
+            "kepco_generation_mwh": [101.0, 102.0],
+            "generation_difference_mwh": [1.0, 2.0],
+            "external_pollutant_mass_kg": [20.0, 10.0],
+            "kepco_pollutant_mass_kg": [22.22, 9.18],
+            "mass_difference_kg": [2.22, -0.82],
+            "external_ef_kg_per_mwh": [0.2, 0.1],
+            "kepco_ef_kg_per_mwh": [0.22, 0.09],
+            "absolute_difference_kg_per_mwh": [0.02, -0.01],
+            "percent_difference": [10.0, -10.0],
+            "ratio": [1.1, 0.9],
+            "symmetric_percent_difference": [9.52, -10.53],
+            "small_external_denominator_flag": [False, False],
+            "coverage_fraction": [1.0, 1.0],
+            "comparison_status": [INCLUDED_DIRECT, INCLUDED_DIRECT],
             "analysis_variant": ["reported", "reported"],
         }
     )
     tidy, wide = build_readable_comparison_tables(comparisons)
 
     assert {
-        "other_source_ef_kg_per_mwh",
-        "hand_calculated_ef_kg_per_mwh",
-        "ef_percent_error",
+        "external_generation_mwh",
+        "kepco_generation_mwh",
+        "external_pollutant_mass_kg",
+        "kepco_pollutant_mass_kg",
+        "external_ef_kg_per_mwh",
+        "kepco_ef_kg_per_mwh",
+        "percent_difference",
     }.issubset(tidy.columns)
-    assert wide.loc[0, "nox_other_source_ef_kg_per_mwh"] == 0.2
-    assert wide.loc[0, "nox_hand_calculated_ef_kg_per_mwh"] == 0.22
-    assert wide.loc[0, "nox_percent_error"] == 10.0
+    assert wide.loc[0, "nox_external_ef_kg_per_mwh"] == 0.2
+    assert wide.loc[0, "nox_kepco_ef_kg_per_mwh"] == 0.22
+    assert wide.loc[0, "nox_percent_difference"] == 10.0
 
 
 def test_comparison_table_image_outputs_are_written(tmp_path: Path) -> None:
@@ -322,28 +331,33 @@ def test_comparison_table_image_outputs_are_written(tmp_path: Path) -> None:
         {
             "plant": ["Plant"],
             "pollutant": ["NOx"],
-            "other_source_ef_kg_per_mwh": [0.2],
-            "hand_calculated_ef_kg_per_mwh": [0.22],
-            "ef_percent_error": [10.0],
+            "external_generation_mwh": [100.0],
+            "kepco_generation_mwh": [101.0],
+            "external_pollutant_mass_kg": [20.0],
+            "kepco_pollutant_mass_kg": [22.22],
+            "external_ef_kg_per_mwh": [0.2],
+            "kepco_ef_kg_per_mwh": [0.22],
+            "percent_difference": [10.0],
+            "coverage_fraction": [1.0],
         }
     )
     wide = pd.DataFrame(
         {
-            "source": ["Lee et al. (2025) Table 1"],
+            "reference_id": ["lee_2025_kosae"],
             "year": [2022],
             "plant": ["Plant"],
-            "nox_other_source_ef_kg_per_mwh": [0.2],
-            "nox_hand_calculated_ef_kg_per_mwh": [0.22],
-            "nox_percent_error": [10.0],
+            "nox_external_ef_kg_per_mwh": [0.2],
+            "nox_kepco_ef_kg_per_mwh": [0.22],
+            "nox_percent_difference": [10.0],
         }
     )
 
     write_comparison_table_images(tidy, wide, tmp_path)
 
-    assert (tmp_path / "ef_comparison_table.svg").exists()
-    assert (tmp_path / "ef_comparison_wide_table.svg").exists()
-    assert (tmp_path / "ef_comparison_table.png").exists()
-    assert (tmp_path / "ef_comparison_wide_table.png").exists()
+    assert (tmp_path / "plant_level_external_validation_table.svg").exists()
+    assert (tmp_path / "plant_level_external_validation_ef_table.svg").exists()
+    assert (tmp_path / "plant_level_external_validation_table.png").exists()
+    assert (tmp_path / "plant_level_external_validation_ef_table.png").exists()
 
 
 def test_seo_kim_jeon_is_present_in_catalog() -> None:
@@ -444,3 +458,210 @@ def test_keei_combined_factor_recalculation_still_matches() -> None:
     ].iloc[0]
     assert dangjin["reported_ef_kg_per_mwh"] == pytest.approx(0.680)
     assert dangjin["recalculated_ef_kg_per_mwh"] == pytest.approx(17890000 / 26303000)
+
+
+def test_lee_exact_plant_year_matches_are_allowed(
+    validation_outputs: dict[str, pd.DataFrame],
+) -> None:
+    direct = validation_outputs["direct_validation_comparisons"]
+    dangjin = direct.loc[
+        direct["plant_group_id"].eq("lee_dangjin_1_10")
+        & direct["analysis_variant"].eq("reported")
+    ]
+    assert set(dangjin["pollutant"]) == {"NOx", "SOx", "TSP", "combined"}
+    assert set(dangjin["comparison_class"]) == {"B_plant_pipeline_validation"}
+    assert dangjin["comparison_status"].eq(INCLUDED_DIRECT).all()
+    assert dangjin["coverage_fraction"].eq(1).all()
+
+
+def test_dangjin_reproduces_within_rounding_tolerance(
+    validation_outputs: dict[str, pd.DataFrame],
+) -> None:
+    direct = validation_outputs["direct_validation_comparisons"]
+    dangjin = direct.loc[
+        direct["plant_group_id"].eq("lee_dangjin_1_10")
+        & direct["analysis_variant"].eq("reported")
+    ]
+    assert dangjin["generation_difference_mwh"].abs().max() < 1
+    assert dangjin["mass_difference_kg"].abs().max() < 100
+    assert dangjin["percent_difference"].abs().max() < 0.02
+
+
+def test_keei_plant_factor_cannot_match_generic_fuel_technology_group() -> None:
+    project = pd.DataFrame(
+        {
+            "year": [2016],
+            "fuel_type": ["coal"],
+            "technology": ["conventional_steam_turbine"],
+            "pollutant": ["combined"],
+            "pollutant_scope": ["NOx+SOx+TSP"],
+            "analysis_variant": ["reported"],
+            "generation_mwh_sum": [100.0],
+            "pollutant_mass_kg_sum": [50.0],
+            "coverage_fraction": [1.0],
+            "calendar_month_coverage_fraction": [1.0],
+            "complete_calendar_year": [True],
+            "missing_months": [""],
+        }
+    )
+    result = compare_fuel_technology_year(project, reviewed_literature())
+    assert result.empty
+
+
+def test_motie_coal_is_one_fuel_fleet_check_not_an_igcc_match(
+    validation_outputs: dict[str, pd.DataFrame],
+) -> None:
+    checks = validation_outputs["aggregate_consistency_checks"]
+    coal = checks.loc[
+        checks["required_fuel"].eq("coal")
+        & checks["analysis_variant"].eq("reported")
+    ]
+    assert len(coal) == 4
+    assert coal["comparison_class"].eq("C_aggregate_consistency_check").all()
+    assert coal["operator_coverage"].eq("kepco_subsidiaries_only").all()
+    assert coal["technology_project"].str.contains(
+        "conventional_steam_turbine"
+    ).all()
+    assert coal["technology_project"].str.contains(
+        "integrated_gasification_combined_cycle"
+    ).all()
+
+
+def test_motie_lng_is_one_fuel_fleet_check_not_chp_or_ngcc_rows(
+    validation_outputs: dict[str, pd.DataFrame],
+) -> None:
+    checks = validation_outputs["aggregate_consistency_checks"]
+    lng = checks.loc[
+        checks["required_fuel"].eq("natural_gas")
+        & checks["analysis_variant"].eq("reported")
+    ]
+    assert len(lng) == 1
+    assert lng.iloc[0]["pollutant"] == "NOx"
+    assert "cogeneration_chp" in lng.iloc[0]["technology_project"]
+    assert "combined_cycle_gas_turbine" in lng.iloc[0]["technology_project"]
+
+
+def test_seo_produces_no_direct_percent_error_rows(
+    validation_outputs: dict[str, pd.DataFrame],
+) -> None:
+    direct = validation_outputs["direct_validation_comparisons"]
+    assert direct.loc[direct["reference_id"].eq("seo_2019_bio_heavy_oil")].empty
+    contextual = validation_outputs["contextual_literature_benchmarks"]
+    seo = contextual.loc[contextual["reference_id"].eq("seo_2019_bio_heavy_oil")]
+    assert not seo.empty
+    assert seo["comparison_class"].eq("D_contextual_benchmark").all()
+    assert not any("percent_difference" in column for column in contextual.columns)
+
+
+@pytest.mark.parametrize("reference_id", ["capss_manual_vii_2025", "yu_2021_ajae"])
+def test_fuel_input_sources_cannot_enter_kg_per_mwh_validation(
+    validation_outputs: dict[str, pd.DataFrame], reference_id: str
+) -> None:
+    direct = validation_outputs["direct_validation_comparisons"]
+    aggregate = validation_outputs["aggregate_consistency_checks"]
+    assert direct.loc[direct["reference_id"].eq(reference_id)].empty
+    assert aggregate.loc[aggregate["reference_id"].eq(reference_id)].empty
+    literature = reviewed_literature()
+    source = literature.loc[literature["reference_id"].eq(reference_id)]
+    assert source["comparison_class"].eq("X_not_comparable").all()
+
+
+def test_pm25_cannot_match_tsp_in_production_outputs(
+    validation_outputs: dict[str, pd.DataFrame],
+) -> None:
+    direct = validation_outputs["direct_validation_comparisons"]
+    aggregate = validation_outputs["aggregate_consistency_checks"]
+    assert "PM2.5" not in set(direct["pollutant"])
+    assert "PM2.5" not in set(aggregate["pollutant"])
+    rejected = validation_outputs["rejected_or_noncomparable_comparisons"]
+    assert "pm25_not_tsp" in set(rejected["exclusion_reason"])
+
+
+def test_historical_fuel_ambiguity_causes_exclusion() -> None:
+    literature = reviewed_literature()
+    external = literature.loc[
+        literature["plant_group_id"].eq("lee_dangjin_1_10")
+        & literature["pollutant"].eq("NOx")
+    ]
+    project = pd.DataFrame(
+        {
+            "reference_id": ["lee_2025_kosae"],
+            "plant_group_id": ["lee_dangjin_1_10"],
+            "year": [2022],
+            "pollutant": ["NOx"],
+            "pollutant_scope": ["NOx"],
+            "analysis_variant": ["reported"],
+            "generation_mwh_sum": [100.0],
+            "pollutant_mass_kg_sum": [10.0],
+            "ef_kg_per_mwh": [0.1],
+            "coverage_fraction": [1.0],
+            "n_boundary_units": [10],
+            "complete_calendar_year": [True],
+            "missing_months": [""],
+            "boundary_match_status": ["exact"],
+            "project_plant_name": ["Dangjin"],
+            "fuel_type": ["coal;oil"],
+            "technology": ["conventional_steam_turbine"],
+        }
+    )
+    attempt = compare_to_literature(project, external).iloc[0]
+    assert attempt["comparison_status"] == "excluded_historical_fuel_ambiguity"
+    assert attempt["comparison_class"] == "D_contextual_benchmark"
+    assert attempt["exclusion_reason"] == "historical_fuel_mapping_unresolved"
+
+
+def test_every_rejected_comparison_has_an_exclusion_reason(
+    validation_outputs: dict[str, pd.DataFrame],
+) -> None:
+    rejected = validation_outputs["rejected_or_noncomparable_comparisons"]
+    assert not rejected.empty
+    assert rejected["exclusion_reason"].notna().all()
+    assert rejected["exclusion_reason"].astype(str).str.strip().ne("").all()
+
+
+def test_existing_complete_lee_results_are_preserved(
+    validation_outputs: dict[str, pd.DataFrame],
+) -> None:
+    direct = validation_outputs["direct_validation_comparisons"]
+    lee = direct.loc[
+        direct["reference_id"].eq("lee_2025_kosae")
+        & direct["analysis_variant"].eq("reported")
+    ]
+    expected_plants = {
+        "Dangjin",
+        "Yeongheung",
+        "Yeosu",
+        "SamcheokGreen",
+        "Donghae",
+        "Samcheonpo",
+        "Hadong",
+    }
+    assert expected_plants.issubset(set(lee["plant_name_en"]))
+    assert lee["comparison_class"].eq("B_plant_pipeline_validation").all()
+
+
+def test_required_output_classes_and_reconciliation_fields(
+    validation_outputs: dict[str, pd.DataFrame],
+) -> None:
+    assert set(validation_outputs) == {
+        "direct_validation_comparisons",
+        "aggregate_consistency_checks",
+        "contextual_literature_benchmarks",
+        "rejected_or_noncomparable_comparisons",
+        "plant_input_reconciliation",
+        "literature_coverage_matrix",
+    }
+    reconciliation = validation_outputs["plant_input_reconciliation"]
+    assert {
+        "external_generation_mwh",
+        "kepco_generation_mwh",
+        "generation_difference_mwh",
+        "external_pollutant_mass_kg",
+        "kepco_pollutant_mass_kg",
+        "mass_difference_kg",
+        "external_ef_kg_per_mwh",
+        "kepco_ef_kg_per_mwh",
+        "ef_difference_kg_per_mwh",
+        "coverage_fraction",
+        "missing_months",
+    }.issubset(reconciliation.columns)

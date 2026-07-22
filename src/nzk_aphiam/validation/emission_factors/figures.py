@@ -16,9 +16,11 @@ def _scale(values: pd.Series, low: float, high: float, pixels_low: float, pixels
 
 
 def write_scatter_svg(comparisons: pd.DataFrame, output_path: Path) -> None:
-    """Write project-vs-literature EF scatter with a one-to-one line."""
+    """Write A/B project-vs-external EF scatter with a one-to-one line."""
     data = comparisons.loc[
-        comparisons["comparability_status"].eq("strict_same_year_comparable")
+        comparisons["comparison_class"].isin(
+            ["A_exact_reproduction", "B_plant_pipeline_validation"]
+        )
         & comparisons["analysis_variant"].eq("reported")
     ].copy()
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -26,7 +28,7 @@ def write_scatter_svg(comparisons: pd.DataFrame, output_path: Path) -> None:
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
         '<rect width="100%" height="100%" fill="white"/>',
-        '<text x="30" y="35" font-size="20" font-family="sans-serif">Project EF versus literature EF</text>',
+        '<text x="30" y="35" font-size="20" font-family="sans-serif">Plant-level external validation</text>',
     ]
     if data.empty:
         parts.append(
@@ -36,7 +38,7 @@ def write_scatter_svg(comparisons: pd.DataFrame, output_path: Path) -> None:
         pollutants = ["NOx", "SOx", "TSP", "combined"]
         colors = {"NOx": "#1f77b4", "SOx": "#d62728", "TSP": "#2ca02c", "combined": "#444444"}
         max_value = float(
-            data[["project_ef_kg_per_mwh", "reference_ef_kg_per_mwh"]].max().max() * 1.1
+            data[["kepco_ef_kg_per_mwh", "external_ef_kg_per_mwh"]].max().max() * 1.1
         )
         x0, y0, x1, y1 = 80, 540, 820, 80
         parts.extend(
@@ -52,8 +54,8 @@ def write_scatter_svg(comparisons: pd.DataFrame, output_path: Path) -> None:
             subset = data.loc[data["pollutant"].eq(pollutant)]
             if subset.empty:
                 continue
-            xs = _scale(subset["reference_ef_kg_per_mwh"], 0, max_value, x0, x1)
-            ys = _scale(subset["project_ef_kg_per_mwh"], 0, max_value, y0, y1)
+            xs = _scale(subset["external_ef_kg_per_mwh"], 0, max_value, x0, x1)
+            ys = _scale(subset["kepco_ef_kg_per_mwh"], 0, max_value, y0, y1)
             for (_, row), x, y in zip(subset.iterrows(), xs, ys, strict=True):
                 label = f"{row['plant_name_en']} {pollutant}"
                 parts.append(
@@ -70,7 +72,9 @@ def write_scatter_svg(comparisons: pd.DataFrame, output_path: Path) -> None:
 def write_percent_difference_svg(comparisons: pd.DataFrame, output_path: Path) -> None:
     """Write a simple percent-difference strip chart."""
     data = comparisons.loc[
-        comparisons["comparability_status"].eq("strict_same_year_comparable")
+        comparisons["comparison_class"].isin(
+            ["A_exact_reproduction", "B_plant_pipeline_validation"]
+        )
         & comparisons["analysis_variant"].eq("reported")
     ].copy()
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -78,10 +82,10 @@ def write_percent_difference_svg(comparisons: pd.DataFrame, output_path: Path) -
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
         '<rect width="100%" height="100%" fill="white"/>',
-        '<text x="30" y="35" font-size="20" font-family="sans-serif">EF percent difference by plant and pollutant</text>',
+        '<text x="30" y="35" font-size="20" font-family="sans-serif">Plant-level external validation: EF percent difference</text>',
     ]
     if not data.empty:
-        bound = max(5.0, float(data["ef_percent_difference"].abs().max() * 1.1))
+        bound = max(5.0, float(data["percent_difference"].abs().max() * 1.1))
         x_mid = 520
         parts.append(f'<line x1="{x_mid}" y1="60" x2="{x_mid}" y2="{height - 30}" stroke="#888"/>')
         for i, row in enumerate(
@@ -89,7 +93,7 @@ def write_percent_difference_svg(comparisons: pd.DataFrame, output_path: Path) -
         ):
             y = 80 + i * 30
             x = float(
-                _scale(pd.Series([row["ef_percent_difference"]]), -bound, bound, 120, 920).iloc[0]
+                _scale(pd.Series([row["percent_difference"]]), -bound, bound, 120, 920).iloc[0]
             )
             parts.append(
                 f'<line x1="{x_mid}" y1="{y}" x2="{x:.1f}" y2="{y}" stroke="#3b6ea8" stroke-width="4"/>'
@@ -99,7 +103,7 @@ def write_percent_difference_svg(comparisons: pd.DataFrame, output_path: Path) -
                 f'<text x="30" y="{y + 4}" font-size="12" font-family="sans-serif">{row["plant_name_en"]} {row["pollutant"]}</text>'
             )
             parts.append(
-                f'<text x="930" y="{y + 4}" font-size="12" font-family="sans-serif">{row["ef_percent_difference"]:.1f}%</text>'
+                f'<text x="930" y="{y + 4}" font-size="12" font-family="sans-serif">{row["percent_difference"]:.1f}%</text>'
             )
     parts.append("</svg>")
     output_path.write_text("\n".join(parts), encoding="utf-8")
@@ -176,14 +180,14 @@ def write_comparison_table_images(
     wide = _format_wide_table(readable_comparison_wide)
     for name, table, title in [
         (
-            "ef_comparison_table",
+            "plant_level_external_validation_table",
             tidy,
-            "KEPCO EF validation against Lee et al. (2025), by pollutant",
+            "Plant-level external validation: inputs and EFs",
         ),
         (
-            "ef_comparison_wide_table",
+            "plant_level_external_validation_ef_table",
             wide,
-            "KEPCO EF validation against Lee et al. (2025), by plant",
+            "Plant-level external validation: EF comparison by plant",
         ),
     ]:
         svg_path = output_dir / f"{name}.svg"
@@ -193,7 +197,7 @@ def write_comparison_table_images(
 
 
 def write_literature_ranges_svg(literature: pd.DataFrame, output_path: Path) -> None:
-    """Write literature EF ranges by fuel/technology/year/pollutant."""
+    """Write contextual literature values without a validation line."""
     data = literature.loc[
         literature["normalization_basis"].eq("output_generation_kg_per_mwh")
         & literature["reference_ef_kg_per_mwh"].notna()
@@ -204,7 +208,7 @@ def write_literature_ranges_svg(literature: pd.DataFrame, output_path: Path) -> 
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
         '<rect width="100%" height="100%" fill="white"/>',
-        '<text x="24" y="34" font-size="20" font-family="Arial, Helvetica, sans-serif" font-weight="700">Literature EF values by source cell</text>',
+        '<text x="24" y="34" font-size="20" font-family="Arial, Helvetica, sans-serif" font-weight="700">Literature context (not direct validation)</text>',
     ]
     if not data.empty:
         max_value = float(data["reference_ef_kg_per_mwh"].max() * 1.1)
@@ -300,31 +304,33 @@ def write_source_coverage_matrix_svg(coverage: pd.DataFrame, output_path: Path) 
     cell = 18
     left = 360
     top = 70
-    sources = list(dict.fromkeys(data["reference_id"].astype(str)))
+    classes = list(dict.fromkeys(data["comparison_class"].astype(str)))
     combo_series = (
         data["data_year"].fillna("unknown_year").astype(str)
         + " | "
         + data["fuel_type"].fillna("unknown_fuel").astype(str)
         + " | "
-        + data["pollutant_scope"].fillna("unknown_pollutant").astype(str)
+        + data["technology"].fillna("unknown_technology").astype(str)
+        + " | "
+        + data["pollutant"].fillna("unknown_pollutant").astype(str)
     )
     combos = [str(combo) for combo in dict.fromkeys(combo_series)][:80]
-    width = left + cell * len(sources) + 80
+    width = left + cell * len(classes) + 80
     height = top + cell * len(combos) + 80
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
         '<rect width="100%" height="100%" fill="white"/>',
         '<text x="24" y="34" font-size="20" font-family="Arial, Helvetica, sans-serif" font-weight="700">Literature source coverage matrix</text>',
     ]
-    for j, source in enumerate(sources):
+    for j, comparison_class in enumerate(classes):
         x = left + j * cell + 12
         parts.append(
-            f'<text x="{x}" y="62" font-size="9" font-family="Arial, Helvetica, sans-serif" transform="rotate(-45 {x},62)">{escape(source)}</text>'
+            f'<text x="{x}" y="62" font-size="9" font-family="Arial, Helvetica, sans-serif" transform="rotate(-45 {x},62)">{escape(comparison_class)}</text>'
         )
     present = {
         (
-            f"{row['data_year']} | {row['fuel_type']} | {row['pollutant_scope']}",
-            str(row["reference_id"]),
+            f"{row['data_year']} | {row['fuel_type']} | {row['technology']} | {row['pollutant']}",
+            str(row["comparison_class"]),
         )
         for row in rows
     }
@@ -333,9 +339,9 @@ def write_source_coverage_matrix_svg(coverage: pd.DataFrame, output_path: Path) 
         parts.append(
             f'<text x="24" y="{y + 13}" font-size="10" font-family="Arial, Helvetica, sans-serif">{escape(str(combo)[:55])}</text>'
         )
-        for j, source in enumerate(sources):
+        for j, comparison_class in enumerate(classes):
             x = left + j * cell
-            fill = "#20384f" if (combo, source) in present else "#eef2f6"
+            fill = "#20384f" if (combo, comparison_class) in present else "#eef2f6"
             parts.append(
                 f'<rect x="{x}" y="{y}" width="14" height="14" fill="{fill}" stroke="#d9e1ea"/>'
             )
@@ -347,27 +353,43 @@ def _format_tidy_table(data: pd.DataFrame) -> pd.DataFrame:
     columns = [
         "plant",
         "pollutant",
-        "other_source_ef_kg_per_mwh",
-        "hand_calculated_ef_kg_per_mwh",
-        "ef_percent_error",
+        "external_generation_mwh",
+        "kepco_generation_mwh",
+        "external_pollutant_mass_kg",
+        "kepco_pollutant_mass_kg",
+        "external_ef_kg_per_mwh",
+        "kepco_ef_kg_per_mwh",
+        "percent_difference",
+        "coverage_fraction",
     ]
     if data.empty:
-        return pd.DataFrame(columns=["Plant", "Pollutant", "Source EF", "Project EF", "Error"])
+        return pd.DataFrame(columns=["Plant", "Pollutant", "External EF", "KEPCO EF"])
     table = data[columns].copy()
-    table["other_source_ef_kg_per_mwh"] = table["other_source_ef_kg_per_mwh"].map(
-        lambda value: f"{value:.6f}"
+    for column in [
+        "external_generation_mwh",
+        "kepco_generation_mwh",
+        "external_pollutant_mass_kg",
+        "kepco_pollutant_mass_kg",
+    ]:
+        table[column] = table[column].map(lambda value: f"{value:,.0f}")
+    for column in ["external_ef_kg_per_mwh", "kepco_ef_kg_per_mwh"]:
+        table[column] = table[column].map(lambda value: f"{value:.6f}")
+    table["percent_difference"] = table["percent_difference"].map(
+        lambda value: f"{value:.2f}%" if pd.notna(value) else "flagged"
     )
-    table["hand_calculated_ef_kg_per_mwh"] = table["hand_calculated_ef_kg_per_mwh"].map(
-        lambda value: f"{value:.6f}"
-    )
-    table["ef_percent_error"] = table["ef_percent_error"].map(lambda value: f"{value:.2f}%")
+    table["coverage_fraction"] = table["coverage_fraction"].map(lambda value: f"{value:.0%}")
     return table.rename(
         columns={
             "plant": "Plant",
             "pollutant": "Pollutant",
-            "other_source_ef_kg_per_mwh": "Source EF",
-            "hand_calculated_ef_kg_per_mwh": "Project EF",
-            "ef_percent_error": "Error",
+            "external_generation_mwh": "External gen.",
+            "kepco_generation_mwh": "KEPCO gen.",
+            "external_pollutant_mass_kg": "External mass",
+            "kepco_pollutant_mass_kg": "KEPCO mass",
+            "external_ef_kg_per_mwh": "External EF",
+            "kepco_ef_kg_per_mwh": "KEPCO EF",
+            "percent_difference": "EF difference",
+            "coverage_fraction": "Coverage",
         }
     )
 
@@ -376,27 +398,12 @@ def _format_wide_table(data: pd.DataFrame) -> pd.DataFrame:
     if data.empty:
         return pd.DataFrame()
     table = data.copy()
-    table = table.drop(columns=["source", "year"], errors="ignore")
-    rename = {
-        "plant": "Plant",
-        "nox_other_source_ef_kg_per_mwh": "NOx source",
-        "nox_hand_calculated_ef_kg_per_mwh": "NOx project",
-        "nox_percent_error": "NOx error",
-        "sox_other_source_ef_kg_per_mwh": "SOx source",
-        "sox_hand_calculated_ef_kg_per_mwh": "SOx project",
-        "sox_percent_error": "SOx error",
-        "tsp_other_source_ef_kg_per_mwh": "TSP source",
-        "tsp_hand_calculated_ef_kg_per_mwh": "TSP project",
-        "tsp_percent_error": "TSP error",
-        "combined_other_source_ef_kg_per_mwh": "Combined source",
-        "combined_hand_calculated_ef_kg_per_mwh": "Combined project",
-        "combined_percent_error": "Combined error",
-    }
-    table = table.rename(columns=rename)
+    table = table.drop(columns=["reference_id", "year"], errors="ignore")
+    table = table.rename(columns={"plant": "Plant"})
     for column in table.columns:
         if column == "Plant":
             continue
-        if column.endswith("error"):
+        if column.endswith("percent_difference"):
             table[column] = pd.to_numeric(table[column], errors="coerce").map(
                 lambda value: f"{value:.2f}%" if pd.notna(value) else ""
             )
@@ -429,7 +436,7 @@ def _write_table_svg(data: pd.DataFrame, title: str, output_path: Path) -> None:
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">',
         '<rect width="100%" height="100%" fill="#ffffff"/>',
         f'<text x="14" y="28" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#17202a">{escape(title)}</text>',
-        '<text x="14" y="48" font-family="Arial, Helvetica, sans-serif" font-size="11" fill="#5f6b7a">EF units are kg/MWh. Error is (project - source) / source.</text>',
+        '<text x="14" y="48" font-family="Arial, Helvetica, sans-serif" font-size="11" fill="#5f6b7a">Generation and pollutant mass are reconciled before EF; EF units are kg/MWh.</text>',
     ]
     x = 1
     y = title_height

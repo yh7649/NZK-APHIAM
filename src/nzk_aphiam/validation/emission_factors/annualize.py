@@ -97,6 +97,30 @@ def _unique_join(values: pd.Series) -> str:
     return ";".join(clean)
 
 
+def _coverage_details(group: pd.DataFrame, matched: pd.Series) -> tuple[int, int, int, float, str]:
+    """Return distinct matched unit-months, expected coverage, and missing cells."""
+    plant = group.get("plant_name", pd.Series("unknown_plant", index=group.index)).astype(str)
+    number = group.get("plant_number", pd.Series(pd.NA, index=group.index)).astype(str)
+    fallback = plant + ":" + number
+    reporting = group.get("reporting_unit_id", pd.Series(pd.NA, index=group.index))
+    reporting = reporting.astype("string")
+    unit_key = reporting.where(reporting.notna() & reporting.ne(""), fallback)
+    observed = pd.DataFrame(
+        {"unit_key": unit_key, "month": group["month"], "matched": matched.astype(bool)}
+    )
+    observed = observed.groupby(["unit_key", "month"], as_index=False)["matched"].max()
+    units = sorted(observed["unit_key"].unique())
+    expected = {(unit, month) for unit in units for month in range(1, 13)}
+    available = {
+        (row.unit_key, int(row.month))
+        for row in observed.loc[observed["matched"]].itertuples(index=False)
+    }
+    missing = sorted(expected - available)
+    missing_label = ";".join(f"{unit}@{month:02d}" for unit, month in missing)
+    fraction = len(available) / len(expected) if expected else 0.0
+    return len(units), len(expected), len(available), fraction, missing_label
+
+
 def aggregate_boundary(
     data: pd.DataFrame,
     *,
@@ -129,6 +153,13 @@ def aggregate_boundary(
         }
         for pollutant, column in POLLUTANT_COLUMNS.items():
             matched = group["energy_generated_mwh"].notna() & group[column].notna()
+            (
+                boundary_units,
+                expected_unit_months,
+                matched_count,
+                coverage_fraction,
+                missing_months,
+            ) = _coverage_details(group, matched)
             generation = group.loc[matched, "energy_generated_mwh"].sum(min_count=1)
             mass = group.loc[matched, column].sum(min_count=1)
             rows.append(
@@ -144,17 +175,19 @@ def aggregate_boundary(
                     "pollutant_mass_kg_sum": mass,
                     "n_generation_months": int(group["energy_generated_mwh"].notna().sum()),
                     "n_pollutant_months": int(group[column].notna().sum()),
-                    "n_matched_months": int(matched.sum()),
+                    "n_matched_months": matched_count,
+                    "n_boundary_units": boundary_units,
+                    "n_expected_unit_months": expected_unit_months,
                     "n_plants": int(group["plant_name"].nunique())
                     if "plant_name" in group
                     else pd.NA,
                     "n_units": int(group["reporting_unit_id"].nunique())
                     if "reporting_unit_id" in group
                     else pd.NA,
-                    "coverage_fraction": matched.mean(),
-                    "complete_calendar_year": bool(
-                        set(group.loc[matched, "month"]) == set(range(1, 13))
-                    ),
+                    "coverage_fraction": coverage_fraction,
+                    "calendar_month_coverage_fraction": group.loc[matched, "month"].nunique() / 12,
+                    "missing_months": missing_months,
+                    "complete_calendar_year": coverage_fraction == 1.0,
                     "ef_kg_per_mwh": mass / generation
                     if pd.notna(generation) and generation > 0
                     else pd.NA,
@@ -165,6 +198,13 @@ def aggregate_boundary(
         matched_all = group["energy_generated_mwh"].notna() & group[all_columns].notna().all(
             axis=1
         )
+        (
+            boundary_units,
+            expected_unit_months,
+            matched_count,
+            coverage_fraction,
+            missing_months,
+        ) = _coverage_details(group, matched_all)
         generation = group.loc[matched_all, "energy_generated_mwh"].sum(min_count=1)
         mass = group.loc[matched_all, all_columns].sum(min_count=1).sum()
         rows.append(
@@ -180,15 +220,17 @@ def aggregate_boundary(
                 "pollutant_mass_kg_sum": mass,
                 "n_generation_months": int(group["energy_generated_mwh"].notna().sum()),
                 "n_pollutant_months": int(group[all_columns].notna().all(axis=1).sum()),
-                "n_matched_months": int(matched_all.sum()),
+                "n_matched_months": matched_count,
+                "n_boundary_units": boundary_units,
+                "n_expected_unit_months": expected_unit_months,
                 "n_plants": int(group["plant_name"].nunique()) if "plant_name" in group else pd.NA,
                 "n_units": int(group["reporting_unit_id"].nunique())
                 if "reporting_unit_id" in group
                 else pd.NA,
-                "coverage_fraction": matched_all.mean(),
-                "complete_calendar_year": bool(
-                    set(group.loc[matched_all, "month"]) == set(range(1, 13))
-                ),
+                "coverage_fraction": coverage_fraction,
+                "calendar_month_coverage_fraction": group.loc[matched_all, "month"].nunique() / 12,
+                "missing_months": missing_months,
+                "complete_calendar_year": coverage_fraction == 1.0,
                 "ef_kg_per_mwh": mass / generation
                 if pd.notna(generation) and generation > 0
                 else pd.NA,

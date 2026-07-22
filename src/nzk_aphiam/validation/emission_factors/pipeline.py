@@ -14,30 +14,31 @@ from nzk_aphiam.validation.emission_factors.annualize import (
     prepare_project_data,
 )
 from nzk_aphiam.validation.emission_factors.compare import (
-    build_presentation_summary,
+    INCLUDED_AGGREGATE,
+    INCLUDED_DIRECT,
+    build_contextual_literature_benchmarks,
+    build_plant_input_reconciliation,
     build_readable_comparison_tables,
+    build_rejected_or_noncomparable_comparisons,
     build_source_coverage_matrix,
-    build_unmatched_literature_benchmarks,
-    compare_fuel_technology_year,
+    compare_aggregate_fuel_year,
     compare_to_literature,
     prepare_literature_output,
-    summarize_by_pollutant,
 )
 from nzk_aphiam.validation.emission_factors.crosswalk import (
-    nonmatched_crosswalk_rows,
     project_boundaries_from_crosswalk,
 )
 from nzk_aphiam.validation.emission_factors.figures import (
     write_comparison_table_images,
-    write_fuel_technology_trends_svg,
     write_literature_ranges_svg,
     write_percent_difference_svg,
     write_scatter_svg,
     write_source_coverage_matrix_svg,
-    write_timeseries_svg,
 )
 from nzk_aphiam.validation.emission_factors.references import (
+    apply_comparison_rules,
     load_catalog,
+    load_comparison_rules,
     load_crosswalk,
     load_literature_benchmarks,
     load_pdf_inventory,
@@ -52,7 +53,38 @@ from nzk_aphiam.validation.emission_factors.schema import (
 )
 from nzk_aphiam.validation.emission_factors.utils import file_sha256
 
-METHOD_VERSION = "2026-07-16"
+METHOD_VERSION = "2026-07-22"
+
+SUPERSEDED_TABLE_OUTPUTS = {
+    "ef_comparison_readable.csv",
+    "ef_comparison_readable_wide.csv",
+    "ef_comparison_readable_wide.md",
+    "excluded_observation_summary.csv",
+    "fuel_technology_validation_summary_table.csv",
+    "fuel_technology_year_comparisons.csv",
+    "literature_ef_benchmarks_complete.csv",
+    "literature_pdf_inventory.csv",
+    "literature_reference_emission_factors.csv",
+    "literature_source_coverage_matrix.csv",
+    "matched_literature_comparisons.csv",
+    "project_annual_emission_factors.csv",
+    "project_fuel_technology_year_efs.csv",
+    "unmatched_literature_benchmarks.csv",
+    "unmatched_or_noncomparable_boundaries.csv",
+    "validation_summary_by_pollutant.csv",
+}
+SUPERSEDED_FIGURE_OUTPUTS = {
+    "ef_comparison_table.png",
+    "ef_comparison_table.svg",
+    "ef_comparison_wide_table.png",
+    "ef_comparison_wide_table.svg",
+    "fuel_technology_ef_trends_with_literature.svg",
+    "literature_ef_ranges_by_source_cell.svg",
+    "literature_source_coverage_matrix.svg",
+    "percent_difference_by_plant_pollutant.svg",
+    "project_ef_timeseries_with_literature.svg",
+    "project_vs_literature_ef.svg",
+}
 
 
 def run_validation(
@@ -67,104 +99,78 @@ def run_validation(
     prepared = prepare_project_data(raw_project)
     references = load_literature_benchmarks(reference_dir)
     literature_output = prepare_literature_output(references)
+    rules = load_comparison_rules(reference_dir)
+    literature_output = apply_comparison_rules(literature_output, rules)
     crosswalk = load_crosswalk(reference_dir)
     catalog = load_catalog(reference_dir)
-    pdf_inventory = load_pdf_inventory(reference_dir)
+    load_pdf_inventory(reference_dir)
 
     annual_frames: list[pd.DataFrame] = []
     boundary_frames: list[pd.DataFrame] = []
-    exclusion_frames: list[pd.DataFrame] = []
     for variant in ANALYSIS_VARIANTS:
-        variant_data, exclusions = apply_variant(prepared, variant)
+        variant_data, _ = apply_variant(prepared, variant)
         annual_frames.append(
             aggregate_boundary(
                 variant_data,
-                group_columns=["plant_name"],
-                analysis_variant=variant,
-            )
-        )
-        annual_frames.append(
-            aggregate_boundary(
-                variant_data,
-                group_columns=["fuel_type", "technology"],
-                analysis_variant=f"{variant}_fuel_technology",
+                group_columns=["fuel_type"],
+                analysis_variant=f"{variant}_fuel",
             )
         )
         boundary_data, boundary_status = project_boundaries_from_crosswalk(
             variant_data, crosswalk, analysis_variant=variant
         )
         boundary_frames.append(boundary_data)
-        exclusion_frames.append(exclusions)
-        exclusion_frames.append(boundary_status)
+        del boundary_status
 
     all_annual = pd.concat(annual_frames, ignore_index=True)
-    project_annual = all_annual.loc[
-        ~all_annual["analysis_variant"].str.endswith("_fuel_technology")
-    ].copy()
-    project_fuel_technology = all_annual.loc[
-        all_annual["analysis_variant"].str.endswith("_fuel_technology")
-    ].copy()
-    project_fuel_technology["analysis_variant"] = project_fuel_technology[
-        "analysis_variant"
-    ].str.replace("_fuel_technology", "", regex=False)
+    project_fuel_year = all_annual.copy()
+    project_fuel_year["analysis_variant"] = project_fuel_year["analysis_variant"].str.replace(
+        "_fuel", "", regex=False
+    )
     project_boundaries = pd.concat(boundary_frames, ignore_index=True)
-    comparisons = compare_to_literature(project_boundaries, literature_output)
-    fuel_technology_comparisons = compare_fuel_technology_year(
-        project_fuel_technology, literature_output
+    plant_attempts = compare_to_literature(project_boundaries, literature_output)
+    aggregate_attempts = compare_aggregate_fuel_year(project_fuel_year, literature_output)
+    direct_comparisons = plant_attempts.loc[
+        plant_attempts["comparison_status"].eq(INCLUDED_DIRECT)
+    ].copy()
+    aggregate_comparisons = aggregate_attempts.loc[
+        aggregate_attempts["comparison_status"].eq(INCLUDED_AGGREGATE)
+    ].copy()
+    contextual = build_contextual_literature_benchmarks(
+        literature_output, plant_attempts, crosswalk
     )
-    summary = summarize_by_pollutant(comparisons)
-    readable_comparison, readable_comparison_wide = build_readable_comparison_tables(comparisons)
+    rejected = build_rejected_or_noncomparable_comparisons(
+        literature_output,
+        plant_attempts,
+        aggregate_attempts,
+        crosswalk,
+    )
+    reconciliation = build_plant_input_reconciliation(plant_attempts, literature_output, crosswalk)
     coverage_matrix = build_source_coverage_matrix(literature_output)
-    unmatched_literature = build_unmatched_literature_benchmarks(
-        literature_output, fuel_technology_comparisons
-    )
-    presentation_summary = build_presentation_summary(fuel_technology_comparisons)
-
-    unmatched = nonmatched_crosswalk_rows(crosswalk)
-    boundary_status = pd.concat(
-        [frame for frame in exclusion_frames if "project_rows_after_crosswalk" in frame.columns],
-        ignore_index=True,
-    )
-    unmatched_output = pd.concat([unmatched, boundary_status], ignore_index=True, sort=False)
-    excluded_summary = pd.concat(
-        [frame for frame in exclusion_frames if "exclusion_reason" in frame.columns],
-        ignore_index=True,
+    readable_comparison, readable_comparison_wide = build_readable_comparison_tables(
+        direct_comparisons
     )
 
     table_output_dir.mkdir(parents=True, exist_ok=True)
     figure_output_dir.mkdir(parents=True, exist_ok=True)
+    _clear_superseded_outputs(table_output_dir, figure_output_dir)
     outputs = {
-        "project_annual_emission_factors": project_annual,
-        "literature_reference_emission_factors": literature_output,
-        "literature_pdf_inventory": pdf_inventory,
-        "literature_ef_benchmarks_complete": literature_output,
-        "project_fuel_technology_year_efs": project_fuel_technology,
-        "matched_literature_comparisons": comparisons,
-        "fuel_technology_year_comparisons": fuel_technology_comparisons,
-        "ef_comparison_readable": readable_comparison,
-        "ef_comparison_readable_wide": readable_comparison_wide,
-        "literature_source_coverage_matrix": coverage_matrix,
-        "unmatched_literature_benchmarks": unmatched_literature,
-        "fuel_technology_validation_summary_table": presentation_summary,
-        "validation_summary_by_pollutant": summary,
-        "unmatched_or_noncomparable_boundaries": unmatched_output,
-        "excluded_observation_summary": excluded_summary,
+        "direct_validation_comparisons": direct_comparisons,
+        "aggregate_consistency_checks": aggregate_comparisons,
+        "contextual_literature_benchmarks": contextual,
+        "rejected_or_noncomparable_comparisons": rejected,
+        "plant_input_reconciliation": reconciliation,
+        "literature_coverage_matrix": coverage_matrix,
     }
     for name, frame in outputs.items():
         frame.to_csv(table_output_dir / f"{name}.csv", index=False)
-    write_markdown_table(
-        readable_comparison_wide,
-        table_output_dir / "ef_comparison_readable_wide.md",
+    write_scatter_svg(
+        direct_comparisons,
+        figure_output_dir / "direct_validation_project_vs_external_ef.svg",
     )
-
-    write_scatter_svg(comparisons, figure_output_dir / "project_vs_literature_ef.svg")
     write_percent_difference_svg(
-        comparisons, figure_output_dir / "percent_difference_by_plant_pollutant.svg"
-    )
-    write_timeseries_svg(
-        project_annual,
-        literature_output,
-        figure_output_dir / "project_ef_timeseries_with_literature.svg",
+        direct_comparisons,
+        figure_output_dir / "direct_validation_percent_difference.svg",
     )
     write_comparison_table_images(
         readable_comparison,
@@ -172,15 +178,11 @@ def run_validation(
         figure_output_dir,
     )
     write_literature_ranges_svg(
-        literature_output, figure_output_dir / "literature_ef_ranges_by_source_cell.svg"
-    )
-    write_fuel_technology_trends_svg(
-        project_fuel_technology,
-        literature_output,
-        figure_output_dir / "fuel_technology_ef_trends_with_literature.svg",
+        contextual,
+        figure_output_dir / "contextual_literature_benchmarks.svg",
     )
     write_source_coverage_matrix_svg(
-        coverage_matrix, figure_output_dir / "literature_source_coverage_matrix.svg"
+        coverage_matrix, figure_output_dir / "literature_coverage_matrix.svg"
     )
 
     metadata = build_metadata(input_path, reference_dir, catalog)
@@ -188,6 +190,14 @@ def run_validation(
         json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8"
     )
     return outputs
+
+
+def _clear_superseded_outputs(table_output_dir: Path, figure_output_dir: Path) -> None:
+    """Remove generated files superseded by the reviewed output contract."""
+    for filename in SUPERSEDED_TABLE_OUTPUTS:
+        (table_output_dir / filename).unlink(missing_ok=True)
+    for filename in SUPERSEDED_FIGURE_OUTPUTS:
+        (figure_output_dir / filename).unlink(missing_ok=True)
 
 
 def write_markdown_table(data: pd.DataFrame, output_path: Path) -> None:
@@ -232,7 +242,7 @@ def build_metadata(input_path: Path, reference_dir: Path, catalog: pd.DataFrame)
             }
             for filename in REFERENCE_FILES.values()
         },
-        "run_timestamp": pd.Timestamp.utcnow().isoformat(),
+        "run_timestamp": pd.Timestamp.now("UTC").isoformat(),
         "code_method_version": METHOD_VERSION,
         "analysis_variant_definitions": ANALYSIS_VARIANTS,
         "unit_conventions": {
@@ -244,9 +254,12 @@ def build_metadata(input_path: Path, reference_dir: Path, catalog: pd.DataFrame)
         "crosswalk_version": file_sha256(reference_dir / REFERENCE_FILES["crosswalk"]),
         "source_catalog": catalog.to_dict("records"),
         "important_limitations": [
-            "Lee et al. (2025) is an external data-pipeline validation, not fully independent measurement evidence, because it uses CleanSYS TMS and EPSIS.",
-            "KEEI Table 3-17 is historical company-origin benchmarking and is not a same-year independent measurement comparison.",
+            "Lee et al. (2025) is class B external data-pipeline validation, not identical-data replication, because it uses annual CleanSYS emissions and EPSIS generation.",
+            "KEEI Table 3-17 is eligible only for its exact 2016 plant/unit group and combined NOx+SOx+TSP definition.",
+            "MOTIE is a class C KEPCO-subsidiary fuel-fleet consistency check, not national validation.",
+            "Seo et al. is a methodological precedent and has no direct project percent-error rows.",
+            "CAPSS Manual VII and Yu et al. use fuel-input normalization and cannot enter kg/MWh validation.",
             "TSP is never compared directly with PM2.5, and no PM2.5/TSP fraction is applied.",
-            "Missing emissions are not treated as zero; matched-period factors require generation and the relevant pollutant mass in the same month.",
+            "Project annual EFs are ratios of matched mass sums to matched generation sums; monthly EF means are never used.",
         ],
     }
