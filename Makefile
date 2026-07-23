@@ -75,8 +75,15 @@ format:
 
 ## Run tests
 .PHONY: test
-test:
+test: test-kepco-ef-r
 	$(PYTHON_INTERPRETER) -m pytest tests
+
+
+## Run deterministic tests for KEPCO monthly EF eligibility rules
+.PHONY: test-kepco-ef-r
+test-kepco-ef-r:
+	Rscript analysis/kepco/test_ef_eligibility.R
+	Rscript analysis/kepco/test_ef_cohort_query.R
 
 
 ## Download East-West Power raw data

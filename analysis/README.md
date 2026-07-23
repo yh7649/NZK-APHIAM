@@ -10,6 +10,13 @@ validates the combined monthly dataset, applies variable labels, creates kg/MWh
 emission-factor columns, and provides helpers for saving tables, figures, and
 model objects under `results/`.
 
+`kepco/ef_eligibility.R` defines the shared pollutant-month eligibility rules
+for the operational-primary, low-load-inclusive, and conservative-quality EF
+specifications. Run `make test-kepco-ef-r` for its deterministic smoke tests.
+`kepco/query_ef_cohort.R` applies those rules to user-selected time periods,
+pollutants, fuels, technologies, provinces, and output groupings; run it with
+`--help` to see the command-line interface and examples.
+
 Shared path helpers live in `R/paths.R` — source it at the top of any R script.
 
 ## Descriptive plant-to-air-quality GWR

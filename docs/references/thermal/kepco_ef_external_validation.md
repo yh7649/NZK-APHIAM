@@ -13,6 +13,8 @@ the same because both units express grams per kilowatt-hour.
 - `results/tables/kepco/annual_handoff/kepco_annual_ef_handoff_by_province_fuel_technology.csv`
 - `results/tables/kepco/annual_handoff/kepco_annual_ef_distribution_long_by_fuel_technology.csv`
 - `results/tables/kepco/annual_handoff/kepco_annual_ef_distribution_long_by_province_fuel_technology.csv`
+- `results/tables/kepco/annual_handoff/kepco_annual_ef_sensitivity_long_by_fuel_technology.csv`
+- `results/tables/kepco/annual_handoff/kepco_annual_ef_sensitivity_long_by_province_fuel_technology.csv`
 - `results/tables/kepco/annual_handoff/kepco_annual_ef_editable_by_fuel_technology.csv`
 - `results/tables/kepco/annual_handoff/kepco_annual_ef_editable_by_province_fuel_technology.csv`
 - `results/tables/kepco/annual_handoff/kepco_annual_ef_editable_handoff.xlsx`
@@ -27,6 +29,14 @@ The handoff tables keep only observed fuel x technology cohorts. They include:
   max, and IQR;
 - plant count, plant-month count, valid generation, generation coverage, and
   date coverage.
+
+The main handoff uses the `operational_primary` monthly eligibility rule: it
+excludes structurally invalid pollutant-months, pollutant-specific high-EF or
+implausible-zero observations, and positive-generation months below a 1%
+monthly capacity factor. Recent pollutant level shifts remain review flags in
+the primary estimate because they may represent real control or operating
+changes. The accompanying long sensitivity tables compare this primary result
+with `low_load_inclusive` and `conservative_quality` specifications.
 
 ## Literature and Benchmark Sources
 
@@ -89,7 +99,7 @@ Sources:
 KEPCO conventional coal is:
 
 - 2021: NOx `0.126`, SOx `0.139`, TSP `0.009 kg/MWh`;
-- 2025: NOx `0.106`, SOx `0.133`, TSP `0.008 kg/MWh`.
+- 2025: NOx `0.087`, SOx `0.118`, TSP `0.007 kg/MWh`.
 
 These are lower than the South Korea aggregate coal air-pollution benchmark
 (`0.561 kg/MWh` summed air-pollution intensity) and lower than Taiwan's 2018
@@ -114,15 +124,18 @@ with a sample-size caveat.
 KEPCO natural-gas CCGT is:
 
 - 2021: NOx `0.164`, SOx `0.000`, TSP `0.000 kg/MWh`;
-- 2025: NOx `0.099`, SOx `0.000010`, TSP `0.000031 kg/MWh`.
+- 2025: NOx `0.095 kg/MWh`; SOx and TSP do not meet the 50% generation-
+  coverage threshold for the operational-primary handoff.
 
-This aligns well with the Korean gas aggregate benchmark (`0.171 kg/MWh`) and
-Taiwan LNG NOx values (`0.072` to `0.403 g/kWh`) while keeping SOx/TSP near
-zero, as expected for LNG combustion.
+The available NOx values align well with the Korean gas aggregate benchmark
+(`0.171 kg/MWh`) and Taiwan LNG NOx values (`0.072` to `0.403 g/kWh`). The 2021
+source reports SOx/TSP at zero for the retained cohort, while the 2025 primary
+table leaves those pollutants unavailable rather than presenting a
+low-coverage value.
 
 ### Natural gas CHP
 
-KEPCO natural-gas CHP has NOx `0.226 kg/MWh` in 2021 and `0.085 kg/MWh` in
+KEPCO natural-gas CHP has NOx `0.226 kg/MWh` in 2021 and `0.084 kg/MWh` in
 2025. SOx/TSP are unavailable in the handoff table for this cohort. The NOx
 values are within the Taiwan LNG range, but the pollutant coverage gap should
 be kept visible.
@@ -138,13 +151,13 @@ as internal-data estimates pending a fuel-specific literature review.
 KEPCO conventional oil is:
 
 - 2021: NOx `0.301`, SOx `0.011`, TSP `0.002 kg/MWh`;
-- 2025: NOx `0.213`, SOx `0.011`, TSP `0.015 kg/MWh`.
+- 2025: NOx `0.215`, SOx `0.002`, TSP `0.012 kg/MWh`.
 
 These are lower than Taiwan's oil NOx/SO2 benchmarks and far lower for SOx,
 which may reflect lower sulfur fuel, controls, or reporting boundaries.
 
 The 2025 oil internal-combustion cohort is the strongest follow-up flag:
-NOx `1.660`, SOx `0.093`, TSP `0.053 kg/MWh`. NOx is above the Taiwan oil
+NOx `1.889`, SOx `0.074`, TSP `0.060 kg/MWh`. NOx is above the Taiwan oil
 benchmark (`0.805 g/kWh`), while TSP is similar and SOx is much lower. Because
 this cohort has one observed plant, keep it in the handoff table but annotate it
 as a small-n, high-NOx cohort for review.

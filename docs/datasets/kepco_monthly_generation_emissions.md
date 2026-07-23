@@ -335,6 +335,76 @@ if none) and `audit_issue_codes` (every issue code raised, joined with
 decision. Rows already explained by `row_status == "inactive_placeholder"`
 are not re-flagged for zero generation.
 
+### Emission-factor analytical eligibility
+
+The R analysis converts the non-destructive audit flags into one explicit
+pollutant-month eligibility table at
+`results/tables/kepco/audit/kepco_monthly_ef_eligibility.csv`. Every source row
+is repeated for NOx, SOx, and dust/TSP with raw mass, generation, raw EF,
+capacity factor, audit fields, inclusion decisions, and semicolon-delimited
+exclusion reasons.
+
+The primary `operational_primary` EF specification excludes:
+
+- inactive placeholders;
+- missing pollutant mass or missing/nonpositive generation;
+- duplicate reporting-boundary months;
+- negative generation, capacity, or the pollutant's mass;
+- the pollutant's unit-history high-EF outliers;
+- implausible pollutant zeros with positive generation; and
+- positive-generation months below a 1% monthly capacity factor.
+
+Exclusion is pollutant-specific where possible: a bad NOx value does not remove
+otherwise usable SOx or dust/TSP. Recent high or low pollutant level shifts are
+retained in the primary specification as review signals because a sustained
+change can reflect a real fuel, control, or operating-regime change. Unusually
+high mass without an unusually high EF also remains review-only.
+
+Two annual sensitivities are written beside the primary handoff:
+
+- `low_load_inclusive` retains positive-generation months below the 1%
+  capacity-factor threshold; and
+- `conservative_quality` additionally excludes generation above 105% of
+  nameplate, partial generation coverage, generation reconciliation mismatches,
+  and recent pollutant level shifts.
+
+The main monthly tables, figures, point estimates, and annual handoff use
+`operational_primary`. Any aggregate is still suppressed when retained
+pollutant-linked generation covers less than 50% of all positive cohort-period
+generation. The superseded `kepco_audit_excluded.csv` and
+`kepco_ef_outliers_removed.csv` outputs are deleted when the analysis runs;
+their replacement is `kepco_operational_ef_exclusions.csv` plus the full
+eligibility table.
+
+### On-demand cohort EF queries
+
+`analysis/kepco/query_ef_cohort.R` exposes the same cleaning and aggregation
+method as a command-line query. A request can filter a calendar year, year
+range, individual month, or monthly range; select one or all pollutants; filter
+fuel, technology, province, and subsidiary; and group results by year, month,
+province, fuel, technology, plant, subsidiary, or reporting unit. Compact
+output places requested pollutant EFs in separate columns; long output retains
+pollutant-specific mass, generation, coverage, and sample-size diagnostics.
+The `slide` layout returns a rounded, labeled subset with EFs, plant count,
+generation, and minimum pollutant coverage.
+
+For example, the 2017 province-level coal steam-turbine request is:
+
+```bash
+Rscript analysis/kepco/query_ef_cohort.R \
+  --year 2017 \
+  --fuel coal \
+  --technology conventional_steam_turbine \
+  --pollutant all \
+  --group-by province \
+  --layout slide \
+  --output results/tables/kepco/queries/coal_steam_2017_by_province_slide.csv
+```
+
+Run the script with `--list-values` to see canonical cohort values or `--help`
+for the complete interface. Query outputs under `results/` are generated and
+remain untracked.
+
 Long-format detail per subsidiary — every flagged row with its value,
 threshold, and explanation, plus summary tables — is written to
 `results/tables/{subsidiary}/audit/`.
@@ -360,7 +430,8 @@ The current R analysis is:
 Key generated fuel-analysis tables are grouped by purpose:
 
 - `results/tables/kepco/annual_handoff/`: fuel x technology handoff CSVs,
-  editable CSVs, and the Excel workbook.
+  editable CSVs, the Excel workbook, and long operational/low-load/conservative
+  sensitivity tables.
 - `results/tables/kepco/monthly/fuel_type/`: monthly generation, EF, and
   emissions tables by fuel type.
 - `results/tables/kepco/monthly/province/`: monthly generation, EF, and
@@ -370,8 +441,8 @@ Key generated fuel-analysis tables are grouped by purpose:
 - `results/tables/kepco/monthly/province_by_fuel_type/`: province-faceted
   monthly tables by fuel type.
 - `results/tables/kepco/diagnostics/`: fuel summary and EF coverage checks.
-- `results/tables/kepco/audit/`: audit exclusions and retained historical
-  outlier-removal alias.
+- `results/tables/kepco/audit/`: explicit monthly pollutant eligibility and
+  operational-primary exclusion records.
 - `results/tables/kepco/point_estimates/`: recent generation-weighted EF point
   estimates.
 - `results/tables/kepco/projections/`: projection tables and projection

@@ -22,6 +22,7 @@ subsidiary_label <- "East-West Power"
 # ---- Setup -------------------------------------------------------------------
 
 source(file.path("analysis", "R", "paths.R"))
+source(file.path("analysis", "kepco", "ef_eligibility.R"))
 
 options(
   stringsAsFactors = FALSE,
@@ -191,8 +192,7 @@ print(coverage_by_dataset)
 
 # Steps:
 #   1. pollutant EF = kg emissions / MWh generation
-#   2. exclude flagged rows using the Python auditor's audit_severity/
-#      audit_issue_codes columns (warning- and critical-tier codes only)
+#   2. apply the shared operational-primary pollutant-month eligibility rules
 #   3. suppress fuel-type/plant aggregates where surviving generation falls
 #      below min_coverage_pct of the full fleet for that group-month
 #   4. aggregate EF as total valid emissions / total valid generation
@@ -230,12 +230,42 @@ pollutants <- data.frame(
   stringsAsFactors = FALSE
 )
 
-analysis_sub <- sub_data
-analysis_sub$fuel_type_clean <- ifelse(
-  is.na(analysis_sub$fuel_type) | analysis_sub$fuel_type == "",
+sub_data$.ef_source_row_id <- seq_len(nrow(sub_data))
+sub_data$fuel_type_clean <- ifelse(
+  is.na(sub_data$fuel_type) | sub_data$fuel_type == "",
   "unknown",
-  analysis_sub$fuel_type
+  sub_data$fuel_type
 )
+
+ef_eligibility <- build_ef_eligibility(sub_data, pollutants)
+save_table(
+  ef_eligibility,
+  paste0(subsidiary_name, "_monthly_ef_eligibility.csv")
+)
+analysis_sub <- apply_ef_specification(
+  sub_data,
+  ef_eligibility,
+  pollutants,
+  "operational_primary"
+)
+analysis_sub <- analysis_sub[
+  is.na(analysis_sub$row_status) |
+    analysis_sub$row_status != "inactive_placeholder",
+  ,
+  drop = FALSE
+]
+save_table(
+  ef_exclusion_log(ef_eligibility, "operational_primary"),
+  paste0(subsidiary_name, "_operational_ef_exclusions.csv")
+)
+superseded_audit_path <- file.path(
+  tables_dir,
+  paste0(subsidiary_name, "_audit_excluded.csv")
+)
+if (file.exists(superseded_audit_path)) {
+  unlink(superseded_audit_path)
+  message("Deleted superseded audit output: ", superseded_audit_path)
+}
 
 format_month_label <- function(x) {
   paste0(format(as.Date(x), "%Y"), "m", as.integer(format(as.Date(x), "%m")))
@@ -296,59 +326,6 @@ line_colors <- c(
   "#1F77B4", "#D81B60", "#009E73", "#E69F00", "#6A3D9A", "#4D4D4D",
   "#56B4E9", "#CC79A7"
 )
-
-# Pollutant values are excluded from analysis using the Python auditor's own
-# audit_severity/audit_issue_codes (src/nzk_aphiam/data/audit/thermal/auditor.py),
-# not a second, independently computed IQR check. Recomputing the same kind of
-# threshold here in R would duplicate logic that already lives in the audited
-# subsidiary file and could silently drift from it.
-#
-# A row is excluded for a given pollutant only when one of that pollutant's
-# own warning-or-critical-tier issue codes is present -- not merely because
-# the row's overall audit_severity (the worst flag across *any* pollutant) is
-# elevated. review-tier flags (e.g. high_X_mass) are left in place; only the
-# higher-confidence codes below are excluded:
-#   - high_<pollutant>_emission_factor (warning)
-#   - recent_shift_high_<pollutant>_mass / recent_shift_low_<pollutant>_mass (warning)
-#   - zero_nox_with_generation / zero_sox_coal_generation / zero_dust_tsp_coal_generation (warning)
-audit_exclusion_pattern <- function(pollutant) {
-  paste0(
-    "high_", pollutant, "_emission_factor",
-    "|recent_shift_(high|low)_", pollutant, "_mass",
-    "|zero_", pollutant, "_(with_generation|coal_generation)"
-  )
-}
-
-outlier_log <- data.frame()
-
-for (i in seq_len(nrow(pollutants))) {
-  ef_var     <- pollutants$ef[[i]]
-  outlier_var <- paste0("high_outlier_", pollutants$pollutant[[i]])
-
-  issue_codes <- ifelse(
-    is.na(analysis_sub$audit_issue_codes), "", analysis_sub$audit_issue_codes
-  )
-  analysis_sub[[outlier_var]] <- analysis_sub$audit_severity %in% c("critical", "warning") &
-    grepl(audit_exclusion_pattern(pollutants$pollutant[[i]]), issue_codes)
-
-  flagged <- analysis_sub[analysis_sub[[outlier_var]], c(
-    "source_dataset", "date", "plant_name", "plant_number", "fuel_type_clean",
-    "energy_generated_mwh", pollutants$pollutant[[i]], ef_var,
-    "audit_severity", "audit_issue_codes"
-  )]
-
-  if (nrow(flagged) > 0) {
-    names(flagged)[names(flagged) == pollutants$pollutant[[i]]] <- "emissions_kg"
-    names(flagged)[names(flagged) == ef_var]                    <- "ef_kg_per_mwh"
-    flagged$pollutant <- pollutants$label[[i]]
-    outlier_log <- rbind(outlier_log, flagged)
-  }
-
-  analysis_sub[[pollutants$pollutant[[i]]]][analysis_sub[[outlier_var]]] <- NA_real_
-  analysis_sub[[ef_var]][analysis_sub[[outlier_var]]]                    <- NA_real_
-}
-
-save_table(outlier_log, paste0(subsidiary_name, "_audit_excluded.csv"))
 
 summarize_vector <- function(x) {
   x <- x[!is.na(x)]
