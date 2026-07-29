@@ -1,0 +1,244 @@
+name: gcam_kaist_shaped_nonpower_proxy_2025_2050
+fixture_status: synthetic_activity_index_for_pipeline_testing_not_gcam_kaist_output
+base_year: 2023
+transition_start_year: 2025
+years: [2023, 2025, 2030, 2035, 2040, 2045, 2050]
+base_activity_index: 100.0
+activity_unit: index_2025_100
+interpolation_method: linear_between_2025_index_and_2050_endpoint
+
+inputs:
+  inventory: docs/references/nonpower_emissions/gcam_kaist_nonpower_sector_inventory.csv
+  crosswalk: docs/references/nonpower_emissions/gcam_capss_nonpower_crosswalk.csv
+  capss_emissions: data/interim/capss/emissions_statistics/capss_emissions_tidy.parquet
+
+scenarios:
+  no_nzk:
+    description: Current-policy-style test path with no accelerated net-zero transition.
+  nzk_low:
+    description: Slower net-zero test path with residual direct fossil activity in 2050.
+  nzk_high:
+    description: Faster electrification and fuel-switching test path with minimal direct fossil activity in 2050.
+
+profiles:
+  steel_bf_bof_shift:
+    endpoints_2050: {no_nzk: 90, nzk_low: 50, nzk_high: 20}
+    rationale: Integrated steel activity shifts away from BF/BOF, sinter, and coke routes.
+  steel_eaf_growth:
+    endpoints_2050: {no_nzk: 110, nzk_low: 135, nzk_high: 160}
+    rationale: EAF output expands as the steel route mix electrifies.
+  industrial_fossil_combustion:
+    endpoints_2050: {no_nzk: 95, nzk_low: 40, nzk_high: 10}
+    rationale: Direct industrial fossil combustion declines under electrification and low-carbon heat.
+  industrial_output:
+    endpoints_2050: {no_nzk: 105, nzk_low: 95, nzk_high: 90}
+    rationale: Physical output is retained while process routes and energy inputs change.
+  road_passenger_ice:
+    endpoints_2050: {no_nzk: 90, nzk_low: 20, nzk_high: 0}
+    rationale: Direct-emitting passenger ICE vehicle-km decline with zero-emission vehicle uptake.
+  road_passenger_hybrid:
+    endpoints_2050: {no_nzk: 140, nzk_low: 60, nzk_high: 0}
+    rationale: Hybrids grow temporarily but are displaced in the faster net-zero path.
+  road_bus:
+    endpoints_2050: {no_nzk: 100, nzk_low: 35, nzk_high: 5}
+    rationale: Direct-emitting bus activity declines as electric and hydrogen buses replace combustion vehicles.
+  road_motorcycle:
+    endpoints_2050: {no_nzk: 90, nzk_low: 35, nzk_high: 5}
+    rationale: Direct-emitting motorcycle activity declines under electrification.
+  road_freight:
+    endpoints_2050: {no_nzk: 110, nzk_low: 50, nzk_high: 10}
+    rationale: Freight service grows, while direct-emitting vehicle-km fall through electrification and fuel switching.
+  rail_diesel:
+    endpoints_2050: {no_nzk: 90, nzk_low: 25, nzk_high: 0}
+    rationale: Diesel rail is replaced by electric rail; upstream electricity remains in the power module.
+  aviation:
+    endpoints_2050: {no_nzk: 120, nzk_low: 100, nzk_high: 85}
+    rationale: Aviation service grows, with limited direct-emission abatement in this activity-only fixture.
+  shipping:
+    endpoints_2050: {no_nzk: 110, nzk_low: 80, nzk_high: 60}
+    rationale: Shipping service persists while low-carbon fuels reduce direct conventional-fuel activity.
+  nonroad_diesel:
+    endpoints_2050: {no_nzk: 105, nzk_low: 60, nzk_high: 25}
+    rationale: Construction and agricultural machinery gradually electrify or switch fuel.
+  building_fossil:
+    endpoints_2050: {no_nzk: 90, nzk_low: 30, nzk_high: 5}
+    rationale: Heat pumps and electric cooking displace direct building combustion.
+  livestock_population:
+    endpoints_2050: {no_nzk: 95, nzk_low: 90, nzk_high: 85}
+    rationale: Animal populations decline modestly; management changes belong in effective emission factors.
+  fertilizer:
+    endpoints_2050: {no_nzk: 95, nzk_low: 80, nzk_high: 70}
+    rationale: Nitrogen application declines with efficiency and nutrient-management measures.
+  waste_incineration:
+    endpoints_2050: {no_nzk: 110, nzk_low: 75, nzk_high: 55}
+    rationale: Waste generation grows without policy and declines under circular-economy pathways.
+  landfill:
+    endpoints_2050: {no_nzk: 95, nzk_low: 55, nzk_high: 35}
+    rationale: Landfilled throughput declines as recycling and diversion expand.
+  wastewater:
+    endpoints_2050: {no_nzk: 105, nzk_low: 100, nzk_high: 95}
+    rationale: Wastewater throughput changes slowly; treatment controls belong in effective emission factors.
+  refining_process:
+    endpoints_2050: {no_nzk: 90, nzk_low: 50, nzk_high: 15}
+    rationale: Refinery throughput contracts as petroleum demand declines.
+  fuel_handling:
+    endpoints_2050: {no_nzk: 95, nzk_low: 65, nzk_high: 45}
+    rationale: Conventional fuel storage and loading decline with fossil-fuel demand.
+  hydrogen_smr:
+    endpoints_2050: {no_nzk: 120, nzk_low: 70, nzk_high: 20}
+    rationale: Hydrogen demand grows, while unabated SMR is displaced by lower-carbon production routes.
+  solvent_use:
+    endpoints_2050: {no_nzk: 105, nzk_low: 80, nzk_high: 65}
+    rationale: Product demand persists while solvent substitution and controls reduce emitting activity.
+  construction_dust:
+    endpoints_2050: {no_nzk: 100, nzk_low: 90, nzk_high: 80}
+    rationale: Construction activity changes modestly; dust controls belong in effective emission factors.
+  road_dust:
+    endpoints_2050: {no_nzk: 100, nzk_low: 95, nzk_high: 90}
+    rationale: Electrification does not eliminate road travel or resuspended road dust.
+  biomass_burning:
+    endpoints_2050: {no_nzk: 100, nzk_low: 80, nzk_high: 60}
+    rationale: Open and biological combustion decline under stronger management.
+  retained_biomass_fuel:
+    endpoints_2050: {no_nzk: 100, nzk_low: 105, nzk_high: 110}
+    rationale: Biomass fuel is retained as a synthetic sensitivity rather than phased with fossil fuels.
+
+activity_profiles:
+  steel_bf_bof_shift:
+    - ind_steel_bf_bof
+    - ind_steel_sinter
+    - ind_steel_coke_ovens
+  steel_eaf_growth:
+    - ind_steel_eaf
+  industrial_fossil_combustion:
+    - ind_steel_combustion
+    - ind_cement_kiln_combustion
+    - ind_chem_combustion
+    - ind_other_mfg_combustion
+    - ene_refining_combustion
+  industrial_output:
+    - ind_cement_clinker
+    - ind_chem_organic
+    - ind_chem_inorganic
+  road_passenger_ice:
+    - trn_road_passenger_gasoline_ldv
+    - trn_road_passenger_diesel_ldv
+    - trn_road_passenger_lpg_ldv
+  road_passenger_hybrid:
+    - trn_road_passenger_hybrid_ldv
+  road_bus:
+    - trn_road_bus
+  road_motorcycle:
+    - trn_road_motorcycle
+  road_freight:
+    - trn_road_freight_lcv
+    - trn_road_freight_mdv
+    - trn_road_freight_hdv
+  rail_diesel:
+    - trn_rail_diesel_passenger
+    - trn_rail_diesel_freight
+  aviation:
+    - trn_aviation_passenger_lto
+  shipping:
+    - trn_shipping_passenger
+    - trn_shipping_freight
+    - trn_shipping_fishing
+    - agr_fisheries_combustion
+  nonroad_diesel:
+    - trn_nonroad_construction
+    - agr_machinery
+  building_fossil:
+    - bld_residential_space_heat
+    - bld_residential_cooking
+    - bld_commercial_space_heat
+    - bld_commercial_cooking
+    - bld_public_space_heat
+  livestock_population:
+    - agr_livestock_cattle
+    - agr_livestock_dairy
+    - agr_livestock_swine
+    - agr_livestock_poultry
+  fertilizer:
+    - agr_fertilizer
+  waste_incineration:
+    - wst_municipal_incineration
+    - wst_industrial_incineration
+  landfill:
+    - wst_landfills
+  wastewater:
+    - wst_wastewater
+  refining_process:
+    - ene_refining_process
+  fuel_handling:
+    - ene_fuel_storage_loading
+  hydrogen_smr:
+    - ene_hydrogen_smr
+  solvent_use:
+    - aqs_solvent_use
+  construction_dust:
+    - aqs_construction_dust
+  road_dust:
+    - aqs_paved_road_dust
+
+excluded_from_emissions_model:
+  agr_fisheries_combustion: Duplicate boundary of trn_shipping_fishing; retain for research visibility but assign emissions ownership to the transport fishing-vessel row.
+
+capss_sector_profiles:
+  제조업_연소:
+    default_profile: industrial_fossil_combustion
+    fuel_profile_overrides:
+      바이오_기체: retained_biomass_fuel
+  도로이동오염원:
+    default_profile: road_passenger_ice
+    fuel_profile_overrides:
+      하이브리드: road_passenger_hybrid
+  비도로이동오염원:
+    default_profile: nonroad_diesel
+    fuel_profile_overrides:
+      항공유: aviation
+  비산업_연소:
+    default_profile: building_fossil
+    fuel_profile_overrides:
+      바이오_기체: retained_biomass_fuel
+  생산공정:
+    default_profile: industrial_output
+  농업:
+    default_profile: livestock_population
+  폐기물처리:
+    default_profile: waste_incineration
+  유기용제_사용:
+    default_profile: solvent_use
+  비산먼지:
+    default_profile: road_dust
+  생물성_연소:
+    default_profile: biomass_burning
+  에너지수송_및_저장:
+    default_profile: fuel_handling
+  기타_면오염원:
+    default_profile: construction_dust
+
+excluded_capss_sectors:
+  에너지산업_연소: The aggregate CAPSS category mixes power generation with non-power refining combustion and cannot be safely assigned to this non-power fixture.
+
+pollutants: [SOx, NOx, NH3, VOCs, PM2.5]
+
+assumptions:
+  - Activity is a normalized index with 2023 and 2025 set to 100; it is not a physical activity quantity.
+  - The 2023 calibration row exists so the current CAPSS intensity integrator can derive base-year factors.
+  - Scenario values are linearly interpolated from the 2025 index to transparent 2050 endpoints.
+  - Endpoints are judgmental pipeline-test assumptions, not forecasts or GCAM-KAIST model results.
+  - Electricity-only upstream emissions remain in the power module.
+  - Technology, fleet, route, and control changes belong in annual effective emission factors and are not inferred from the activity index.
+  - Missing or unresolved emission factors must remain missing and must never be interpreted as zero.
+  - The CAPSS-aligned compatibility view is an aggregate smoke-test input and is not a substitute for the inventory_id-level research table.
+
+sources:
+  - title: GCAM-KAIST model reference card
+    url: https://www.iamcdocumentation.eu/GCAM-KAIST
+    use: Five-year scenario structure and model scope.
+  - title: Public GCAM-KAIST 1.0 inputs and configurations
+    url: https://zenodo.org/records/14171830
+    use: Public scenario naming and structural reference; no output values are copied.
+  - title: Korea 2050 Carbon Neutrality Scenarios
+    url: https://www.opm.go.kr/en/policies/carbon-neutrality-scenarios.do
+    use: Qualitative distinction between complete transition and residual-fuel pathways.
