@@ -5,8 +5,12 @@
 These tracked CSVs define the sector taxonomy, activity denominators, source
 leads, pollutant names, GCAM–CAPSS relationships, and provisional factor
 evidence needed to calculate Korean direct non-power air-pollutant emissions.
-Inventory version `0.1.0` and factor collection version `1.0.0` form a
+Inventory version `0.2.0` and factor collection version `1.0.0` form a
 populated research framework, not a production-ready emission-factor database.
+Version 0.2.0 adds separate supplemental boundaries for commercial
+meat-grilling aerosol and charcoal kilns, preventing food aerosol from being
+silently assigned to commercial fuel-energy cooking. It also separates road
+tire/brake wear from tailpipe emissions and paved-road resuspension.
 
 The intended future calculation is:
 
@@ -36,10 +40,10 @@ annual GCAM-KAIST activity
 - `capss_vii_review_map.csv`: official Handbook VII table targets for each
   source-table label in the supplied v1 collection.
 - `capss_vii_nonpower_scrape_targets.csv`: inventory-linked official VII PDF
-  page ranges used by the first-pass extractor.
+  page ranges used by the table extractor.
 - `non_mass_normalized_evidence.csv`: six concentration, qualitative, or
   source-lead records that cannot be represented as mass-normalized factors.
-- `nonpower_ef_collection_gaps.csv`: nine explicit extraction and access gaps
+- `nonpower_ef_collection_gaps.csv`: 11 explicit extraction and access gaps
   linked to affected inventory IDs.
 
 Pipe (`|`) is the deterministic delimiter for list-valued fields such as
@@ -66,23 +70,40 @@ Run the integrated workflow with:
 
 ```bash
 make validate-nonpower-emission-factors
-make build-nonpower-emission-factors
 make scrape-capss-vii-nonpower-efs
+make scrape-capss-vii-nonpower-efs-verified
+make build-nonpower-emissions
 ```
 
 The official VII extractor reads the locally preserved 412-page PDF, extracts
-327 unique inventory-targeted pages, indexes 125 factor or particulate-
-speciation tables, and writes checksummed metadata and coverage for 83 direct-
-emission inventory activities. The generated text and indices live under
+327 unique inventory-targeted pages, indexes 123 true factor or particulate-
+speciation tables, and reconstructs 129 table occurrences including
+continuations. The verified run confirmed that the local PDF is byte-identical
+to the current official download (SHA-256
+`fd84b21d6b0e54408e376ca027948a0355c65546d50a15b46ee0da1e08b7ed37`).
+
+All reconstructed table cells are retained in
+`capss_vii_nonpower_raw_tables.jsonl`. Standard pollutant-column tables produce
+3,250 long-form factor candidates: 2,994 have aligned source labels and 3,144
+have resolved physical units. Conservative native-CAPSS text matching links
+2,720 candidates into 4,196 candidate links covering 54 inventory activities;
+broad chapter membership alone is not accepted as a link. Formula-heavy road
+appendices and other nonstandard tables remain available as raw cells pending
+dedicated parsers. Every scraped candidate is
+`production_ready=false`.
+
+Generated page text, raw cells, normalized candidates, links, extraction
+issues, coverage, and metadata live under
 `data/interim/nonpower_emissions/capss_vii_first_pass/` and remain ignored by
-Git. Electric passenger/freight rail and electrolytic hydrogen intentionally
-have no direct non-power target.
+Git. The target registry covers 86 direct-emission inventory activities.
+Electric passenger/freight rail and electrolytic hydrogen intentionally have
+no direct non-power target.
 
 ## Relationship to GCAM-KAIST and MACRO/NZK-APHIAM
 
 GCAM-KAIST supplies annual scenario activity. The corresponding non-power
 activity/taxonomy file is a restricted team deliverable and is not currently
-present in `data/external/macro/`. Therefore, version `0.1.0` keeps the requested
+present in `data/external/macro/`. Therefore, version `0.2.0` keeps the requested
 conceptual activity in `conceptual_activity`, labels the `gcam_*` fields
 `conceptual_pending_model_file`, and does not claim that those labels are
 model-native. Once the file is supplied through `make ingest-macro-external`,
@@ -127,8 +148,9 @@ The inventory covers industry, transport, buildings, agriculture and land,
 waste, and non-power energy conversion. Sources important to air quality but
 without a defensible energy-consuming GCAM cluster use
 `gcam_cluster=air_quality_supplemental` and carry an explicit future scenario
-driver. Solvents, construction and road dust, fuel-distribution losses, and
-open biomass burning are never silently assigned to unrelated GCAM activity.
+driver. Solvents, construction and road dust, fuel-distribution losses, open
+biomass burning, commercial cooking aerosol, and charcoal kilns are never
+silently assigned to unrelated GCAM activity.
 
 Rows are prioritized as follows:
 
@@ -189,7 +211,8 @@ lime kilns, port and forestry machinery, aviation cruise allocation, route-
 specific hydrogen process mappings, and public access to detailed ship-factor
 data. Aggregate proxy rows also need physical annual allocation weights.
 
-The next implementation task is: **normalize and independently verify the 125
-indexed Handbook VII tables, then approve only reviewed, unit-compatible rows
-for production.** Normalized values must preserve raw/control status and source
-units; annual effective factors should be calculated downstream.
+The next implementation task is: **write dedicated parsers for the formula-heavy
+road, aviation-ground-equipment, and other nonstandard tables; then review
+source labels, controls, units, and inventory denominators before approving any
+rows for production.** Annual effective factors still belong downstream of
+fleet, technology, route, and control weighting.

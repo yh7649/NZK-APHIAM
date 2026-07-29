@@ -21,7 +21,7 @@ from nzk_aphiam.config.paths import (
     NONPOWER_REFERENCE_DIR,
 )
 
-INVENTORY_VERSION = "0.1.0"
+INVENTORY_VERSION = "0.2.0"
 SCHEMA_VERSION = "1.0.0"
 DELIMITER = "|"
 

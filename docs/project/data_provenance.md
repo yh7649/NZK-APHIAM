@@ -28,14 +28,19 @@ The non-power EF lane keeps the official 2025 CAPSS Handbook VII PDF under
 `docs/references/emission_factor_validation/korea_ef_references/` and records
 its SHA-256 in every first-pass extraction metadata file. The user-supplied v1
 collection contributes 912 provisional mass-normalized records, six
-non-mass-normalized evidence rows, and nine explicit gaps. Its generated XLSX,
+non-mass-normalized evidence rows, and 11 explicit gaps. Its generated XLSX,
 derived coverage CSV, duplicate portable-environment requirements, and
 standalone script bundle are not copied into the repository; their useful
 validation, mapping, extraction, and build behavior is integrated in the
 package and Makefile. The 887 rows originating in a Handbook VI secondary
 mirror are marked superseded and cannot be production-enabled before a
 row-level comparison to the official VII PDF. Generated Handbook page text and
-factor-table indices remain ignored under `data/interim/nonpower_emissions/`.
+factor-table products remain ignored under `data/interim/nonpower_emissions/`.
+The verified scrape downloads the official attachment in memory and requires
+its SHA-256 to match the preserved 412-page PDF; it does not silently overwrite
+the source. Raw reconstructed cells, normalized candidates, inventory links,
+and extraction issues retain page/table provenance. Machine-extracted
+candidates remain `production_ready=false`.
 
 Korea Midland Power's direct response workbook at
 `data/raw/kepco_subsidiaries/midland_power/provider_responses/` is one such

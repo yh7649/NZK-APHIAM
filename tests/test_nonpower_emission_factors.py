@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import shutil
+from types import SimpleNamespace
 
 import pandas as pd
 
@@ -31,6 +32,11 @@ def test_every_factor_has_an_inventory_candidate_link() -> None:
     result = factors.validate_collection(REFERENCE_DIR)
     assert set(result.factors["record_id"]) == set(result.links["record_id"])
     assert result.links["inventory_id"].nunique() == 41
+    cooking = result.factors["subsector"].eq("Commercial cooking")
+    cooking_ids = set(
+        result.links.loc[result.links["record_id"].isin(result.factors.loc[cooking, "record_id"]), "inventory_id"]
+    )
+    assert cooking_ids == {"aqs_commercial_cooking_aerosol"}
 
 
 def test_superseded_capss_vi_rows_are_never_production_ready() -> None:
@@ -75,6 +81,8 @@ def test_build_writes_canonical_outputs_and_diagnostics(tmp_path: Path) -> None:
 def test_capss_table_title_extraction_ignores_prose_references() -> None:
     text = """
     배출계수는 <표 2-3>과 같다.
+    <표 8-38>은 건설장비 종류별 물질별 배출계수이다.
+    <표 12-3>과 <표 12-4>는 배출계수 산정에 사용한다.
     <표 2-3> 비산업 연소 배출원 연료별 배출계수
     <표 2-3> 비산업 연소 배출원 연료별 배출계수(계속)
     """
@@ -82,6 +90,76 @@ def test_capss_table_title_extraction_ignores_prose_references() -> None:
         ("2-3", "비산업 연소 배출원 연료별 배출계수"),
         ("2-3", "비산업 연소 배출원 연료별 배출계수"),
     ]
+
+
+def test_capss_standard_table_normalization_preserves_formulas_and_units() -> None:
+    matrix = [
+        ["소분류", "사용 연료", "배출계수", "", ""],
+        [None, None, "PM-2.5", "SOx", "NOx"],
+        [
+            "1 2 3종 (보일러)",
+            "비민수용\n무연탄\nB-C유",
+            "79.8958c\n0.57715S +\n0.19066c",
+            "19.5Sb\n14.3Sb",
+            "5.83b\n6.64b",
+        ],
+    ]
+    rows = scraper._normalized_candidates(
+        target_id="target",
+        table_id="2-3",
+        title="배출계수",
+        pdf_page=50,
+        inventory_ids="bld_commercial_space_heat",
+        matrix=matrix,
+        source_unit_text=(
+            "(단위: 석탄·고형연료=㎏/ton, 유류·LPG=㎏/㎘, LNG=㎏/천㎥)"
+        ),
+    )
+    assert len(rows) == 6
+    assert {row["source_label"] for row in rows} == {"비민수용 무연탄", "B-C유"}
+    formula = next(
+        row for row in rows if row["pollutant"] == "PM2.5" and row["source_label"] == "B-C유"
+    )
+    assert formula["ef_expression"] == "0.57715S + 0.19066"
+    assert formula["unit"] == "kg/kL-fuel"
+    assert formula["alignment_status"] == "aligned"
+
+
+def test_capss_single_pollutant_data_rows_are_not_mistaken_for_headers() -> None:
+    road_formula_matrix = [
+        ["분류", "연료", "물질", "실적용연식", "배출계수"],
+        ["승용", "휘발유", "NOx", "2009년 이후", "0.004×V"],
+    ]
+    assert scraper._factor_header(road_formula_matrix) is None
+
+
+def test_capss_candidate_mapping_stays_within_declared_target_scope() -> None:
+    crosswalk = pd.read_csv(
+        REFERENCE_DIR / "gcam_capss_nonpower_crosswalk.csv",
+        dtype=str,
+        keep_default_na=False,
+    )
+    airport_row = SimpleNamespace(
+        table_id="8-22",
+        title="지상조업장비 공항별 배출계수",
+        source_category="",
+        source_label="국내선 공항",
+        target_inventory_ids="trn_aviation_passenger_lto|trn_aviation_freight_lto",
+    )
+    inventory_ids, status = scraper._candidate_inventory_match(airport_row, crosswalk)
+    assert inventory_ids == ""
+    assert status == "unresolved"
+
+    charcoal_row = SimpleNamespace(
+        table_id="13-17",
+        title="생물성 연소-숯가마 배출원 물질별 배출계수",
+        source_category="",
+        source_label="숯가마",
+        target_inventory_ids="aqs_charcoal_kiln|aqs_open_biomass_burning",
+    )
+    inventory_ids, status = scraper._candidate_inventory_match(charcoal_row, crosswalk)
+    assert inventory_ids == "aqs_charcoal_kiln"
+    assert status == "capss_crosswalk_text_match"
 
 
 def test_capss_scrape_targets_cover_all_direct_inventory_activities() -> None:

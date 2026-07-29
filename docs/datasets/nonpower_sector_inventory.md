@@ -48,6 +48,7 @@ Validate and export canonical data plus diagnostics:
 ```bash
 make build-nonpower-emissions
 make scrape-capss-vii-nonpower-efs
+make scrape-capss-vii-nonpower-efs-verified
 ```
 
 The equivalent module interface is:
@@ -99,6 +100,18 @@ Human-readable diagnostics are written to
 
 Generated diagnostics remain ignored by Git. Review unresolved mappings and
 double-counting risks before downstream use.
+
+The CAPSS VII scrape additionally writes ignored interim products under
+`data/interim/nonpower_emissions/capss_vii_first_pass/`:
+
+- `capss_vii_nonpower_pages.jsonl`
+- `capss_vii_nonpower_table_index.csv`
+- `capss_vii_nonpower_raw_tables.jsonl`
+- `capss_vii_nonpower_factor_candidates.csv`
+- `capss_vii_nonpower_inventory_factor_links.csv`
+- `capss_vii_nonpower_extraction_issues.csv`
+- `capss_vii_inventory_scrape_coverage.csv`
+- `capss_vii_nonpower_scrape.metadata.json`
 
 ## Validation
 
@@ -156,20 +169,20 @@ imported CAPSS Handbook VI rows were transcribed from a secondary mirror and
 are marked `superseded_pending_capss_vii_diff`; all 25 Korean literature rows
 remain validation candidates. `production_ready=false` for all 912 rows.
 
-The official 412-page Handbook VII PDF is locally checksum-verified. The first
-inventory-driven scrape extracts 327 unique PDF pages for 83 activities and
-indexes 125 factor or particulate-speciation tables. Its page text, index,
-coverage, and metadata are generated under
-`data/interim/nonpower_emissions/capss_vii_first_pass/` and ignored by Git.
+The official 412-page Handbook VII PDF is checksum-verified against the current
+official download. The inventory-driven scrape extracts 327 unique PDF pages
+for 86 direct-emission activities, indexes 123 true factor or particulate-
+speciation tables, and reconstructs 129 table occurrences. It emits 3,250
+standard-column candidates, of which 2,994 have aligned source labels and
+3,144 have resolved units. Native-CAPSS matching places 2,720 candidates in
+4,196 candidate links across 54 inventory activities. Broad target-page
+membership is retained as provenance but is not accepted as an inventory match.
 The only activities without a direct target are electric passenger rail,
 electric freight rail, and electrolytic hydrogen because their upstream power
 emissions are outside this non-power boundary.
 
-Remaining requirements include native GCAM label confirmation, Handbook VII
-row normalization and review, activity-unit conversion parameters,
-technology/fleet/control shares, restricted ship-factor access, and resolution
-of the gaps listed in the reference README. Missing or unresolved factors are
-not zero.
-
-The recommended next task is: **normalize and independently verify the indexed
-Handbook VII tables, then approve only unit-compatible rows for production.**
+Remaining requirements include native GCAM label confirmation, dedicated
+normalizers for formula-heavy/nonstandard tables, row-level review,
+activity-unit conversion parameters, technology/fleet/control shares,
+restricted ship-factor access, and resolution of the gaps listed in the
+reference README. Missing or unresolved factors are not zero.
