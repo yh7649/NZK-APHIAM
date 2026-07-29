@@ -4,19 +4,22 @@ from __future__ import annotations
 
 from hashlib import sha256
 import json
+import os
 from pathlib import Path
 import subprocess
 import time
 from typing import Any
 
+from nzk_aphiam.air_quality.inmap.emission_inputs import emission_dependency_files
 from nzk_aphiam.air_quality.inmap.installation import executable_version, file_checksum
 
 
-def _run_key(executable: Path, config_path: Path, shapefile_path: Path) -> str:
+def _run_key(executable: Path, config_path: Path, emission_paths: list[Path]) -> str:
     digest = sha256()
     digest.update(executable_version(executable).encode())
-    for path in [config_path, *sorted(shapefile_path.parent.glob(f"{shapefile_path.stem}.*"))]:
-        digest.update(path.name.encode())
+    dependencies = [config_path.resolve(), *emission_dependency_files(emission_paths)]
+    for path in dependencies:
+        digest.update(str(path).encode())
         digest.update(file_checksum(path).encode())
     return digest.hexdigest()
 
@@ -27,14 +30,19 @@ def run_scenario(
     *,
     force: bool = False,
     resume: bool = False,
+    max_threads: int | None = None,
 ) -> dict[str, Any]:
     """Run one scenario or reuse a successful identical cached output."""
+    if max_threads is not None and max_threads < 1:
+        raise ValueError("max_threads must be positive when provided.")
     config_path = Path(job["config"])
     output_path = Path(job["output"])
-    shapefile_path = Path(job["shapefile"])
+    emission_paths = [Path(path) for path in job.get("emission_files", [Path(job["shapefile"])])]
     state_path = output_path.parent / "run_state.json"
-    run_key = _run_key(executable, config_path, shapefile_path)
+    run_key = _run_key(executable, config_path, emission_paths)
+    dependencies = emission_dependency_files(emission_paths)
     num_iterations = int(job.get("num_iterations", 0))
+    input_analytical_use_permitted = bool(job.get("analytical_use_permitted", num_iterations == 0))
     if state_path.exists() and output_path.exists() and not force:
         state = json.loads(state_path.read_text(encoding="utf-8"))
         if state.get("run_key") == run_key and state.get("status") == "complete":
@@ -53,7 +61,16 @@ def run_scenario(
         stdout_path.open("w", encoding="utf-8") as stdout,
         stderr_path.open("w", encoding="utf-8") as stderr,
     ):
-        completed = subprocess.run(command, stdout=stdout, stderr=stderr, check=False)
+        environment = os.environ.copy()
+        if max_threads is not None:
+            environment["GOMAXPROCS"] = str(max_threads)
+        completed = subprocess.run(
+            command,
+            stdout=stdout,
+            stderr=stderr,
+            check=False,
+            env=environment,
+        )
     status = "complete" if completed.returncode == 0 and output_path.exists() else "failed"
     if completed.returncode < 0:
         status = "interrupted"
@@ -68,11 +85,15 @@ def run_scenario(
         "stdout_log": str(stdout_path),
         "stderr_log": str(stderr_path),
         "output": str(output_path),
+        "emission_files": [str(path) for path in emission_paths],
+        "emission_dependency_sha256": {str(path): file_checksum(path) for path in dependencies},
         "cache_hit": False,
         "solver_mode": "automatic_convergence" if num_iterations == 0 else "fixed_iterations_poc",
         "num_iterations": num_iterations,
+        "inmap_max_threads": max_threads,
         "converged": num_iterations == 0,
-        "analytical_use_permitted": num_iterations == 0,
+        "input_analytical_use_permitted": input_analytical_use_permitted,
+        "analytical_use_permitted": num_iterations == 0 and input_analytical_use_permitted,
     }
     state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
     if state["status"] != "complete":

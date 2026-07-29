@@ -2,16 +2,30 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import tomllib
 from types import SimpleNamespace
 
 import geopandas as gpd
 import pytest
+from scipy.io import netcdf_file
 import shapefile
 from shapely.geometry import Point, box
 
-from nzk_aphiam.air_quality.inmap.exposure import national_population_weighted_exposure
+from nzk_aphiam.air_quality.inmap.emission_inputs import (
+    select_supplemental_emissions,
+    validate_coards_netcdf,
+    validate_emissions_shapefile,
+)
+from nzk_aphiam.air_quality.inmap.exposure import (
+    national_population_weighted_exposure,
+    national_scenario_exposure,
+)
 from nzk_aphiam.air_quality.inmap.installation import install_global_inmap
-from nzk_aphiam.air_quality.inmap.inventory import write_config, write_inventory
+from nzk_aphiam.air_quality.inmap.inventory import (
+    generate_scenario_inputs,
+    write_config,
+    write_inventory,
+)
 from nzk_aphiam.air_quality.inmap.outputs import difference_outputs
 from nzk_aphiam.air_quality.inmap.runner import run_scenario
 
@@ -101,6 +115,42 @@ def test_inmap_input_schema_and_annual_units(tmp_path: Path) -> None:
     assert schema["crs"] == "EPSG:4326"
 
 
+def test_scenario_exposure_emits_generic_health_concentration_and_scope(
+    tmp_path: Path,
+) -> None:
+    boundary_path = tmp_path / "countries.shp"
+    gpd.GeoDataFrame(
+        {"ISO_A3": ["KOR"]},
+        geometry=[box(126.0, 35.0, 129.0, 38.0)],
+        crs="EPSG:4326",
+    ).to_file(boundary_path)
+    output = gpd.GeoDataFrame(
+        {
+            "TotalPM25": [10.0, 20.0, 100.0],
+            "TotalPop": [1.0, 3.0, 10.0],
+        },
+        geometry=[
+            box(126.1, 35.1, 126.9, 35.9),
+            box(127.1, 36.1, 127.9, 36.9),
+            box(130.0, 36.0, 131.0, 37.0),
+        ],
+        crs="EPSG:4326",
+    )
+
+    exposure = national_scenario_exposure(
+        output,
+        boundary_path,
+        scenario="policy",
+        year=2030,
+        concentration_scope="all_source_total_ambient_pm25",
+    )
+
+    assert exposure.loc[0, "population_weighted_pm25_ugm3"] == pytest.approx(17.5)
+    assert exposure.loc[0, "population_weighted_incremental_pm25_ugm3"] == pytest.approx(17.5)
+    assert exposure.loc[0, "concentration_scope"] == "all_source_total_ambient_pm25"
+    assert exposure.loc[0, "represented_population"] == pytest.approx(4.0)
+
+
 def test_global_config_uses_global_files_and_kg_per_year(tmp_path: Path) -> None:
     config = write_config(
         scenario="test",
@@ -128,6 +178,163 @@ def test_global_config_uses_global_files_and_kg_per_year(tmp_path: Path) -> None
     assert 'TotalPM25 = "PrimaryPM25 + pSO4 + pNO3 + pNH4 + SOA"' in text
 
 
+def _polygon_emissions(path: Path, *, nox: float = 2.0) -> Path:
+    frame = gpd.GeoDataFrame(
+        {"NOx": [nox], "NH3": [1.0]},
+        geometry=[box(126.0, 35.0, 127.0, 36.0)],
+        crs="EPSG:4326",
+    )
+    frame.to_file(path)
+    return path
+
+
+def _coards_emissions(path: Path) -> Path:
+    with netcdf_file(path, mode="w") as dataset:
+        dataset.createDimension("lat", 2)
+        dataset.createDimension("lon", 2)
+        latitude = dataset.createVariable("lat", "f", ("lat",))
+        longitude = dataset.createVariable("lon", "f", ("lon",))
+        nox = dataset.createVariable("NOx", "f", ("lat", "lon"))
+        latitude[:] = [35.0, 36.0]
+        longitude[:] = [126.0, 127.0]
+        nox[:] = [[1.0, 2.0], [3.0, 4.0]]
+    return path
+
+
+def test_mixed_shapefile_and_coards_inputs_are_selected_and_configured(
+    tmp_path: Path,
+) -> None:
+    polygon = _polygon_emissions(tmp_path / "traffic.shp")
+    coards = _coards_emissions(tmp_path / "agriculture.nc")
+    assert validate_emissions_shapefile(polygon)["geometry_types"] == ["Polygon"]
+    assert validate_coards_netcdf(coards)["grid_shape"] == [2, 2]
+
+    selected = select_supplemental_emissions(
+        [
+            {
+                "id": "traffic_grid",
+                "sector": "transport",
+                "format": "shapefile",
+                "path": polygon,
+                "units": "kg/year",
+                "scenarios": ["policy"],
+                "years": [2030],
+            },
+            {
+                "id": "agriculture_grid",
+                "sector": "agriculture",
+                "format": "coards",
+                "path": coards,
+                "units": "kg",
+                "scenarios": "*",
+                "years": [2030],
+            },
+        ],
+        scenario="policy",
+        year=2030,
+        shapefile_units="kg/year",
+    )
+    assert [item["id"] for item in selected] == ["traffic_grid", "agriculture_grid"]
+
+    config = write_config(
+        scenario="policy",
+        year=2030,
+        inventory_path=tmp_path / "power.shp",
+        inmap_data=tmp_path / "InMAPData_v1.0.0.ncf",
+        variable_grid_data=tmp_path / "global_inmap_004x003_v1.1.0.gob",
+        population_file=tmp_path / "population" / "Pop.ncf",
+        mortality_rate_file=tmp_path / "unused_mortality.shp",
+        output_path=tmp_path / "output.shp",
+        config_path=tmp_path / "config.toml",
+        supplemental_inputs=selected,
+    )
+    text = config.read_text()
+    assert str(polygon.resolve()) in text
+    assert "[aep.InventoryConfig.COARDSFiles]" in text
+    assert '"agriculture" = [' in text
+    assert str(coards.resolve()) in text
+    assert "COARDSYear = 2030" in text
+    assert 'InputUnits = "kg"' in text
+    parsed = tomllib.loads(text)
+    assert len(parsed["EmissionsShapefiles"]) == 2
+    assert parsed["aep"]["InventoryConfig"]["COARDSFiles"]["agriculture"] == [
+        str(coards.resolve())
+    ]
+
+
+def test_supplemental_scope_and_invalid_emissions_are_rejected(tmp_path: Path) -> None:
+    polygon = _polygon_emissions(tmp_path / "traffic.shp", nox=-1.0)
+    with pytest.raises(ValueError, match="non-negative"):
+        select_supplemental_emissions(
+            [
+                {
+                    "id": "traffic",
+                    "format": "shapefile",
+                    "path": polygon,
+                    "scenarios": ["policy"],
+                }
+            ],
+            scenario="policy",
+            year=2030,
+            shapefile_units="kg/year",
+        )
+    assert (
+        select_supplemental_emissions(
+            [
+                {
+                    "id": "traffic",
+                    "format": "shapefile",
+                    "path": polygon,
+                    "scenarios": ["reference"],
+                }
+            ],
+            scenario="policy",
+            year=2030,
+            shapefile_units="kg/year",
+        )
+        == []
+    )
+    valid = _polygon_emissions(tmp_path / "valid.shp")
+    with pytest.raises(ValueError, match="counted twice"):
+        select_supplemental_emissions(
+            [
+                {"id": "traffic", "format": "shapefile", "path": valid},
+                {"id": "industry", "format": "shapefile", "path": valid},
+            ],
+            scenario="policy",
+            year=2030,
+            shapefile_units="kg/year",
+        )
+
+
+def test_generate_scenario_inputs_records_all_emission_dependencies(tmp_path: Path) -> None:
+    emissions = _inventory().assign(scenario="policy", year=2030)
+    polygon = _polygon_emissions(tmp_path / "factory.shp")
+    jobs = generate_scenario_inputs(
+        emissions,
+        tmp_path / "run",
+        {
+            "inmap_data": tmp_path / "InMAPData_v1.0.0.ncf",
+            "variable_grid_data": tmp_path / "global_inmap_004x003_v1.1.0.gob",
+            "population_file": tmp_path / "population" / "Pop.ncf",
+            "mortality_rate_file": tmp_path / "unused_mortality.shp",
+        },
+        supplemental_emissions=[
+            {
+                "id": "factories",
+                "sector": "industry",
+                "format": "shapefile",
+                "path": polygon,
+            }
+        ],
+    )
+    assert len(jobs) == 1
+    assert len(jobs[0]["emission_files"]) == 2
+    manifest = json.loads(jobs[0]["input_manifest"].read_text())
+    assert [item["id"] for item in manifest["inputs"]] == ["generated_power", "factories"]
+    assert all(len(checksum) == 64 for checksum in manifest["dependency_sha256"].values())
+
+
 def test_fixed_iteration_config_is_explicitly_requested(tmp_path: Path) -> None:
     config = write_config(
         scenario="poc",
@@ -144,9 +351,7 @@ def test_fixed_iteration_config_is_explicitly_requested(tmp_path: Path) -> None:
     assert "NumIterations = 200" in config.read_text()
 
 
-def test_fixed_iteration_run_state_prohibits_analytical_use(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_fixed_iteration_run_state_prohibits_analytical_use(tmp_path: Path, monkeypatch) -> None:
     executable = tmp_path / "inmap"
     executable.write_text("placeholder")
     config = tmp_path / "config.toml"
@@ -161,7 +366,10 @@ def test_fixed_iteration_run_state_prohibits_analytical_use(
         lambda _: "InMAP 1.9.6",
     )
 
-    def complete_run(*_args, **_kwargs):
+    observed_environment = {}
+
+    def complete_run(*_args, **kwargs):
+        observed_environment.update(kwargs["env"])
         output.write_text("placeholder")
         return SimpleNamespace(returncode=0)
 
@@ -176,11 +384,56 @@ def test_fixed_iteration_run_state_prohibits_analytical_use(
             "output": output,
             "num_iterations": 200,
         },
+        max_threads=7,
     )
     assert state["status"] == "complete"
     assert state["solver_mode"] == "fixed_iterations_poc"
+    assert state["inmap_max_threads"] == 7
+    assert observed_environment["GOMAXPROCS"] == "7"
     assert not state["converged"]
     assert not state["analytical_use_permitted"]
+
+
+def test_run_cache_tracks_every_emissions_file(tmp_path: Path, monkeypatch) -> None:
+    executable = tmp_path / "inmap"
+    executable.write_text("placeholder")
+    config = tmp_path / "config.toml"
+    config.write_text("NumIterations = 0\n")
+    shapefile = tmp_path / "power.shp"
+    shapefile.write_text("power")
+    supplemental = tmp_path / "traffic.nc"
+    supplemental.write_text("first")
+    output = tmp_path / "output" / "concentrations.shp"
+    calls = 0
+
+    monkeypatch.setattr(
+        "nzk_aphiam.air_quality.inmap.runner.executable_version",
+        lambda _: "InMAP 1.9.6",
+    )
+
+    def complete_run(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        output.write_text(f"run {calls}")
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr("nzk_aphiam.air_quality.inmap.runner.subprocess.run", complete_run)
+    job = {
+        "scenario": "policy",
+        "year": 2030,
+        "config": config,
+        "shapefile": shapefile,
+        "emission_files": [shapefile, supplemental],
+        "output": output,
+    }
+    first = run_scenario(executable, job)
+    cached = run_scenario(executable, job)
+    supplemental.write_text("second")
+    changed = run_scenario(executable, job)
+    assert not first["cache_hit"]
+    assert cached["cache_hit"]
+    assert not changed["cache_hit"]
+    assert calls == 2
 
 
 def _output(path: Path, total: tuple[float, float]) -> None:

@@ -93,22 +93,32 @@ def national_scenario_exposure(
     scenario: str,
     year: int,
     country_iso_a3: str = "KOR",
+    concentration_scope: str = "incremental_modeled_source_contribution",
 ) -> pd.DataFrame:
-    """Calculate a scenario's incremental thermal-power exposure over Korean cells."""
+    """Calculate a scenario's population-weighted PM2.5 over Korean cells.
+
+    The generic concentration column supports either an all-source InMAP run or
+    a source-contribution run. ``concentration_scope`` records which
+    interpretation is valid; the legacy incremental column is retained for
+    backward compatibility.
+    """
     selected = _korean_cells(output, boundary_path, country_iso_a3)
     population = pd.to_numeric(selected["TotalPop"], errors="coerce")
     concentration = pd.to_numeric(selected["TotalPM25"], errors="coerce")
     valid = population.notna() & concentration.notna() & (population >= 0)
     if not valid.any() or population.loc[valid].sum() <= 0:
         raise ValueError("Korean InMAP cells have no usable positive population.")
+    population_weighted = float(
+        np.average(concentration.loc[valid], weights=population.loc[valid])
+    )
     return pd.DataFrame(
         [
             {
                 "scenario": scenario,
                 "year": year,
-                "population_weighted_incremental_pm25_ugm3": float(
-                    np.average(concentration.loc[valid], weights=population.loc[valid])
-                ),
+                "population_weighted_pm25_ugm3": population_weighted,
+                "population_weighted_incremental_pm25_ugm3": population_weighted,
+                "concentration_scope": concentration_scope,
                 "represented_population": float(population.loc[valid].sum()),
                 "grid_cell_count": int(valid.sum()),
             }

@@ -1,7 +1,10 @@
-"""Global InMAP elevated-point-source input and configuration generation."""
+"""Global InMAP point-source and supplemental-emissions configuration generation."""
 
 from __future__ import annotations
 
+from collections import defaultdict
+from collections.abc import Mapping, Sequence
+from hashlib import sha256
 import json
 from pathlib import Path
 import re
@@ -9,6 +12,11 @@ from typing import Any
 
 import pandas as pd
 import shapefile
+
+from nzk_aphiam.air_quality.inmap.emission_inputs import (
+    emission_dependency_files,
+    select_supplemental_emissions,
+)
 
 SHAPEFILE_FIELDS = {
     "VOC": "voc_kg",
@@ -29,6 +37,18 @@ WGS84_PRJ = (
 
 def _safe_label(value: object) -> str:
     return re.sub(r"[^a-zA-Z0-9_-]+", "_", str(value)).strip("_")
+
+
+def _toml_string(value: object) -> str:
+    return json.dumps(str(value), ensure_ascii=False)
+
+
+def _sha256(path: Path) -> str:
+    digest = sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def validate_inventory_schema(inventory: pd.DataFrame) -> None:
@@ -115,21 +135,68 @@ def write_config(
     output_path: Path,
     config_path: Path,
     num_iterations: int = 0,
+    supplemental_inputs: Sequence[Mapping[str, Any]] = (),
+    emission_units: str = "kg/year",
 ) -> Path:
-    """Write a Global InMAP v1.9.6 TOML config using the official global grid."""
+    """Write a Global InMAP v1.9.6 config for mixed point and grid emissions."""
     if num_iterations < 0:
         raise ValueError("InMAP num_iterations must be zero or positive.")
+    shapefiles = [Path(inventory_path)]
+    coards = []
+    for item in supplemental_inputs:
+        if item["format"] == "shapefile":
+            if item["units"] != emission_units:
+                raise ValueError("All InMAP shapefiles in one run must use the same units.")
+            shapefiles.append(Path(item["path"]))
+        elif item["format"] == "coards":
+            coards.append(item)
+        else:
+            raise ValueError(f"Unsupported supplemental InMAP format: {item['format']}")
+
+    shapefile_values = ",\n  ".join(_toml_string(path) for path in shapefiles)
+    coards_content = ""
+    if coards:
+        coards_units = {str(item["units"]) for item in coards}
+        coards_years = {int(item["coards_year"]) for item in coards}
+        if len(coards_units) != 1 or len(coards_years) != 1:
+            raise ValueError("COARDS inputs in one InMAP run must share units and year.")
+        by_sector: defaultdict[str, list[Path]] = defaultdict(list)
+        for item in coards:
+            by_sector[str(item["sector"])].append(Path(item["path"]))
+        sector_lines = []
+        for sector, paths in sorted(by_sector.items()):
+            values = ", ".join(_toml_string(path) for path in sorted(paths))
+            sector_lines.append(f"{_toml_string(sector)} = [{values}]")
+        coards_content = f"""
+[aep]
+SrgSpecSMOKE = ""
+GridRef = []
+
+[aep.InventoryConfig]
+InputUnits = {_toml_string(next(iter(coards_units)))}
+COARDSYear = {next(iter(coards_years))}
+
+[aep.InventoryConfig.COARDSFiles]
+{chr(10).join(sector_lines)}
+
+[aep.SpatialConfig]
+InputSR = "+proj=longlat"
+"""
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     config_path.parent.mkdir(parents=True, exist_ok=True)
-    content = f'''# Generated for {_safe_label(scenario)} {year}; Global InMAP only.
+    content = f"""# Generated for {_safe_label(scenario)} {year}; Global InMAP only.
 static = true
 NumIterations = {num_iterations}
-InMAPData = "{inmap_data}"
-VariableGridData = "{variable_grid_data}"
-EmissionsShapefiles = ["{inventory_path}"]
-EmissionUnits = "kg/year"
-OutputFile = "{output_path}"
-LogFile = "{output_path.with_suffix(".model.log")}"
+InMAPData = {_toml_string(inmap_data)}
+VariableGridData = {_toml_string(variable_grid_data)}
+EmissionsShapefiles = [
+  {shapefile_values}
+]
+EmissionUnits = {_toml_string(emission_units)}
+OutputFile = {_toml_string(output_path)}
+LogFile = {_toml_string(output_path.with_suffix(".model.log"))}
+{coards_content}
 
 [OutputVariables]
 PrimPM25 = "PrimaryPM25"
@@ -154,16 +221,16 @@ GridProj = "+proj=longlat +units=degrees"
 PopDensityThreshold = 55000000.0
 PopThreshold = 100000.0
 PopConcThreshold = 0.000000001
-CensusFile = "{population_file}"
+CensusFile = {_toml_string(population_file)}
 CensusPopColumns = ["TotalPop"]
 PopGridColumn = "TotalPop"
-MortalityRateFile = "{mortality_rate_file}"
+MortalityRateFile = {_toml_string(mortality_rate_file)}
 
 # Deliberately empty: mortality is not a requested InMAP output. The official
 # Global InMAP v1.1.0 evaluation archive does not distribute mortality data;
 # health impacts are calculated downstream from KOSIS mortality inputs.
 [VarGrid.MortalityRateColumns]
-'''
+"""
     config_path.write_text(content, encoding="utf-8")
     return config_path
 
@@ -174,18 +241,28 @@ def generate_scenario_inputs(
     installation: dict[str, Any],
     *,
     num_iterations: int = 0,
+    supplemental_emissions: Sequence[Mapping[str, Any]] | None = None,
+    emission_units: str = "kg/year",
 ) -> list[dict[str, Any]]:
-    """Generate one elevated point-source input/config per scenario-year."""
+    """Generate mixed point/grid input configurations per scenario-year."""
     generated: list[dict[str, Any]] = []
     for (scenario, year), group in emissions.groupby(["scenario", "year"], sort=True):
-        label = f"{_safe_label(scenario)}_{int(year)}"
+        scenario = str(scenario)
+        year = int(year)
+        label = f"{_safe_label(scenario)}_{year}"
         input_dir = run_dir / "inmap" / "inputs" / label
         files = write_inventory(group.reset_index(drop=True), input_dir)
+        supplemental = select_supplemental_emissions(
+            supplemental_emissions,
+            scenario=scenario,
+            year=year,
+            shapefile_units=emission_units,
+        )
         output_path = run_dir / "inmap" / "outputs" / label / "concentrations.shp"
         config_path = run_dir / "inmap" / "configs" / f"{label}.toml"
         write_config(
-            scenario=str(scenario),
-            year=int(year),
+            scenario=scenario,
+            year=year,
             inventory_path=files["shapefile"].resolve(),
             inmap_data=Path(installation["inmap_data"]),
             variable_grid_data=Path(installation["variable_grid_data"]),
@@ -194,15 +271,58 @@ def generate_scenario_inputs(
             output_path=output_path.resolve(),
             config_path=config_path,
             num_iterations=num_iterations,
+            supplemental_inputs=supplemental,
+            emission_units=emission_units,
+        )
+        emission_paths = [
+            files["shapefile"].resolve(),
+            *(Path(item["path"]) for item in supplemental),
+        ]
+        dependencies = emission_dependency_files(emission_paths)
+        manifest_path = input_dir / "emission_inputs.json"
+        manifest_path.write_text(
+            json.dumps(
+                {
+                    "scenario": scenario,
+                    "year": year,
+                    "shapefile_units": emission_units,
+                    "inputs": [
+                        {
+                            "id": "generated_power",
+                            "sector": "power",
+                            "format": "shapefile",
+                            "path": str(files["shapefile"].resolve()),
+                            "units": emission_units,
+                            "geometry_types": ["Point"],
+                            "elevated": True,
+                        },
+                        *[
+                            {
+                                key: str(value) if isinstance(value, Path) else value
+                                for key, value in item.items()
+                            }
+                            for item in supplemental
+                        ],
+                    ],
+                    "dependency_sha256": {str(path): _sha256(path) for path in dependencies},
+                },
+                indent=2,
+                ensure_ascii=False,
+            )
+            + "\n",
+            encoding="utf-8",
         )
         generated.append(
             {
-                "scenario": str(scenario),
-                "year": int(year),
+                "scenario": scenario,
+                "year": year,
                 "label": label,
                 "config": config_path,
                 "output": output_path,
                 "num_iterations": num_iterations,
+                "emission_files": emission_paths,
+                "emission_inputs": json.loads(manifest_path.read_text(encoding="utf-8"))["inputs"],
+                "input_manifest": manifest_path,
                 **files,
             }
         )
