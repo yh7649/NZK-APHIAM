@@ -1,0 +1,5 @@
+# GitHub-hosted R packages (not published on CRAN).
+# Format: owner/repo@commit_sha — pin to a commit, not a branch, for reproducibility.
+# `remotes::install_github` follows each package's own `Remotes:` field for its
+# transitive GitHub dependencies (e.g. augsynth pulls in susanathey/MCPanel).
+ebenmichael/augsynth@7a90ea48877fae7925a72cb50bc03a315bc7c042

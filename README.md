@@ -73,7 +73,14 @@ project-specific virtual environment:
 python3 -m venv .venv
 source .venv/bin/activate
 make requirements PYTHON_INTERPRETER=.venv/bin/python
+make requirements-r
 ```
+
+`make requirements-r` installs pinned CRAN package versions from
+[`requirements/r.txt`](requirements/r.txt) and GitHub-only packages (currently
+`augsynth`, pinned to a commit SHA since it has no CRAN release) from
+[`requirements/r_github.txt`](requirements/r_github.txt) via the `remotes`
+package. Run this before `make r-analysis` or any other R target.
 
 Create the local environment file:
 

@@ -22,10 +22,10 @@ requirements:
 	$(PYTHON_INTERPRETER) -m pip install -r requirements/python.txt
 	
 
-## Install R analysis dependencies
+## Install R analysis dependencies (pinned CRAN versions + GitHub-only packages)
 .PHONY: requirements-r
 requirements-r:
-	Rscript -e 'options(repos = c(CRAN = "https://cloud.r-project.org")); pkgs <- readLines("requirements/r.txt", warn = FALSE); pkgs <- pkgs[nzchar(pkgs)]; missing <- pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)]; if (length(missing)) install.packages(missing)'
+	Rscript requirements/install_r.R
 
 
 ## Install Python and R dependencies
