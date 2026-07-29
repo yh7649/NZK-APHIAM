@@ -23,8 +23,15 @@ inputs:
   technology_mapping: docs/references/thermal/kepco_technology_mapping.csv
   province_level_power: docs/references/province_level_power/province_level_power.xlsx
   population_projection: data/raw/health/kosis/population_projection_age/population_projection_age.csv
-  age_mortality: data/raw/health/kosis/age_mortality/age_mortality.csv
+  age_mortality_all_cause: data/raw/health/kosis/age_mortality/age_mortality.csv
+  # Supply an endpoint-matched national age-specific table to activate Byun.
+  # The pipeline will not substitute all-cause mortality when this is absent.
+  age_mortality_non_accidental: null
+  # Burnett GEMM requires the NCD+LRI denominator, which is narrower than
+  # generic non-accidental mortality.
+  age_mortality_ncd_lri: null
   crf_parameters: docs/references/health/crf_parameters.csv
+  gemm_parameters: docs/references/health/gemm_ncd_lri_parameters.csv
 
 province_crosswalk:
   CNA: Chungcheongnam-do
@@ -49,9 +56,13 @@ macro_technology_crosswalk:
   ThermalPower:
     Coal: conventional_steam_turbine
     NaturalGas: combined_cycle_gas_turbine
+    Oil: conventional_steam_turbine
+    Biomass: conventional_steam_turbine
   ThermalSteam:
     Coal: cogeneration_chp
     NaturalGas: cogeneration_chp
+    Oil: conventional_steam_turbine
+    Biomass: conventional_steam_turbine
   ThermalPowerCCS:
     Coal: conventional_steam_turbine
     NaturalGas: combined_cycle_gas_turbine
@@ -60,14 +71,17 @@ fuel_crosswalk:
   Coal: coal
   NaturalGas: natural_gas
   Oil: oil
+  Biomass: biomass
   coal: coal
   natural_gas: natural_gas
   oil: oil
+  biomass: biomass
 
 fuel_compatibility:
   coal: [coal]
   natural_gas: [natural_gas, oil_and_natural_gas]
   oil: [oil, oil_and_natural_gas, bio_oil_and_diesel]
+  biomass: [biomass]
 
 allocation:
   hierarchy: [capacity, recent_historical_generation, equal]
@@ -175,6 +189,10 @@ inmap:
   model_data_md5: f1b3e2544e6939c9dd6f9a2295f95b3c
   cache_path: .cache/inmap
   emission_units: kg/year
+  # Optional mixed-sector inputs. Entries can be InMAP-compatible shapefiles
+  # (point, line, or polygon) or COARDS NetCDF-3 grids. Omitted scenarios/years
+  # apply to every generated run; see docs/methods/peng_replication_mvp.md.
+  supplemental_emissions: []
   output_components: [PrimaryPM25, pSO4, pNO3, pNH4, SOA, TotalPM25, TotalPop]
   run_command: inmap run steady
   # Zero invokes InMAP's automatic 0.1% convergence criterion. Positive values
@@ -194,13 +212,31 @@ exposure:
   uniform_population_fallback: false
 
 health:
-  crf_id: krewski_2009_acs_extended
+  crf_ids:
+    - peng_krewski_2009_all_cause
+    - gemm_2018_ncd_lri_with_china
+    - byun_2024_korea_non_accidental
+    - kim_2020_korea_all_cause
+    - korea_guide_hoek_2013_policy
+    - lim_2020_korea_elderly_all_cause
+  mortality_inputs:
+    all_cause: age_mortality_all_cause
+    non_accidental: age_mortality_non_accidental
+    ncd_lri: age_mortality_ncd_lri
   population_year: 2030
   mortality_year: 2024
   mortality_assumption: hold_latest_observed_age_specific_national_rates_constant_to_target_year
-  age_min: 30
-  exposure_scope: national_population_weighted_incremental_thermal_power_pm25
-  concentration_anchor: crf_counterfactual_plus_incremental_thermal_power_concentration
-  adapter_note: This evaluates only the modeled thermal-power increment and is not total ambient PM2.5.
+  concentration_column: population_weighted_pm25_ugm3
+  concentration_mode: direct_scenario_concentration
+  background_pm25_ugm3: null
+  exposure_scope: incremental_korean_thermal_power_pm25_not_total_ambient
+  analytical_use_permitted: false
+  adapter_note: >-
+    The current thermal-only InMAP inventory is a source contribution, not
+    total ambient PM2.5. The suite can test every CRF mechanically, but an
+    analytical Peng run must use an all-source scenario concentration or set
+    concentration_mode to background_plus_inmap_contribution with a sourced
+    ambient background. Byun and GEMM additionally require separate,
+    endpoint-matched age-specific non-accidental and NCD+LRI mortality tables.
 
 random_seed: 7649

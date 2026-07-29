@@ -33,8 +33,8 @@ The workflow reuses, without recalculating:
   `results/tables/kepco/annual_handoff/kepco_annual_ef_distribution_long_by_fuel_technology.csv`;
 - the existing location, retirement, technology, and stack crosswalks;
 - KOSIS age-specific population projections and mortality rates; and
-- `health.crf` and `health.impact`, including the verified Krewski central estimate
-  and confidence bounds.
+- `health.crf` and `health.impact`, including the Huang–Peng Krewski primary,
+  age-specific GEMM, and Korean-cohort/policy sensitivity specifications.
 
 The new code normalizes and selects scenarios, fills province coverage with five
 explicitly documented real CHP/thermal sites, allocates generation, maps EFs,
@@ -136,7 +136,8 @@ historical-minus-future difference was -0.011734 µg/m³. These are early-time,
 non-converged diagnostics and must not be cited as exposure or policy estimates.
 The POC manifest sets both analytical and health use to false.
 
-At the user's explicit request, the opt-in diagnostic health pass was also exercised.
+At the user's explicit request, the earlier single-CRF diagnostic health pass was
+also exercised.
 The MACRO inventory has 50.14 thousand tonnes/year more NOx and 12.53 thousand
 tonnes/year more SOx than the observed inventory, so its higher diagnostic exposure
 has the expected adverse sign. With 2030 projected Korean population age 30+ (38.03
@@ -145,18 +146,81 @@ Krewski CRF, the module calculates 89.61 deaths attributable to the included MAC
 thermal increment versus 60.88 for observed 2021: **28.74 additional annual deaths**
 (CRF-coefficient-only interval 19.34--37.95).
 
-This is not a health-impact estimate. Besides non-convergence and the deliberately
+That historical diagnostic used the superseded
+`counterfactual + InMAP contribution` single-CRF adapter. It is retained only as a
+record of the sign/plumbing test and must not be compared with outputs from the new
+prespecified suite. This is not a health-impact estimate. Besides non-convergence and the deliberately
 overstated MACRO thermal pathway, it omits primary PM2.5, NH3, and VOC emissions;
 uses imputed stacks and existing-site allocation; uses national-average exposure;
 holds 2024 mortality rates fixed; and transfers a US-cohort CRF to Korea. The interval
 propagates only CRF coefficient uncertainty, not uncertainty in emissions, InMAP,
 exposure, demographics, mortality, or model structure.
 
-Each scenario input is an EPSG:4326 elevated point-source shapefile with annual
-`kg/year` fields `VOC`, `NOx`, `NH3`, `SOx`, `PM2_5`, `height`, `diam`, `temp`, and
-`velocity`. A full-name Parquet copy, schema JSON, and plant lookup accompany it.
-Output total PM2.5 is the consistent sum of `PrimaryPM25`, `pSO4`, `pNO3`, `pNH4`,
-and `SOA`.
+The generated power inventory remains an EPSG:4326 elevated point-source shapefile
+with annual `kg/year` fields `VOC`, `NOx`, `NH3`, `SOx`, `PM2_5`, `height`, `diam`,
+`temp`, and `velocity`. A full-name Parquet copy, schema JSON, and plant lookup
+accompany it. Optional supplemental point, line, polygon, and COARDS-grid inventories
+can now be combined with that power inventory as described below. Output total PM2.5
+is the consistent sum of `PrimaryPM25`, `pSO4`, `pNO3`, `pNH4`, and `SOA`.
+
+### Supplemental point and gridded emissions
+
+`inmap.supplemental_emissions` accepts two formats supported natively by the pinned
+InMAP v1.9.6 executable:
+
+- `shapefile`: point, line, or polygon features with at least one exactly named
+  pollutant field among `VOC`, `NOx`, `NH3`, `SOx`, and `PM2_5`. A point-source
+  factory is elevated when all four stack fields `height`, `diam`, `temp`, and
+  `velocity` are present; otherwise its emissions are ground level. The `.shp`,
+  `.shx`, `.dbf`, and `.prj` components are mandatory. Because InMAP has one
+  `EmissionUnits` setting for all shapefiles in a run, supplemental shapefiles must
+  use the configured `kg/year` units of the generated power inventory.
+- `coards`: a NetCDF-3 file with one-dimensional `lat` and `lon` coordinates and
+  floating-point pollutant variables dimensioned exactly `[lat, lon]`. Values are
+  non-negative annual mass totals per grid cell, not mass densities. InMAP v1.9.6
+  does not accept NetCDF-4 through this route.
+
+For example:
+
+```yaml
+inmap:
+  emission_units: kg/year
+  supplemental_emissions:
+    - id: factories_2030
+      sector: industry
+      format: shapefile
+      path: data/processed/emissions/factories_2030.shp
+      units: kg/year
+      scenarios: "*"
+      years: [2030]
+    - id: traffic_2030
+      sector: transport
+      format: shapefile
+      path: data/processed/emissions/traffic_grid_2030.shp
+      units: kg/year
+      scenarios: [reference_2030, nzk_2030]
+      years: [2030]
+    - id: agriculture_2030
+      sector: agriculture
+      format: coards
+      path: data/processed/emissions/agriculture_2030.nc
+      units: kg
+      coards_year: 2030
+      scenarios: [reference_2030, nzk_2030]
+      years: [2030]
+```
+
+Omitting `scenarios` or `years`, or setting either to `"*"`, includes the file in
+every applicable run. This lets a common non-power inventory be paired with both
+reference and NZK power inventories; separate scenario-scoped entries can instead
+represent changing transport, agriculture, or industrial pathways. Supplemental
+inventories must exclude power sources already represented by the generated power
+shapefile to prevent double counting.
+
+Every scenario directory records an `emission_inputs.json` manifest with the selected
+sectors, geometry/grid metadata, and SHA-256 hashes. The run cache hashes every
+shapefile component and NetCDF input, so changing any supplemental inventory forces
+a new InMAP run.
 
 The sign convention is always:
 
@@ -178,11 +242,25 @@ district boundaries and a population allocation raster are not present locally.
 
 The health adapter uses target-year KOSIS population projections (2030) and holds
 the latest compatible observed national age-specific mortality rates (2024) fixed.
-It evaluates the incremental thermal-power concentrations by anchoring them at the
-CRF counterfactual and calls the repository's existing marginal health function.
-This is an incremental included-source estimate, not mortality attributable to
-total ambient PM2.5. Health results are never produced unless real InMAP exposure
-outputs exist.
+It evaluates the six-specification suite documented in
+[`health_impact_assessment.md`](health_impact_assessment.md): the Huang–Peng
+Krewski primary, GEMM, Byun, Kim, the Korean GUIDE benchmark, and Lim elderly.
+Every output records CRF, endpoint, age restriction, model type, role, concentration
+mode, and exposure scope.
+
+`direct_scenario_concentration` requires each InMAP value to be total ambient PM2.5.
+`background_plus_inmap_contribution` adds a sourced background to a source-only
+InMAP contribution. The current thermal inventory is source-only, so its direct
+values can test the pipeline but are not a reportable Peng health input. KOSIS
+currently supplies only age-specific all-cause mortality. Byun is blocked until an
+endpoint-tagged non-accidental table is configured, and GEMM is separately blocked
+until an age-specific NCD+LRI table is configured; neither may borrow the all-cause
+denominator. `health_specification_status.csv` records these blocks while compatible
+specifications continue.
+
+The default configuration therefore sets `health.analytical_use_permitted: false`,
+and this flag is copied into health outputs and the manifest. Health outputs are
+never produced unless real InMAP exposure outputs exist.
 
 ## Commands
 

@@ -7,7 +7,10 @@ from typing import Any
 
 import pandas as pd
 
-from nzk_aphiam.integration.macro_kepco_validation import standardize_macro_generation
+from nzk_aphiam.integration.macro_kepco_validation import (
+    split_macro_type,
+    standardize_macro_generation,
+)
 
 
 def normalize_macro_scenarios(
@@ -20,6 +23,20 @@ def normalize_macro_scenarios(
 ) -> pd.DataFrame:
     """Reuse the validated MACRO normalizer and retain emitting thermal rows."""
     raw = pd.read_csv(path)
+    combined_column = next(
+        (
+            column
+            for column in ("Technology", "technology", "Type", "type")
+            if column in raw.columns
+            and raw[column].astype(str).str.fullmatch(r"[^{}]+\{[^{}]+\}").all()
+        ),
+        None,
+    )
+    explicit_fuel = {"Fuel", "fuel", "macro_fuel"} & set(raw.columns)
+    if combined_column and not explicit_fuel:
+        parsed = raw[combined_column].map(split_macro_type)
+        raw["macro_fuel"] = parsed.map(lambda value: value[0])
+        raw["macro_technology"] = parsed.map(lambda value: value[1])
     if "Year" in raw:
         years = sorted(pd.to_numeric(raw["Year"], errors="raise").astype(int).unique())
     elif "year" in raw:

@@ -25,7 +25,6 @@ from nzk_aphiam.air_quality.inmap.runner import run_scenario
 from nzk_aphiam.air_quality.inmap.validation import validate_global_domain
 from nzk_aphiam.config.paths import PROJECT_ROOT
 from nzk_aphiam.fleet.scenario_allocator import allocate_generation
-from nzk_aphiam.health.impact import compute_attributable_deaths
 from nzk_aphiam.mvp.peng_replication.audit import build_input_audit, write_input_audit
 from nzk_aphiam.mvp.peng_replication.config import (
     DEFAULT_CONFIG_PATH,
@@ -40,8 +39,7 @@ from nzk_aphiam.mvp.peng_replication.emissions import (
 )
 from nzk_aphiam.mvp.peng_replication.fleet import build_thermal_fleet
 from nzk_aphiam.mvp.peng_replication.health_adapter import (
-    build_national_health_inputs,
-    calculate_avoided_deaths,
+    evaluate_national_health_specifications,
 )
 from nzk_aphiam.mvp.peng_replication.scenarios import (
     normalize_macro_scenarios,
@@ -407,20 +405,32 @@ def _write_report(
     health_path = run_dir / "health_impacts.csv"
     if health_path.exists():
         health = pd.read_csv(health_path)
+        analytical_use = bool(health["analytical_use_permitted"].all())
         lines.extend(
             [
                 "",
-                "## Health result from real exposure",
+                "## Health specification results",
                 "",
-                f"- Avoided deaths: {health['avoided_deaths'].sum():.6g}",
-                f"- Lower confidence estimate: {health['avoided_deaths_ci_low'].sum():.6g}",
-                f"- Upper confidence estimate: {health['avoided_deaths_ci_high'].sum():.6g}",
+                f"- Analytical use permitted: `{analytical_use}`",
+                "- Specifications are alternatives and must never be summed.",
                 "- Negative values mean additional deaths under the future scenario, not a benefit.",
             ]
         )
+        for row in health.itertuples(index=False):
+            lines.append(
+                f"- `{row.crf_id}` ({row.mortality_endpoint}): "
+                f"{row.avoided_deaths:.6g} avoided deaths "
+                f"[{row.avoided_deaths_ci_low:.6g}, {row.avoided_deaths_ci_high:.6g}]"
+            )
+        status_path = run_dir / "health_specification_status.csv"
+        if status_path.exists():
+            status = pd.read_csv(status_path)
+            blocked = status.loc[status["status"].ne("complete")]
+            for row in blocked.itertuples(index=False):
+                lines.append(f"- `{row.crf_id}`: **{row.status}** — {row.reason}")
     diagnostic_health_path = run_dir / "diagnostic_nonconverged_health_impacts.csv"
     if diagnostic_health_path.exists() and manifest.get("diagnostic_health_postprocessing"):
-        health = pd.read_csv(diagnostic_health_path).iloc[0]
+        health = pd.read_csv(diagnostic_health_path)
         lines.extend(
             [
                 "",
@@ -428,16 +438,19 @@ def _write_report(
                 "",
                 "This calculation uses fixed-iteration, non-converged POC concentrations. "
                 "It is a sign-and-plumbing diagnostic, not a health-impact result.",
-                "",
-                "- Additional deaths under future/policy minus historical/reference: "
-                f"{health['additional_deaths_policy_minus_reference']:.6g}",
-                "- CRF-coefficient-only interval: "
-                f"{health['additional_deaths_crf_ci_low']:.6g} to "
-                f"{health['additional_deaths_crf_ci_high']:.6g}",
-                f"- InMAP iterations: {int(health['inmap_num_iterations'])}; converged: `False`",
+                "- Specifications are alternatives and must never be summed.",
+                f"- InMAP iterations: {int(health['inmap_num_iterations'].iloc[0])}; "
+                "converged: `False`",
                 "- Analytical use permitted: `False`",
             ]
         )
+        for row in health.itertuples(index=False):
+            lines.append(
+                f"- `{row.crf_id}`: "
+                f"{row.additional_deaths_policy_minus_reference:.6g} additional deaths "
+                f"[{row.additional_deaths_crf_ci_low:.6g}, "
+                f"{row.additional_deaths_crf_ci_high:.6g}]"
+            )
     lines.extend(
         ["", "## Exact resume command", "", f"```bash\n{manifest['resume_command']}\n```", ""]
     )
@@ -446,6 +459,16 @@ def _write_report(
 
 def execute(args: argparse.Namespace) -> Path:
     config = load_config(args.config)
+    if args.macro_generation:
+        macro_generation = (
+            args.macro_generation
+            if args.macro_generation.is_absolute()
+            else PROJECT_ROOT / args.macro_generation
+        )
+        config["inputs"]["macro_generation"] = macro_generation
+        metadata = macro_generation.with_suffix(".metadata.json")
+        if metadata.exists():
+            config["inputs"]["macro_metadata"] = metadata
     if args.target_year:
         config["comparison"]["target_year"] = args.target_year
         config["health"]["population_year"] = args.target_year
@@ -497,6 +520,13 @@ def execute(args: argparse.Namespace) -> Path:
         "PYTHONPATH=src .venv/bin/python -m nzk_aphiam.mvp.peng_replication "
         f"--config {args.config.relative_to(PROJECT_ROOT)} --stage all --resume"
     )
+    if args.macro_generation:
+        macro_display = config["inputs"]["macro_generation"]
+        try:
+            macro_display = macro_display.relative_to(PROJECT_ROOT)
+        except ValueError:
+            pass
+        resume += f" --macro-generation {macro_display}"
     if poc_mode:
         resume += f" --inmap-poc-iterations {inmap_num_iterations}"
     if args.write_diagnostic_poc_health:
@@ -570,7 +600,12 @@ def execute(args: argparse.Namespace) -> Path:
                 run_dir,
                 installation,
                 num_iterations=inmap_num_iterations,
+                supplemental_emissions=config["inmap"].get("supplemental_emissions", []),
+                emission_units=config["inmap"]["emission_units"],
             )
+            manifest["inmap_emission_inputs"] = {
+                job["label"]: job["emission_inputs"] for job in jobs
+            }
             states = [
                 run_scenario(
                     Path(installation["executable"]),
@@ -617,6 +652,7 @@ def execute(args: argparse.Namespace) -> Path:
                         scenario=job["scenario"],
                         year=job["year"],
                         country_iso_a3=config["exposure"]["country_iso_a3"],
+                        concentration_scope=config["health"]["exposure_scope"],
                     )
                     for job in jobs
                 ],
@@ -640,45 +676,42 @@ def execute(args: argparse.Namespace) -> Path:
             not poc_mode or args.write_diagnostic_poc_health
         )
         if health_requested:
-            scenario_exposures = pd.read_csv(
-                run_dir / "national_scenario_exposures.csv"
-            ).set_index("scenario")
-            health_inputs, crf = build_national_health_inputs(
+            scenario_exposures = pd.read_csv(run_dir / "national_scenario_exposures.csv")
+            mortality_paths = {
+                endpoint: config["inputs"].get(input_key) if input_key else None
+                for endpoint, input_key in config["health"]["mortality_inputs"].items()
+            }
+            suite = evaluate_national_health_specifications(
+                scenario_exposures=scenario_exposures,
                 population_path=config["inputs"]["population_projection"],
-                mortality_path=config["inputs"]["age_mortality"],
+                mortality_paths=mortality_paths,
                 target_year=config["health"]["population_year"],
                 mortality_year=config["health"]["mortality_year"],
-                age_min=config["health"]["age_min"],
                 reference_scenario=selection["reference_scenario"],
                 policy_scenario=selection["policy_scenario"],
-                reference_incremental_pm25=float(
-                    scenario_exposures.loc[
-                        selection["reference_scenario"],
-                        "population_weighted_incremental_pm25_ugm3",
-                    ]
-                ),
-                policy_incremental_pm25=float(
-                    scenario_exposures.loc[
-                        selection["policy_scenario"],
-                        "population_weighted_incremental_pm25_ugm3",
-                    ]
-                ),
                 crf_parameters_path=config["inputs"]["crf_parameters"],
-                crf_id=config["health"]["crf_id"],
-            )
-            health = calculate_avoided_deaths(
-                health_inputs,
-                crf,
-                reference_scenario=selection["reference_scenario"],
-                policy_scenario=selection["policy_scenario"],
-                mortality_year=config["health"]["mortality_year"],
+                crf_ids=config["health"]["crf_ids"],
+                gemm_parameters_path=config["inputs"]["gemm_parameters"],
+                concentration_column=config["health"]["concentration_column"],
+                concentration_mode=config["health"]["concentration_mode"],
+                background_pm25_ugm3=config["health"].get("background_pm25_ugm3"),
+                exposure_scope=config["health"]["exposure_scope"],
                 comparison_type=selection["comparison_type"],
+                analytical_use_permitted=config["health"]["analytical_use_permitted"],
             )
+            health_inputs = suite.model_inputs
+            health = suite.impacts
+            totals = suite.scenario_totals
+            status = suite.status
             if poc_mode:
-                diagnostic = _label_diagnostic_poc_health(
-                    health, num_iterations=inmap_num_iterations
+                diagnostic = (
+                    _label_diagnostic_poc_health(
+                        health,
+                        num_iterations=inmap_num_iterations,
+                    )
+                    if not health.empty
+                    else health
                 )
-                totals = compute_attributable_deaths(health_inputs, crf)
                 totals["result_status"] = "nonconverged_poc_diagnostic_not_for_inference"
                 totals["inmap_num_iterations"] = inmap_num_iterations
                 totals["inmap_converged"] = False
@@ -692,25 +725,53 @@ def execute(args: argparse.Namespace) -> Path:
                 totals.to_csv(
                     run_dir / "diagnostic_nonconverged_health_scenario_totals.csv", index=False
                 )
+                status.to_csv(
+                    run_dir / "diagnostic_nonconverged_health_specification_status.csv",
+                    index=False,
+                )
                 manifest["steps"]["health"] = "not_run_fixed_iteration_poc_prohibited"
                 manifest["diagnostic_health_postprocessing"] = {
                     "status": "complete_nonconverged_not_for_inference",
                     "normal_health_output_written": False,
                     "analytical_use_permitted": False,
-                    "additional_deaths_policy_minus_reference": float(
-                        diagnostic["additional_deaths_policy_minus_reference"].sum()
+                    "specifications": (
+                        diagnostic[
+                            [
+                                "crf_id",
+                                "mortality_endpoint",
+                                "additional_deaths_policy_minus_reference",
+                                "additional_deaths_crf_ci_low",
+                                "additional_deaths_crf_ci_high",
+                            ]
+                        ].to_dict(orient="records")
+                        if not diagnostic.empty
+                        else []
                     ),
-                    "additional_deaths_crf_ci_low": float(
-                        diagnostic["additional_deaths_crf_ci_low"].sum()
-                    ),
-                    "additional_deaths_crf_ci_high": float(
-                        diagnostic["additional_deaths_crf_ci_high"].sum()
-                    ),
+                    "specification_status": status.to_dict(orient="records"),
                 }
             else:
                 health_inputs.to_csv(run_dir / "health_model_inputs.csv", index=False)
                 health.to_csv(run_dir / "health_impacts.csv", index=False)
-                manifest["steps"]["health"] = "complete_from_real_exposure"
+                totals.to_csv(run_dir / "health_scenario_totals.csv", index=False)
+                status.to_csv(run_dir / "health_specification_status.csv", index=False)
+                complete_count = int(status["status"].eq("complete").sum())
+                blocked_count = int(len(status) - complete_count)
+                manifest["health_specifications"] = {
+                    "complete": complete_count,
+                    "blocked": blocked_count,
+                    "analytical_use_permitted": config["health"]["analytical_use_permitted"],
+                    "status": status.to_dict(orient="records"),
+                }
+                if not config["health"]["analytical_use_permitted"]:
+                    manifest["steps"]["health"] = (
+                        "complete_calculation_not_permitted_for_analytical_use"
+                    )
+                else:
+                    manifest["steps"]["health"] = (
+                        "complete_all_specifications_from_real_exposure"
+                        if blocked_count == 0
+                        else "complete_available_specifications_with_endpoint_blocks"
+                    )
         elif args.stage == "all" and poc_mode:
             manifest["steps"]["health"] = "not_run_fixed_iteration_poc_prohibited"
     except Exception as error:
@@ -741,6 +802,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--target-year", type=int)
+    parser.add_argument(
+        "--macro-generation",
+        type=Path,
+        help="Override the configured MACRO generation table for a local scenario fixture.",
+    )
     parser.add_argument("--reference-scenario")
     parser.add_argument("--policy-scenario")
     parser.add_argument("--skip-inmap-download", action="store_true")

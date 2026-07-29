@@ -234,20 +234,28 @@ def build_input_audit(config: dict[str, Any]) -> dict[str, Any]:
             "documented target-year projection through 2042",
         ),
         (
-            "age_mortality",
-            inputs["age_mortality"],
+            "age_mortality_all_cause",
+            inputs["age_mortality_all_cause"],
             "deaths and deaths/100,000",
             "KOSIS DT_1B80A18",
             "observed official",
-            "latest compatible age-specific mortality",
+            "latest compatible age-specific all-cause mortality",
         ),
         (
             "crf_parameters",
             inputs["crf_parameters"],
             "per ug/m3",
-            "existing verified Krewski parameter table",
+            "literature-backed Peng and Korean CRF registry",
             "processed literature evidence",
-            "active repository CRF input",
+            "recommended primary and sensitivity specifications",
+        ),
+        (
+            "gemm_parameters",
+            inputs["gemm_parameters"],
+            "dimensionless model parameters and ug/m3",
+            "Burnett et al. 2018 SI Table S2",
+            "processed literature evidence",
+            "age-specific GEMM NCD+LRI sensitivity parameters",
         ),
     ]
     profiles = [
@@ -264,6 +272,44 @@ def build_input_audit(config: dict[str, Any]) -> dict[str, Any]:
     ]
     profiles.extend(
         [
+            profile_input(
+                name="age_mortality_non_accidental",
+                candidates=(
+                    [inputs["age_mortality_non_accidental"]]
+                    if inputs.get("age_mortality_non_accidental")
+                    else []
+                ),
+                selected=inputs.get("age_mortality_non_accidental"),
+                units="deaths and deaths/100,000",
+                provenance="endpoint-matched national age-specific mortality input",
+                classification=(
+                    "observed official"
+                    if inputs.get("age_mortality_non_accidental")
+                    else "unavailable"
+                ),
+                reason=(
+                    "required by the Byun non-accidental specification; "
+                    "all-cause mortality is never substituted"
+                ),
+            ),
+            profile_input(
+                name="age_mortality_ncd_lri",
+                candidates=(
+                    [inputs["age_mortality_ncd_lri"]]
+                    if inputs.get("age_mortality_ncd_lri")
+                    else []
+                ),
+                selected=inputs.get("age_mortality_ncd_lri"),
+                units="deaths and deaths/100,000",
+                provenance="endpoint-matched national age-specific mortality input",
+                classification=(
+                    "observed official" if inputs.get("age_mortality_ncd_lri") else "unavailable"
+                ),
+                reason=(
+                    "required by GEMM NCD+LRI; generic non-accidental and all-cause "
+                    "mortality are never substituted"
+                ),
+            ),
             profile_input(
                 name="district_boundaries",
                 candidates=[],

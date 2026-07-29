@@ -7,6 +7,7 @@ import pytest
 from shapely.geometry import box
 
 from nzk_aphiam.fleet.scenario_allocator import allocate_generation, eligible_fleet
+from nzk_aphiam.mvp.peng_replication.config import _validate_health_config
 from nzk_aphiam.mvp.peng_replication.emissions import (
     construct_emissions,
     prepare_ef_table,
@@ -163,6 +164,19 @@ def test_capacity_allocation_and_group_mass_balance() -> None:
     }
     assert diagnostics.loc[0, "mass_balance_error_mwh"] == pytest.approx(0.0)
     assert diagnostics.loc[0, "match_level"] == "exact_fuel_technology"
+
+
+def test_zero_generation_preserves_scenario_rows_for_phaseout_endpoint() -> None:
+    allocated, diagnostics = allocate_generation(
+        _generation(generation_mwh=0.0),
+        _fleet(),
+        fuel_compatibility={"coal": ["coal"]},
+    )
+    assert len(allocated) == 1
+    assert allocated.loc[0, "scenario"] == "scenario"
+    assert allocated.loc[0, "generation_mwh"] == 0.0
+    assert allocated.loc[0, "allocation_rule"] == "zero_generation:exact_fuel_technology"
+    assert diagnostics.loc[0, "status"] == "zero_generation"
 
 
 def test_historical_then_equal_allocation_hierarchy() -> None:
@@ -376,3 +390,24 @@ def test_existing_health_adapter_uses_target_population_and_observed_mortality(
     )
     assert result.loc[0, "avoided_deaths"] > 0
     assert result.loc[0, "comparison_type"] == "historical_to_scenario"
+
+
+def test_health_config_requires_background_and_explicit_analytical_flag() -> None:
+    config = {
+        "inputs": {"all_cause_file": Path("mortality.csv")},
+        "health": {
+            "crf_ids": ["peng_krewski_2009_all_cause"],
+            "mortality_inputs": {"all_cause": "all_cause_file"},
+            "concentration_column": "population_weighted_pm25_ugm3",
+            "concentration_mode": "background_plus_inmap_contribution",
+            "background_pm25_ugm3": None,
+            "exposure_scope": "source_contribution",
+            "analytical_use_permitted": False,
+        },
+    }
+    with pytest.raises(ValueError, match="background_pm25_ugm3 is required"):
+        _validate_health_config(config)
+    config["health"]["background_pm25_ugm3"] = 8.0
+    config["health"]["analytical_use_permitted"] = "false"
+    with pytest.raises(ValueError, match="must be true or false"):
+        _validate_health_config(config)
