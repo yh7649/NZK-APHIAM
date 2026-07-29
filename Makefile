@@ -220,15 +220,22 @@ build-nonpower-emission-factors:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.nonpower_emission_factors
 
 
-## Extract inventory-targeted pages and factor-table titles from official CAPSS VII
+## Scrape official CAPSS VII pages, raw table cells, normalized candidates, and inventory links
 .PHONY: scrape-capss-vii-nonpower-efs
 scrape-capss-vii-nonpower-efs:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.capss.nonpower_emission_factors
 
 
-## Build the non-power inventory and provisional factor-evidence products
+## Verify the preserved handbook against the current official download, then scrape it
+.PHONY: scrape-capss-vii-nonpower-efs-verified
+scrape-capss-vii-nonpower-efs-verified:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.capss.nonpower_emission_factors \
+		--verify-official-source
+
+
+## Scrape CAPSS VII and build the tracked non-power inventory and factor-evidence products
 .PHONY: build-nonpower-emissions
-build-nonpower-emissions: build-nonpower-sector-inventory build-nonpower-emission-factors
+build-nonpower-emissions: scrape-capss-vii-nonpower-efs build-nonpower-sector-inventory build-nonpower-emission-factors
 
 
 MACRO_ACTIVITY ?= data/external/macro/gcam_kaist_sector_fuel_activity.csv
@@ -245,9 +252,28 @@ MACRO_INGEST_KIND ?= activity
 MACRO_INGEST_DEST_NAME ?=
 MACRO_INGEST_CONTRIBUTOR ?=
 MACRO_INGEST_NOTE ?=
+MACRO_NONPOWER_PROXY_CONFIG ?= configs/scenarios/gcam_kaist_nonpower_proxy_2025_2050.yaml
+MACRO_NONPOWER_PROXY_OUTPUT ?= data/processed/macro/scenarios/nonpower_proxy_2025_2050
+MACRO_NONPOWER_PROXY_CAPSS ?= data/interim/capss/emissions_statistics/capss_emissions_tidy.parquet
+INMAP_COMBINED_CONFIG ?= configs/scenarios/inmap_combined_proxy_2025_2050.yaml
+INMAP_COMBINED_OUTPUT ?= data/processed/inmap/combined_proxy_2025_2050
+INMAP_INSTALLATION_MANIFEST ?= .cache/inmap/installation_manifest.json
+INMAP_COMBINED_RUN_ROOT ?= results/models/inmap/combined_proxy_2025_2050
+INMAP_COMBINED_POC_ITERATIONS ?= 200
+INMAP_COMBINED_FAST_POC_ITERATIONS ?= 50
+INMAP_COMBINED_PARALLEL_WORKERS ?= 2
+INMAP_COMBINED_HEALTH_CONFIG ?= configs/scenarios/peng_replication_mvp.yaml
+INMAP_COMBINED_FIGURE_ROOT ?= results/figures/inmap/combined_proxy_2025_2050
+INMAP_COMBINED_TABLE_ROOT ?= results/tables/inmap/combined_proxy_2025_2050
 PENG_MVP_CONFIG ?= configs/scenarios/peng_replication_mvp.yaml
 PENG_MVP_ARGS ?=
 PENG_MVP_POC_ITERATIONS ?= 200
+KEPCO_POC_SCENARIO_CONFIG ?= configs/scenarios/kepco_poc_fleet_scenarios.yaml
+KEPCO_POC_SCENARIO_OUTPUT ?= data/processed/kepco/scenarios/poc_2025_2050
+KEPCO_POC_SCENARIO_FIGURES ?= results/figures/kepco/poc_scenarios
+KEPCO_POC_RETIREMENT_CONFIG ?= configs/scenarios/kepco_poc_fleet_retirement_scenarios.yaml
+KEPCO_POC_RETIREMENT_OUTPUT ?= data/processed/kepco/scenarios/poc_2025_2050_unit_retirement
+KEPCO_POC_RETIREMENT_FIGURES ?= results/figures/kepco/poc_scenarios_unit_retirement
 
 
 ## Place a team-supplied MACRO/GCAM-KAIST file under data/external/macro/ with provenance
@@ -280,6 +306,154 @@ integrate-macro-inputs:
 		--pollutants $(MACRO_POLLUTANTS)
 
 
+## Build a synthetic GCAM-KAIST-shaped non-power activity fixture for pipeline testing
+.PHONY: build-macro-nonpower-proxy
+build-macro-nonpower-proxy:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.macro.proxy_activity \
+		--config $(MACRO_NONPOWER_PROXY_CONFIG) \
+		--output-dir $(MACRO_NONPOWER_PROXY_OUTPUT)
+
+
+## Smoke-test the synthetic non-power fixture through the CAPSS intensity integrator
+.PHONY: validate-macro-nonpower-proxy
+validate-macro-nonpower-proxy: build-macro-nonpower-proxy
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.macro \
+		--gcam-activity $(MACRO_NONPOWER_PROXY_OUTPUT)/gcam_kaist_sector_fuel_activity_proxy_2023_2050.csv \
+		--capss-emissions $(MACRO_NONPOWER_PROXY_CAPSS) \
+		--output-dir $(MACRO_NONPOWER_PROXY_OUTPUT)/integration \
+		--base-year 2023 \
+		--scenario-columns scenario \
+		--pollutants $(MACRO_POLLUTANTS)
+
+
+## Build point-plus-grid InMAP inputs from the paired power and non-power fixtures
+.PHONY: build-inmap-combined-inputs
+build-inmap-combined-inputs: kepco-poc-scenarios validate-macro-nonpower-proxy build-nonpower-emission-factors
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_inventory \
+		--config $(INMAP_COMBINED_CONFIG) \
+		--output-dir $(INMAP_COMBINED_OUTPUT)
+
+
+## Write strict-convergence TOMLs for every combined scenario-year
+.PHONY: inmap-combined-prepare
+inmap-combined-prepare: build-inmap-combined-inputs
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner prepare \
+		--bundle-dir $(INMAP_COMBINED_OUTPUT) \
+		--installation-manifest $(INMAP_INSTALLATION_MANIFEST) \
+		--run-dir $(INMAP_COMBINED_RUN_ROOT)/strict \
+		--num-iterations 0
+
+
+## Run all strict-convergence combined scenarios sequentially and resumably
+.PHONY: inmap-combined-run
+inmap-combined-run: inmap-combined-prepare
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner run \
+		--job-manifest $(INMAP_COMBINED_RUN_ROOT)/strict/run_jobs.json
+
+
+## Resume prepared strict jobs with bounded scenario-level parallelism
+.PHONY: inmap-combined-run-parallel
+inmap-combined-run-parallel:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner run \
+		--job-manifest $(INMAP_COMBINED_RUN_ROOT)/strict/run_jobs.json \
+		--max-workers $(INMAP_COMBINED_PARALLEL_WORKERS)
+
+
+## Write fixed-iteration proof-of-concept TOMLs for every combined scenario-year
+.PHONY: inmap-combined-poc-prepare
+inmap-combined-poc-prepare: build-inmap-combined-inputs
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner prepare \
+		--bundle-dir $(INMAP_COMBINED_OUTPUT) \
+		--installation-manifest $(INMAP_INSTALLATION_MANIFEST) \
+		--run-dir $(INMAP_COMBINED_RUN_ROOT)/poc_$(INMAP_COMBINED_POC_ITERATIONS)_iterations \
+		--num-iterations $(INMAP_COMBINED_POC_ITERATIONS)
+
+
+## Run all combined scenarios as a quick non-analytical plumbing proof
+.PHONY: inmap-combined-poc
+inmap-combined-poc: inmap-combined-poc-prepare
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner run \
+		--job-manifest $(INMAP_COMBINED_RUN_ROOT)/poc_$(INMAP_COMBINED_POC_ITERATIONS)_iterations/run_jobs.json
+
+
+## Resume the prepared POC with bounded scenario-level parallelism
+.PHONY: inmap-combined-poc-parallel
+inmap-combined-poc-parallel:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner run \
+		--job-manifest $(INMAP_COMBINED_RUN_ROOT)/poc_$(INMAP_COMBINED_POC_ITERATIONS)_iterations/run_jobs.json \
+		--max-workers $(INMAP_COMBINED_PARALLEL_WORKERS)
+
+
+## Post-process completed strict combined runs into screening mortality outputs
+.PHONY: inmap-combined-health
+inmap-combined-health:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.health.combined_inmap \
+		--job-manifest $(INMAP_COMBINED_RUN_ROOT)/strict/run_jobs.json \
+		--config $(INMAP_COMBINED_HEALTH_CONFIG) \
+		--output-dir $(INMAP_COMBINED_RUN_ROOT)/strict/health
+	$(MAKE) inmap-combined-report \
+		PYTHON_INTERPRETER=$(PYTHON_INTERPRETER)
+
+
+## Post-process completed POC runs into explicitly non-converged mortality diagnostics
+.PHONY: inmap-combined-poc-health
+inmap-combined-poc-health:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.health.combined_inmap \
+		--job-manifest $(INMAP_COMBINED_RUN_ROOT)/poc_$(INMAP_COMBINED_POC_ITERATIONS)_iterations/run_jobs.json \
+		--config $(INMAP_COMBINED_HEALTH_CONFIG) \
+		--output-dir $(INMAP_COMBINED_RUN_ROOT)/poc_$(INMAP_COMBINED_POC_ITERATIONS)_iterations/health \
+		--allow-nonconverged-diagnostic
+	$(MAKE) inmap-combined-poc-report \
+		PYTHON_INTERPRETER=$(PYTHON_INTERPRETER) \
+		INMAP_COMBINED_POC_ITERATIONS=$(INMAP_COMBINED_POC_ITERATIONS)
+
+
+## Create presentation-ready tables and figures from completed strict health outputs
+.PHONY: inmap-combined-report
+inmap-combined-report:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.health.combined_report \
+		--health-dir $(INMAP_COMBINED_RUN_ROOT)/strict/health \
+		--figure-dir $(INMAP_COMBINED_FIGURE_ROOT)/strict \
+		--table-dir $(INMAP_COMBINED_TABLE_ROOT)/strict
+
+
+## Create presentation-ready tables and figures from completed POC health outputs
+.PHONY: inmap-combined-poc-report
+inmap-combined-poc-report:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.health.combined_report \
+		--health-dir $(INMAP_COMBINED_RUN_ROOT)/poc_$(INMAP_COMBINED_POC_ITERATIONS)_iterations/health \
+		--figure-dir $(INMAP_COMBINED_FIGURE_ROOT)/poc_$(INMAP_COMBINED_POC_ITERATIONS)_iterations \
+		--table-dir $(INMAP_COMBINED_TABLE_ROOT)/poc_$(INMAP_COMBINED_POC_ITERATIONS)_iterations
+
+
+## Run all POC scenarios, then calculate the labeled mortality diagnostics
+.PHONY: inmap-combined-poc-with-health
+inmap-combined-poc-with-health: inmap-combined-poc inmap-combined-poc-health
+
+
+## Resume POC jobs in parallel, then calculate mortality diagnostics
+.PHONY: inmap-combined-poc-parallel-with-health
+inmap-combined-poc-parallel-with-health: inmap-combined-poc-parallel inmap-combined-poc-health
+
+
+## Prepare and run a separate 50-iteration parallel POC, then calculate mortality
+.PHONY: inmap-combined-fast-poc
+inmap-combined-fast-poc:
+	$(MAKE) inmap-combined-poc-prepare \
+		PYTHON_INTERPRETER=$(PYTHON_INTERPRETER) \
+		INMAP_COMBINED_POC_ITERATIONS=$(INMAP_COMBINED_FAST_POC_ITERATIONS)
+	$(MAKE) inmap-combined-poc-parallel \
+		PYTHON_INTERPRETER=$(PYTHON_INTERPRETER) \
+		INMAP_COMBINED_POC_ITERATIONS=$(INMAP_COMBINED_FAST_POC_ITERATIONS)
+
+
+.PHONY: inmap-combined-fast-poc-with-health
+inmap-combined-fast-poc-with-health: inmap-combined-fast-poc
+	$(MAKE) inmap-combined-poc-health \
+		PYTHON_INTERPRETER=$(PYTHON_INTERPRETER) \
+		INMAP_COMBINED_POC_ITERATIONS=$(INMAP_COMBINED_FAST_POC_ITERATIONS)
+
+
 ## Validate 2021 MACRO generation times KEPCO EFs against CAPSS actual power emissions
 .PHONY: validate-macro-2021-kepco-ef
 validate-macro-2021-kepco-ef: export-capss-power-fuel-technology
@@ -305,6 +479,24 @@ validate-epsis-2021-kepco-ef: export-capss-power-fuel-technology
 peng-mvp-audit:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
 		--config $(PENG_MVP_CONFIG) --stage audit $(PENG_MVP_ARGS)
+
+
+## Build lightweight KEPCO-only 2025--2050 thermal fleet scenarios for pipeline testing
+.PHONY: kepco-poc-scenarios
+kepco-poc-scenarios:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.fleet.poc_scenarios \
+		--config $(KEPCO_POC_SCENARIO_CONFIG) \
+		--output-dir $(KEPCO_POC_SCENARIO_OUTPUT) \
+		--figure-dir $(KEPCO_POC_SCENARIO_FIGURES)
+
+
+## Build separate whole-unit KEPCO retirement scenarios; preserve the proportional fixtures
+.PHONY: kepco-poc-retirement-scenarios
+kepco-poc-retirement-scenarios:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.fleet.poc_scenarios \
+		--config $(KEPCO_POC_RETIREMENT_CONFIG) \
+		--output-dir $(KEPCO_POC_RETIREMENT_OUTPUT) \
+		--figure-dir $(KEPCO_POC_RETIREMENT_FIGURES)
 
 
 ## Build fleet allocation, emissions, stack diagnostics, and InMAP point inputs
@@ -335,7 +527,7 @@ peng-mvp-exposure:
 		--config $(PENG_MVP_CONFIG) --stage exposure --resume $(PENG_MVP_ARGS)
 
 
-## Pass real exposure through the existing verified health-impact API
+## Evaluate the full CRF specification suite from completed InMAP scenario exposure
 .PHONY: peng-mvp-health
 peng-mvp-health:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
@@ -580,10 +772,10 @@ health-impact:
 		$(if $(HEALTH_IMPACT_COMPARISON_SCENARIO),--comparison-scenario $(HEALTH_IMPACT_COMPARISON_SCENARIO),)
 
 
-## Run health-impact assessment tests only (CRF, attributable deaths, decomposition)
+## Run health-impact tests (CRFs, InMAP adapter, attributable deaths, decomposition)
 .PHONY: test-health
 test-health:
-	$(PYTHON_INTERPRETER) -m pytest tests/test_health_crf.py tests/test_health_impact.py tests/test_health_decomposition.py
+	$(PYTHON_INTERPRETER) -m pytest tests/test_health_crf.py tests/test_health_impact.py tests/test_health_decomposition.py tests/test_health_specifications.py
 
 
 ## [PAUSED: annual non-KEPCO panel] Download ENV-INFO annual power-sector facility air pollutant emissions

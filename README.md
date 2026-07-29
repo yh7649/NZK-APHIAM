@@ -264,14 +264,18 @@ make validate-nonpower-sector-inventory PYTHON_INTERPRETER=.venv/bin/python
 make validate-nonpower-emission-factors PYTHON_INTERPRETER=.venv/bin/python
 make build-nonpower-emissions PYTHON_INTERPRETER=.venv/bin/python
 make scrape-capss-vii-nonpower-efs PYTHON_INTERPRETER=.venv/bin/python
+make scrape-capss-vii-nonpower-efs-verified PYTHON_INTERPRETER=.venv/bin/python
 ```
 
 The build writes ignored outputs under `data/processed/nonpower_emissions/`
-and `results/diagnostics/nonpower_emissions/`. The scrape writes ignored,
-checksum-linked page text, a 2025 Handbook VII factor-table index, and inventory
-coverage under `data/interim/nonpower_emissions/`. The imported 2023 Handbook VI
-rows and Korean literature rows are candidate evidence only: none is enabled for
-production emissions, and all VI rows require an official VII row-level diff. See
+and `results/diagnostics/nonpower_emissions/`. The scrape writes ignored page
+text, raw table cells, a normalized 2025 Handbook VII factor-candidate table,
+candidate inventory links, extraction issues, and coverage under
+`data/interim/nonpower_emissions/`. The verified target additionally requires
+the preserved PDF to be byte-identical to the current official download. All
+imported and scraped factors remain candidate evidence: none is enabled for
+production emissions, and the VI rows still require an official VII row-level
+diff. See
 [`docs/datasets/nonpower_sector_inventory.md`](docs/datasets/nonpower_sector_inventory.md)
 for schemas, validation, known gaps, and the migration from the current
 aggregate MACRO/CAPSS base-year intensity method.
@@ -293,6 +297,93 @@ This validates the file has the columns the downstream step needs, copies it
 into `data/external/macro/`, and writes a metadata sidecar recording who
 supplied it and its checksum. Use `MACRO_INGEST_KIND=generation` for the
 validation workflow's generation file.
+
+While the team-supplied non-power activity file is pending, build the explicitly
+synthetic 2023--2050 activity-index fixture and smoke-test its five-column view
+through the CAPSS integrator with:
+
+```bash
+make build-macro-nonpower-proxy PYTHON_INTERPRETER=.venv/bin/python
+make validate-macro-nonpower-proxy PYTHON_INTERPRETER=.venv/bin/python
+```
+
+The fixture uses the existing `no_nzk`, `nzk_low`, and `nzk_high` scenario names,
+keeps 50 P1 activities in the rich table, and labels every output as a
+pipeline-test proxy rather than GCAM-KAIST model output. See
+[`docs/methods/gcam_kaist_nonpower_proxy.md`](docs/methods/gcam_kaist_nonpower_proxy.md).
+
+Build the paired point-plus-grid Global InMAP input bundle with:
+
+```bash
+make build-inmap-combined-inputs PYTHON_INTERPRETER=.venv/bin/python
+```
+
+For each scenario and five-year snapshot, this writes an elevated KEPCO power
+shapefile, a COARDS NetCDF-3 non-power grid, a combined long-form emissions
+ledger, and a binding manifest. The first-pass grid and CAPSS aggregate-intensity
+factors are explicitly screening proxies; all manifests prohibit analytical use.
+See
+[`docs/methods/inmap_combined_inventory.md`](docs/methods/inmap_combined_inventory.md).
+
+Once the pinned InMAP installation is present, generate all instruction files or
+run all 18 jobs sequentially and resumably with:
+
+```bash
+make inmap-combined-prepare PYTHON_INTERPRETER=.venv/bin/python
+make inmap-combined-run PYTHON_INTERPRETER=.venv/bin/python
+```
+
+Use `make inmap-combined-poc` for the faster, explicitly non-converged
+200-iteration plumbing test.
+
+To resume an already prepared POC with two scenario-years running concurrently,
+use:
+
+```bash
+make inmap-combined-poc-parallel PYTHON_INTERPRETER=.venv/bin/python
+```
+
+The runner divides the detected CPU cores between the workers and reuses
+completed checksum-matched jobs. Do not run the sequential and parallel commands
+at the same time.
+
+For the quickest end-to-end plumbing proof, run a separate 50-iteration,
+two-worker POC through mortality and presentation-ready result reporting with:
+
+```bash
+make inmap-combined-fast-poc-with-health PYTHON_INTERPRETER=.venv/bin/python
+```
+
+This writes under `poc_50_iterations/` and does not overwrite the 200-iteration
+outputs. It is an execution diagnostic, not a converged estimate.
+
+After all POC jobs finish, produce Korean exposure, explicitly diagnostic
+BenMAP-style mortality totals, figures, and CSV tables for every scenario-year
+with:
+
+```bash
+make inmap-combined-poc-health PYTHON_INTERPRETER=.venv/bin/python
+```
+
+Use `make inmap-combined-poc-with-health` to run both stages together on a
+future invocation. See the method document for output files, interpretation,
+and the 2042 population-projection hold used for 2045 and 2050.
+
+If the health outputs already exist, rebuild only the figures and summary tables
+with:
+
+```bash
+make inmap-combined-poc-report \
+  PYTHON_INTERPRETER=.venv/bin/python \
+  INMAP_COMBINED_POC_ITERATIONS=50
+```
+
+The 50-iteration figures go to
+`results/figures/inmap/combined_proxy_2025_2050/poc_50_iterations/`, and their
+CSV counterparts go to
+`results/tables/inmap/combined_proxy_2025_2050/poc_50_iterations/`. All POC
+outputs remain explicitly non-converged diagnostics and are not suitable for
+effect-size inference.
 
 ## Korean Thermal-Power Replication MVP
 
@@ -364,7 +455,12 @@ not substitute CAPSS-derived EFs when that file is absent.
 The active air-quality pathway uses annual Global InMAP with the model's
 packaged global meteorology and built-in bias correction. Hourly KMA weather is
 therefore outside the current research design and is not an input to the Global
-InMAP workflow.
+InMAP workflow. The InMAP adapter can combine the generated elevated power inventory
+with scenario-scoped point/line/polygon shapefiles and COARDS NetCDF-3 gridded
+inventories for transport, agriculture, industry, and other sectors; see
+[`docs/methods/peng_replication_mvp.md`](docs/methods/peng_replication_mvp.md).
+The reproducible economy-wide fixture assembler is documented separately in
+[`docs/methods/inmap_combined_inventory.md`](docs/methods/inmap_combined_inventory.md).
 
 The former KMA ASOS, radiosonde, stability-index, and Wind Profiler pipeline is
 preserved under `src/nzk_aphiam/archive/kma_weather/` for provenance and possible
