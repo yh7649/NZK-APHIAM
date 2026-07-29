@@ -17,16 +17,21 @@ classifiers = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "requests",
-    "python-dotenv",
-    "pandas",
-    "numpy",
-    "loguru",
-    "openpyxl",
-    "pyarrow",
-    "pyyaml",
-    "pypdf",
-    "scikit-learn",
+    "requests==2.34.2",
+    "python-dotenv==1.2.2",
+    "pandas==3.0.3",
+    "numpy==2.4.6",
+    "loguru==0.7.3",
+    "openpyxl==3.1.5",
+    "pdfplumber==0.11.8",
+    "pyarrow==24.0.0",
+    "pyyaml==6.0.3",
+    "geopandas==1.1.4",
+    "pyshp==3.1.4",
+    "scipy==1.17.1",
+    "pypdf==6.14.2",
+    "scikit-learn==1.9.0",
+    "urllib3==2.7.0",
 ]
 
 [tool.flit.module]

@@ -58,8 +58,12 @@ def test_matched_rows_have_physical_stack_properties_and_unmatched_rows_do_not()
 
     unmatched = reference["match_status"].eq("unmatched")
     assert reference.loc[unmatched, property_columns].eq("").all().all()
-    assert reference.loc[unmatched, ["subsidiary_company", "plant_name"]].to_dict("records") == [
-        {"subsidiary_company": "Korea South-East Power", "plant_name": "Yeongdong"}
+    assert reference.loc[unmatched, ["subsidiary_company", "plant_name"]].to_dict(
+        "records"
+    ) == [
+        {"subsidiary_company": "Korea Midland Power", "plant_name": "Boryeong"},
+        {"subsidiary_company": "Korea Midland Power", "plant_name": "Shin-Boryeong"},
+        {"subsidiary_company": "Korea South-East Power", "plant_name": "Yeongdong"},
     ]
 
 
@@ -86,6 +90,8 @@ def test_every_current_kepco_coal_plant_has_stack_reference_status() -> None:
         for key, group in reference.groupby(["subsidiary_company", "plant_name"])
     }
     assert all(status_set <= {"matched", "unmatched"} for status_set in statuses.values())
+    assert statuses[("Korea Midland Power", "Boryeong")] == {"unmatched"}
+    assert statuses[("Korea Midland Power", "Shin-Boryeong")] == {"unmatched"}
     assert statuses[("Korea South-East Power", "Yeongdong")] == {"unmatched"}
 
     coal_reporting_units = set(coal["reporting_unit_id"]) - {""}

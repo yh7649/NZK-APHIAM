@@ -19,8 +19,20 @@ SEVERE_AUDIT_SEVERITIES = {"critical"}
 REFERENCE_FILES = {
     "benchmarks": "literature_benchmarks.csv",
     "crosswalk": "literature_plant_crosswalk.csv",
+    "comparison_rules": "literature_comparison_rules.csv",
     "catalog": "literature_catalog.csv",
+    "pdf_inventory": "literature_pdf_inventory.csv",
 }
+
+COMPARISON_CLASSES = {
+    "A_exact_reproduction",
+    "B_plant_pipeline_validation",
+    "C_aggregate_consistency_check",
+    "D_contextual_benchmark",
+    "X_not_comparable",
+}
+DIRECT_VALIDATION_CLASSES = {"A_exact_reproduction", "B_plant_pipeline_validation"}
+SMALL_EXTERNAL_EF_THRESHOLD = 1e-6
 
 ANALYSIS_VARIANTS = {
     "reported": "All physically valid matched observations, retaining audit flags.",

@@ -12,6 +12,7 @@ CONVENTIONAL_STEAM_PLANTS = {
     "Namjeju Steam",
     "Samcheok",
     "Samcheonpo",
+    "Shin-Boryeong",
     "Yeongdong",
     "Yeongheung",
     "Yeosu",
@@ -25,6 +26,7 @@ CCGT_PLANTS = {
     "Hallim",
     "Incheon",
     "Namjeju Combined",
+    "Seoul",
     "Shin-Incheon",
     "Seoincheon",
     "Yeongwol",
@@ -42,6 +44,12 @@ def classify_technology(row: pd.Series) -> str:
         return "cogeneration_chp"
     if plant in CCGT_PLANTS:
         return "combined_cycle_gas_turbine"
+    if plant == "Boryeong":
+        if reporting_id.endswith(":보령기력"):
+            return "conventional_steam_turbine"
+        if reporting_id.endswith(":보령복합"):
+            return "combined_cycle_gas_turbine"
+        raise ValueError(f"Unknown Boryeong reporting boundary: {reporting_id!r}")
     if plant == "Ulsan":
         return (
             "conventional_steam_turbine"

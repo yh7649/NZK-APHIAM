@@ -28,7 +28,7 @@ def test_content_type_controls_archive_extension() -> None:
 def test_real_evidence_inventory_covers_every_documented_row() -> None:
     evidence = pd.read_csv(DEFAULT_EVIDENCE_PATH)
     inventory = _source_inventory(evidence)
-    assert len(evidence) == 17
-    assert len(inventory) == 36
+    assert len(evidence) == 18
+    assert len(inventory) == 38
     documented_plants = {plant for source in inventory.values() for plant in source["plants"]}
-    assert len(documented_plants) == 17
+    assert len(documented_plants) == 18

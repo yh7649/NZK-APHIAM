@@ -1,0 +1,242 @@
+name: peng_replication_mvp
+comparison:
+  historical_year: 2021
+  target_year: 2030
+  reference_scenario: null
+  policy_scenario: macro_scenario
+  single_scenario_label: macro_scenario
+  historical_scenario_label: observed_epsis_2021
+  fallback_comparison_type: historical_to_scenario
+
+inputs:
+  macro_generation: data/external/macro/generation_by_province_long.csv
+  macro_metadata: data/external/macro/generation_by_province_long.metadata.json
+  observed_generation: data/processed/epsis/epsis_observed_generation_for_validation_2021.csv
+  kepco_monthly: data/processed/kepco/kepco_monthly_generation_emissions.csv
+  ef_table: results/tables/kepco/annual_handoff/kepco_annual_ef_distribution_long_by_fuel_technology.csv
+  ef_year: 2021
+  plant_location_dates: docs/references/crosswalk/plant_location_dates.csv
+  plant_geography: docs/references/crosswalk/plant_geography.csv
+  retirement_dates: docs/references/crosswalk/plant_retirement_dates.csv
+  stack_properties: docs/references/crosswalk/stack_properties.csv
+  stack_unit_map: docs/references/crosswalk/stack_unit_map.csv
+  technology_mapping: docs/references/thermal/kepco_technology_mapping.csv
+  province_level_power: docs/references/province_level_power/province_level_power.xlsx
+  population_projection: data/raw/health/kosis/population_projection_age/population_projection_age.csv
+  age_mortality_all_cause: data/raw/health/kosis/age_mortality/age_mortality.csv
+  # Supply an endpoint-matched national age-specific table to activate Byun.
+  # The pipeline will not substitute all-cause mortality when this is absent.
+  age_mortality_non_accidental: null
+  # Burnett GEMM requires the NCD+LRI denominator, which is narrower than
+  # generic non-accidental mortality.
+  age_mortality_ncd_lri: null
+  crf_parameters: docs/references/health/crf_parameters.csv
+  gemm_parameters: docs/references/health/gemm_ncd_lri_parameters.csv
+
+province_crosswalk:
+  CNA: Chungcheongnam-do
+  CNB: Chungcheongbuk-do
+  DJJ: Daejeon
+  GGI: Gyeonggi-do
+  GNA: Gyeongsangnam-do
+  GNB: Gyeongsangbuk-do
+  GWN: Gangwon-do
+  INC: Incheon
+  JEJ: Jeju-do
+  JNA: Jeollanam-do
+  JNB: Jeonbuk-do
+  KWJ: Gwangju
+  PUS: Busan
+  SEL: Seoul
+  SJG: Sejong
+  TAE: Daegu
+  USN: Ulsan
+
+macro_technology_crosswalk:
+  ThermalPower:
+    Coal: conventional_steam_turbine
+    NaturalGas: combined_cycle_gas_turbine
+    Oil: conventional_steam_turbine
+    Biomass: conventional_steam_turbine
+  ThermalSteam:
+    Coal: cogeneration_chp
+    NaturalGas: cogeneration_chp
+    Oil: conventional_steam_turbine
+    Biomass: conventional_steam_turbine
+  ThermalPowerCCS:
+    Coal: conventional_steam_turbine
+    NaturalGas: combined_cycle_gas_turbine
+
+fuel_crosswalk:
+  Coal: coal
+  NaturalGas: natural_gas
+  Oil: oil
+  Biomass: biomass
+  coal: coal
+  natural_gas: natural_gas
+  oil: oil
+  biomass: biomass
+
+fuel_compatibility:
+  coal: [coal]
+  natural_gas: [natural_gas, oil_and_natural_gas]
+  oil: [oil, oil_and_natural_gas, bio_oil_and_diesel]
+  biomass: [biomass]
+
+allocation:
+  hierarchy: [capacity, recent_historical_generation, equal]
+  assumption: existing_site_allocation
+  retirement_rule: exclude_only_when_retirement_year_is_before_target_year
+  capacity_factor_warning_threshold: 1.0
+  mass_balance_absolute_tolerance_mwh: 0.001
+  historical_generation_source: observed_national_epsis_allocated_by_eligible_capacity
+  allow_same_fuel_technology_aggregation: true
+  allow_same_province_synthetic_technology_assignment: true
+  allow_silent_generation_drop: false
+
+# The processed KEPCO file covers twelve provinces. These five explicitly
+# documented, real thermal/industrial CHP sites fill the remaining provinces.
+# Coordinates are site coordinates when the source supplies them; address-level
+# geocodes are labeled as such and are never described as observed stacks.
+representative_thermal_sites:
+  - plant_id: representative:cheongju_chp
+    plant_name: Cheongju CHP
+    unit_id: representative:cheongju_chp
+    province: Chungcheongbuk-do
+    fuel: natural_gas
+    technology: cogeneration_chp
+    capacity_mw: 58.3
+    latitude: 36.612225
+    longitude: 127.4399409
+    commissioning_year: 2000
+    coordinate_provenance: address_geocode_not_stack_location
+    source: docs/references/province_level_power/province_level_power.xlsx; Group energy sheet; Cheongju CHP row
+  - plant_id: representative:daejeon_chp
+    plant_name: Daejeon CHP
+    unit_id: representative:daejeon_chp
+    province: Daejeon
+    fuel: natural_gas
+    technology: cogeneration_chp
+    capacity_mw: 113.0
+    latitude: 36.393
+    longitude: 127.440
+    commissioning_year: null
+    coordinate_provenance: documented_site_coordinate
+    source: docs/references/province_level_power/province_level_power.xlsx; Group energy sheet
+  - plant_id: representative:suwan_energy
+    plant_name: Suwan Energy
+    unit_id: representative:suwan_energy
+    province: Gwangju
+    fuel: natural_gas
+    technology: cogeneration_chp
+    capacity_mw: 115.246
+    latitude: 35.198187
+    longitude: 126.8281446
+    commissioning_year: 2010
+    coordinate_provenance: named_site_osm_bus_stop_coordinate
+    source: docs/references/province_level_power/province_level_power.xlsx; Group energy sheet; OpenStreetMap Nominatim named Suwan Energy result
+  - plant_id: representative:mokdong_chp
+    plant_name: Mokdong CHP
+    unit_id: representative:mokdong_chp
+    province: Seoul
+    fuel: natural_gas
+    technology: cogeneration_chp
+    capacity_mw: 61.0
+    latitude: 37.527
+    longitude: 126.875
+    commissioning_year: null
+    coordinate_provenance: documented_site_coordinate
+    source: docs/references/province_level_power/province_level_power.xlsx; Group energy sheet
+  - plant_id: representative:daegu_green_power
+    plant_name: Daegu Green Power
+    unit_id: representative:daegu_green_power
+    province: Daegu
+    fuel: natural_gas
+    technology: cogeneration_chp
+    capacity_mw: 370.7
+    latitude: 35.880230
+    longitude: 128.703560
+    commissioning_year: 2014
+    coordinate_provenance: neighborhood_address_geocode_not_stack_location
+    source: docs/references/province_level_power/province_level_power.xlsx; Group energy sheet; Yulam-dong address geocode
+
+emissions:
+  pollutants: [NOx, SOx, PM2_5, NH3, VOC]
+  central_ef_method: generation_weighted
+  ef_fallback_hierarchy: [exact_fuel_technology, technology_aggregate_within_fuel, fuel_level]
+  primary_pm25_treatment: omitted_no_documented_tsp_to_primary_pm25_conversion
+  primary_pm25_value_kg_per_mwh: 0.0
+  nh3_treatment: omitted_no_documented_factor
+  nh3_value_kg_per_mwh: 0.0
+  voc_treatment: omitted_no_documented_factor
+  voc_value_kg_per_mwh: 0.0
+  difference_sign: reference_or_historical_minus_policy_or_scenario
+
+stacks:
+  imputation_hierarchy: [unit_observed, plant_observed, fuel_technology_median, fuel_median, all_thermal_median]
+  temperature_input_unit: celsius
+  temperature_output_unit: kelvin
+
+inmap:
+  version: v1.9.6
+  release_url: https://github.com/spatialmodel/inmap/releases/tag/v1.9.6
+  source_commit: 7b665744065a447d2f2a64aa7124c043ef5b8b2e
+  # The upstream v1.9.6 tag retains Version = "1.9.0" in framework.go.
+  expected_executable_version_output: InMAP v1.9.0
+  model_data_version: v1.1.0
+  model_data_record: https://doi.org/10.5281/zenodo.6189451
+  model_data_filename: EvaluationData_v1.1.0.zip
+  model_data_md5: f1b3e2544e6939c9dd6f9a2295f95b3c
+  cache_path: .cache/inmap
+  emission_units: kg/year
+  # Optional mixed-sector inputs. Entries can be InMAP-compatible shapefiles
+  # (point, line, or polygon) or COARDS NetCDF-3 grids. Omitted scenarios/years
+  # apply to every generated run; see docs/methods/peng_replication_mvp.md.
+  supplemental_emissions: []
+  output_components: [PrimaryPM25, pSO4, pNO3, pNH4, SOA, TotalPM25, TotalPop]
+  run_command: inmap run steady
+  # Zero invokes InMAP's automatic 0.1% convergence criterion. Positive values
+  # are allowed only through the explicitly labeled CLI proof-of-concept mode.
+  num_iterations: 0
+  global_domain_longitude: [-178.0, 172.0]
+  global_domain_latitude: [-87.0, 81.0]
+
+exposure:
+  national_boundary_source: Natural Earth 1:10m admin-0 countries v5.1.1
+  national_boundary_url: https://naciscdn.org/naturalearth/10m/cultural/ne_10m_admin_0_countries.zip
+  country_iso_a3: KOR
+  cell_assignment: centroid_within_south_korea
+  offshore_cells: excluded
+  foreign_cells: excluded
+  border_cells: assigned_by_centroid
+  uniform_population_fallback: false
+
+health:
+  crf_ids:
+    - peng_krewski_2009_all_cause
+    - gemm_2018_ncd_lri_with_china
+    - byun_2024_korea_non_accidental
+    - kim_2020_korea_all_cause
+    - korea_guide_hoek_2013_policy
+    - lim_2020_korea_elderly_all_cause
+  mortality_inputs:
+    all_cause: age_mortality_all_cause
+    non_accidental: age_mortality_non_accidental
+    ncd_lri: age_mortality_ncd_lri
+  population_year: 2030
+  mortality_year: 2024
+  mortality_assumption: hold_latest_observed_age_specific_national_rates_constant_to_target_year
+  concentration_column: population_weighted_pm25_ugm3
+  concentration_mode: direct_scenario_concentration
+  background_pm25_ugm3: null
+  exposure_scope: incremental_korean_thermal_power_pm25_not_total_ambient
+  analytical_use_permitted: false
+  adapter_note: >-
+    The current thermal-only InMAP inventory is a source contribution, not
+    total ambient PM2.5. The suite can test every CRF mechanically, but an
+    analytical Peng run must use an all-source scenario concentration or set
+    concentration_mode to background_plus_inmap_contribution with a sourced
+    ambient background. Byun and GEMM additionally require separate,
+    endpoint-matched age-specific non-accidental and NCD+LRI mortality tables.
+
+random_seed: 7649

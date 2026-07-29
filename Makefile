@@ -22,10 +22,10 @@ requirements:
 	$(PYTHON_INTERPRETER) -m pip install -r requirements/python.txt
 	
 
-## Install R analysis dependencies
+## Install R analysis dependencies (pinned CRAN versions + GitHub-only packages)
 .PHONY: requirements-r
 requirements-r:
-	Rscript -e 'options(repos = c(CRAN = "https://cloud.r-project.org")); pkgs <- readLines("requirements/r.txt", warn = FALSE); pkgs <- pkgs[nzchar(pkgs)]; missing <- pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)]; if (length(missing)) install.packages(missing)'
+	Rscript requirements/install_r.R
 
 
 ## Install Python and R dependencies
@@ -75,8 +75,15 @@ format:
 
 ## Run tests
 .PHONY: test
-test:
+test: test-kepco-ef-r
 	$(PYTHON_INTERPRETER) -m pytest tests
+
+
+## Run deterministic tests for KEPCO monthly EF eligibility rules
+.PHONY: test-kepco-ef-r
+test-kepco-ef-r:
+	Rscript analysis/kepco/test_ef_eligibility.R
+	Rscript analysis/kepco/test_ef_cohort_query.R
 
 
 ## Download East-West Power raw data
@@ -189,6 +196,48 @@ export-capss-power-fuel-technology: process-capss-emissions
 build-capss-emissions: scrape-capss-emissions process-capss-emissions export-capss-power-fuel-technology
 
 
+## Validate the tracked non-power sector inventory without generating outputs
+.PHONY: validate-nonpower-sector-inventory
+validate-nonpower-sector-inventory:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.nonpower_sector_inventory --validate-only
+
+
+## Validate and export the canonical non-power sector inventory and diagnostics
+.PHONY: build-nonpower-sector-inventory
+build-nonpower-sector-inventory:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.nonpower_sector_inventory
+
+
+## Validate tracked non-power emission-factor evidence without generating outputs
+.PHONY: validate-nonpower-emission-factors
+validate-nonpower-emission-factors:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.nonpower_emission_factors --validate-only
+
+
+## Export provisional non-power factors, inventory links, and coverage diagnostics
+.PHONY: build-nonpower-emission-factors
+build-nonpower-emission-factors:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.nonpower_emission_factors
+
+
+## Scrape official CAPSS VII pages, raw table cells, normalized candidates, and inventory links
+.PHONY: scrape-capss-vii-nonpower-efs
+scrape-capss-vii-nonpower-efs:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.capss.nonpower_emission_factors
+
+
+## Verify the preserved handbook against the current official download, then scrape it
+.PHONY: scrape-capss-vii-nonpower-efs-verified
+scrape-capss-vii-nonpower-efs-verified:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.capss.nonpower_emission_factors \
+		--verify-official-source
+
+
+## Scrape CAPSS VII and build the tracked non-power inventory and factor-evidence products
+.PHONY: build-nonpower-emissions
+build-nonpower-emissions: scrape-capss-vii-nonpower-efs build-nonpower-sector-inventory build-nonpower-emission-factors
+
+
 MACRO_ACTIVITY ?= data/external/macro/gcam_kaist_sector_fuel_activity.csv
 MACRO_MAPPING ?=
 MACRO_BASE_YEAR ?=
@@ -203,6 +252,28 @@ MACRO_INGEST_KIND ?= activity
 MACRO_INGEST_DEST_NAME ?=
 MACRO_INGEST_CONTRIBUTOR ?=
 MACRO_INGEST_NOTE ?=
+MACRO_NONPOWER_PROXY_CONFIG ?= configs/scenarios/gcam_kaist_nonpower_proxy_2025_2050.yaml
+MACRO_NONPOWER_PROXY_OUTPUT ?= data/processed/macro/scenarios/nonpower_proxy_2025_2050
+MACRO_NONPOWER_PROXY_CAPSS ?= data/interim/capss/emissions_statistics/capss_emissions_tidy.parquet
+INMAP_COMBINED_CONFIG ?= configs/scenarios/inmap_combined_proxy_2025_2050.yaml
+INMAP_COMBINED_OUTPUT ?= data/processed/inmap/combined_proxy_2025_2050
+INMAP_INSTALLATION_MANIFEST ?= .cache/inmap/installation_manifest.json
+INMAP_COMBINED_RUN_ROOT ?= results/models/inmap/combined_proxy_2025_2050
+INMAP_COMBINED_POC_ITERATIONS ?= 200
+INMAP_COMBINED_FAST_POC_ITERATIONS ?= 50
+INMAP_COMBINED_PARALLEL_WORKERS ?= 2
+INMAP_COMBINED_HEALTH_CONFIG ?= configs/scenarios/peng_replication_mvp.yaml
+INMAP_COMBINED_FIGURE_ROOT ?= results/figures/inmap/combined_proxy_2025_2050
+INMAP_COMBINED_TABLE_ROOT ?= results/tables/inmap/combined_proxy_2025_2050
+PENG_MVP_CONFIG ?= configs/scenarios/peng_replication_mvp.yaml
+PENG_MVP_ARGS ?=
+PENG_MVP_POC_ITERATIONS ?= 200
+KEPCO_POC_SCENARIO_CONFIG ?= configs/scenarios/kepco_poc_fleet_scenarios.yaml
+KEPCO_POC_SCENARIO_OUTPUT ?= data/processed/kepco/scenarios/poc_2025_2050
+KEPCO_POC_SCENARIO_FIGURES ?= results/figures/kepco/poc_scenarios
+KEPCO_POC_RETIREMENT_CONFIG ?= configs/scenarios/kepco_poc_fleet_retirement_scenarios.yaml
+KEPCO_POC_RETIREMENT_OUTPUT ?= data/processed/kepco/scenarios/poc_2025_2050_unit_retirement
+KEPCO_POC_RETIREMENT_FIGURES ?= results/figures/kepco/poc_scenarios_unit_retirement
 
 
 ## Place a team-supplied MACRO/GCAM-KAIST file under data/external/macro/ with provenance
@@ -235,6 +306,154 @@ integrate-macro-inputs:
 		--pollutants $(MACRO_POLLUTANTS)
 
 
+## Build a synthetic GCAM-KAIST-shaped non-power activity fixture for pipeline testing
+.PHONY: build-macro-nonpower-proxy
+build-macro-nonpower-proxy:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.macro.proxy_activity \
+		--config $(MACRO_NONPOWER_PROXY_CONFIG) \
+		--output-dir $(MACRO_NONPOWER_PROXY_OUTPUT)
+
+
+## Smoke-test the synthetic non-power fixture through the CAPSS intensity integrator
+.PHONY: validate-macro-nonpower-proxy
+validate-macro-nonpower-proxy: build-macro-nonpower-proxy
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.macro \
+		--gcam-activity $(MACRO_NONPOWER_PROXY_OUTPUT)/gcam_kaist_sector_fuel_activity_proxy_2023_2050.csv \
+		--capss-emissions $(MACRO_NONPOWER_PROXY_CAPSS) \
+		--output-dir $(MACRO_NONPOWER_PROXY_OUTPUT)/integration \
+		--base-year 2023 \
+		--scenario-columns scenario \
+		--pollutants $(MACRO_POLLUTANTS)
+
+
+## Build point-plus-grid InMAP inputs from the paired power and non-power fixtures
+.PHONY: build-inmap-combined-inputs
+build-inmap-combined-inputs: kepco-poc-scenarios validate-macro-nonpower-proxy build-nonpower-emission-factors
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_inventory \
+		--config $(INMAP_COMBINED_CONFIG) \
+		--output-dir $(INMAP_COMBINED_OUTPUT)
+
+
+## Write strict-convergence TOMLs for every combined scenario-year
+.PHONY: inmap-combined-prepare
+inmap-combined-prepare: build-inmap-combined-inputs
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner prepare \
+		--bundle-dir $(INMAP_COMBINED_OUTPUT) \
+		--installation-manifest $(INMAP_INSTALLATION_MANIFEST) \
+		--run-dir $(INMAP_COMBINED_RUN_ROOT)/strict \
+		--num-iterations 0
+
+
+## Run all strict-convergence combined scenarios sequentially and resumably
+.PHONY: inmap-combined-run
+inmap-combined-run: inmap-combined-prepare
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner run \
+		--job-manifest $(INMAP_COMBINED_RUN_ROOT)/strict/run_jobs.json
+
+
+## Resume prepared strict jobs with bounded scenario-level parallelism
+.PHONY: inmap-combined-run-parallel
+inmap-combined-run-parallel:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner run \
+		--job-manifest $(INMAP_COMBINED_RUN_ROOT)/strict/run_jobs.json \
+		--max-workers $(INMAP_COMBINED_PARALLEL_WORKERS)
+
+
+## Write fixed-iteration proof-of-concept TOMLs for every combined scenario-year
+.PHONY: inmap-combined-poc-prepare
+inmap-combined-poc-prepare: build-inmap-combined-inputs
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner prepare \
+		--bundle-dir $(INMAP_COMBINED_OUTPUT) \
+		--installation-manifest $(INMAP_INSTALLATION_MANIFEST) \
+		--run-dir $(INMAP_COMBINED_RUN_ROOT)/poc_$(INMAP_COMBINED_POC_ITERATIONS)_iterations \
+		--num-iterations $(INMAP_COMBINED_POC_ITERATIONS)
+
+
+## Run all combined scenarios as a quick non-analytical plumbing proof
+.PHONY: inmap-combined-poc
+inmap-combined-poc: inmap-combined-poc-prepare
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner run \
+		--job-manifest $(INMAP_COMBINED_RUN_ROOT)/poc_$(INMAP_COMBINED_POC_ITERATIONS)_iterations/run_jobs.json
+
+
+## Resume the prepared POC with bounded scenario-level parallelism
+.PHONY: inmap-combined-poc-parallel
+inmap-combined-poc-parallel:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner run \
+		--job-manifest $(INMAP_COMBINED_RUN_ROOT)/poc_$(INMAP_COMBINED_POC_ITERATIONS)_iterations/run_jobs.json \
+		--max-workers $(INMAP_COMBINED_PARALLEL_WORKERS)
+
+
+## Post-process completed strict combined runs into screening mortality outputs
+.PHONY: inmap-combined-health
+inmap-combined-health:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.health.combined_inmap \
+		--job-manifest $(INMAP_COMBINED_RUN_ROOT)/strict/run_jobs.json \
+		--config $(INMAP_COMBINED_HEALTH_CONFIG) \
+		--output-dir $(INMAP_COMBINED_RUN_ROOT)/strict/health
+	$(MAKE) inmap-combined-report \
+		PYTHON_INTERPRETER=$(PYTHON_INTERPRETER)
+
+
+## Post-process completed POC runs into explicitly non-converged mortality diagnostics
+.PHONY: inmap-combined-poc-health
+inmap-combined-poc-health:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.health.combined_inmap \
+		--job-manifest $(INMAP_COMBINED_RUN_ROOT)/poc_$(INMAP_COMBINED_POC_ITERATIONS)_iterations/run_jobs.json \
+		--config $(INMAP_COMBINED_HEALTH_CONFIG) \
+		--output-dir $(INMAP_COMBINED_RUN_ROOT)/poc_$(INMAP_COMBINED_POC_ITERATIONS)_iterations/health \
+		--allow-nonconverged-diagnostic
+	$(MAKE) inmap-combined-poc-report \
+		PYTHON_INTERPRETER=$(PYTHON_INTERPRETER) \
+		INMAP_COMBINED_POC_ITERATIONS=$(INMAP_COMBINED_POC_ITERATIONS)
+
+
+## Create presentation-ready tables and figures from completed strict health outputs
+.PHONY: inmap-combined-report
+inmap-combined-report:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.health.combined_report \
+		--health-dir $(INMAP_COMBINED_RUN_ROOT)/strict/health \
+		--figure-dir $(INMAP_COMBINED_FIGURE_ROOT)/strict \
+		--table-dir $(INMAP_COMBINED_TABLE_ROOT)/strict
+
+
+## Create presentation-ready tables and figures from completed POC health outputs
+.PHONY: inmap-combined-poc-report
+inmap-combined-poc-report:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.health.combined_report \
+		--health-dir $(INMAP_COMBINED_RUN_ROOT)/poc_$(INMAP_COMBINED_POC_ITERATIONS)_iterations/health \
+		--figure-dir $(INMAP_COMBINED_FIGURE_ROOT)/poc_$(INMAP_COMBINED_POC_ITERATIONS)_iterations \
+		--table-dir $(INMAP_COMBINED_TABLE_ROOT)/poc_$(INMAP_COMBINED_POC_ITERATIONS)_iterations
+
+
+## Run all POC scenarios, then calculate the labeled mortality diagnostics
+.PHONY: inmap-combined-poc-with-health
+inmap-combined-poc-with-health: inmap-combined-poc inmap-combined-poc-health
+
+
+## Resume POC jobs in parallel, then calculate mortality diagnostics
+.PHONY: inmap-combined-poc-parallel-with-health
+inmap-combined-poc-parallel-with-health: inmap-combined-poc-parallel inmap-combined-poc-health
+
+
+## Prepare and run a separate 50-iteration parallel POC, then calculate mortality
+.PHONY: inmap-combined-fast-poc
+inmap-combined-fast-poc:
+	$(MAKE) inmap-combined-poc-prepare \
+		PYTHON_INTERPRETER=$(PYTHON_INTERPRETER) \
+		INMAP_COMBINED_POC_ITERATIONS=$(INMAP_COMBINED_FAST_POC_ITERATIONS)
+	$(MAKE) inmap-combined-poc-parallel \
+		PYTHON_INTERPRETER=$(PYTHON_INTERPRETER) \
+		INMAP_COMBINED_POC_ITERATIONS=$(INMAP_COMBINED_FAST_POC_ITERATIONS)
+
+
+.PHONY: inmap-combined-fast-poc-with-health
+inmap-combined-fast-poc-with-health: inmap-combined-fast-poc
+	$(MAKE) inmap-combined-poc-health \
+		PYTHON_INTERPRETER=$(PYTHON_INTERPRETER) \
+		INMAP_COMBINED_POC_ITERATIONS=$(INMAP_COMBINED_FAST_POC_ITERATIONS)
+
+
 ## Validate 2021 MACRO generation times KEPCO EFs against CAPSS actual power emissions
 .PHONY: validate-macro-2021-kepco-ef
 validate-macro-2021-kepco-ef: export-capss-power-fuel-technology
@@ -253,6 +472,97 @@ validate-epsis-2021-kepco-ef: export-capss-power-fuel-technology
 		--year 2021 \
 		--kepco-ef $(KEPCO_EF) \
 		--capss-actual $(CAPSS_POWER_ACTUAL)
+
+
+## Audit all local inputs for the Korean thermal-power replication MVP
+.PHONY: peng-mvp-audit
+peng-mvp-audit:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage audit $(PENG_MVP_ARGS)
+
+
+## Build lightweight KEPCO-only 2025--2050 thermal fleet scenarios for pipeline testing
+.PHONY: kepco-poc-scenarios
+kepco-poc-scenarios:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.fleet.poc_scenarios \
+		--config $(KEPCO_POC_SCENARIO_CONFIG) \
+		--output-dir $(KEPCO_POC_SCENARIO_OUTPUT) \
+		--figure-dir $(KEPCO_POC_SCENARIO_FIGURES)
+
+
+## Build separate whole-unit KEPCO retirement scenarios; preserve the proportional fixtures
+.PHONY: kepco-poc-retirement-scenarios
+kepco-poc-retirement-scenarios:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.fleet.poc_scenarios \
+		--config $(KEPCO_POC_RETIREMENT_CONFIG) \
+		--output-dir $(KEPCO_POC_RETIREMENT_OUTPUT) \
+		--figure-dir $(KEPCO_POC_RETIREMENT_FIGURES)
+
+
+## Build fleet allocation, emissions, stack diagnostics, and InMAP point inputs
+.PHONY: peng-mvp-inventory
+peng-mvp-inventory:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage inventory $(PENG_MVP_ARGS)
+
+
+## Install the pinned official InMAP binary and Global InMAP data in the ignored cache
+.PHONY: peng-mvp-install-inmap
+peng-mvp-install-inmap:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage install $(PENG_MVP_ARGS)
+
+
+## Run both Global InMAP inventories with resumable input/version caching
+.PHONY: peng-mvp-run-inmap
+peng-mvp-run-inmap:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage run $(PENG_MVP_ARGS)
+
+
+## Difference real Global InMAP outputs and aggregate South Korean exposure
+.PHONY: peng-mvp-exposure
+peng-mvp-exposure:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage exposure --resume $(PENG_MVP_ARGS)
+
+
+## Evaluate the full CRF specification suite from completed InMAP scenario exposure
+.PHONY: peng-mvp-health
+peng-mvp-health:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage health --resume $(PENG_MVP_ARGS)
+
+
+## Execute the resumable end-to-end Korean thermal-power replication MVP
+.PHONY: peng-mvp
+peng-mvp:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage all --resume $(PENG_MVP_ARGS)
+
+
+## Run a real-binary, fixed-iteration InMAP diagnostic; health output is prohibited
+.PHONY: peng-mvp-poc
+peng-mvp-poc:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage all --resume \
+		--inmap-poc-iterations $(PENG_MVP_POC_ITERATIONS) $(PENG_MVP_ARGS)
+
+
+## Opt in to a separately labeled, non-inferential health diagnostic from the InMAP POC
+.PHONY: peng-mvp-poc-health-diagnostic
+peng-mvp-poc-health-diagnostic:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
+		--config $(PENG_MVP_CONFIG) --stage all --resume \
+		--inmap-poc-iterations $(PENG_MVP_POC_ITERATIONS) \
+		--write-diagnostic-poc-health $(PENG_MVP_ARGS)
+
+
+## Run synthetic unit/integration tests for the replication MVP only
+.PHONY: test-peng-mvp
+test-peng-mvp:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m pytest \
+		tests/test_peng_mvp.py tests/test_inmap_integration.py
 
 
 ## Build, audit, and merge per-subsidiary KEPCO monthly datasets (pollutant mass in kilograms)
@@ -322,57 +632,19 @@ clean-southeast-power:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.clean.thermal.southeast_power
 
 
-## Download Midland Power emissions data
-.PHONY: scrape-midland-power-emissions
-scrape-midland-power-emissions:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power emissions --overwrite
-
-
 ## Download Midland Power generation data
 .PHONY: scrape-midland-power-generation
 scrape-midland-power-generation:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power generation --overwrite
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power --overwrite
 
 
-## Download Midland Power emissions and generation data
+## Download Midland Power generation data (reported mass is a tracked provider workbook)
 .PHONY: scrape-midland-power
 scrape-midland-power:
-	$(MAKE) scrape-midland-power-emissions
 	$(MAKE) scrape-midland-power-generation
-	$(MAKE) scrape-midland-power-facility-status
 
 
-## Download Midland Power facility air-status data
-.PHONY: scrape-midland-power-facility-status
-scrape-midland-power-facility-status:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power facility-status --overwrite
-
-
-## Download individual Midland Power facility air-status datasets
-.PHONY: scrape-midland-power-boryeong scrape-midland-power-seoul scrape-midland-power-seocheon scrape-midland-power-sejong scrape-midland-power-shin-boryeong scrape-midland-power-jeju scrape-midland-power-incheon
-scrape-midland-power-boryeong:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.boryeong --overwrite
-
-scrape-midland-power-seoul:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.seoul --overwrite
-
-scrape-midland-power-seocheon:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.seocheon --overwrite
-
-scrape-midland-power-sejong:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.sejong --overwrite
-
-scrape-midland-power-shin-boryeong:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.shin_boryeong --overwrite
-
-scrape-midland-power-jeju:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.jeju --overwrite
-
-scrape-midland-power-incheon:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power.incheon --overwrite
-
-
-## Clean Midland Power facility air-status data
+## Join Midland Power's directly reported monthly mass to monthly generation
 .PHONY: clean-midland-power
 clean-midland-power:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.clean.thermal.midland_power
@@ -444,37 +716,6 @@ scrape-airkorea:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.airkorea --start-year $(AIRKOREA_START_YEAR) $(if $(AIRKOREA_END_YEAR),--end-year $(AIRKOREA_END_YEAR),)
 
 
-KMA_START_YEAR ?= 2001
-KMA_END_YEAR ?= 2024
-KMA_PROFILER_START_YEAR ?= 2004
-KMA_PROFILER_END_YEAR ?= 2004
-
-
-## Download core KMA surface, station, radiosonde, and stability observations
-.PHONY: scrape-kma-weather
-scrape-kma-weather:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.weather.kma core --start-year $(KMA_START_YEAR) --end-year $(KMA_END_YEAR)
-
-
-## Download high-volume hourly KMA Wind Profiler data (one year by default)
-.PHONY: scrape-kma-profiler
-scrape-kma-profiler:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.weather.kma profiler --start-year $(KMA_PROFILER_START_YEAR) --end-year $(KMA_PROFILER_END_YEAR)
-
-
-## Normalize KMA observations and derive mixing-height/inversion features
-.PHONY: process-kma-weather
-process-kma-weather:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.weather.kma --start-year $(KMA_START_YEAR) --end-year $(KMA_END_YEAR)
-
-
-## Version KMA annual raw snapshots with local DVC
-.PHONY: track-kma-snapshots
-track-kma-snapshots:
-	$(DVC) add data/raw/weather/kma
-	@echo "KMA snapshots staged for git (review with 'git status', then commit)."
-
-
 ## Archive official plant-location/date evidence for offline reproducibility
 .PHONY: archive-plant-location-references
 archive-plant-location-references:
@@ -531,10 +772,10 @@ health-impact:
 		$(if $(HEALTH_IMPACT_COMPARISON_SCENARIO),--comparison-scenario $(HEALTH_IMPACT_COMPARISON_SCENARIO),)
 
 
-## Run health-impact assessment tests only (CRF, attributable deaths, decomposition)
+## Run health-impact tests (CRFs, InMAP adapter, attributable deaths, decomposition)
 .PHONY: test-health
 test-health:
-	$(PYTHON_INTERPRETER) -m pytest tests/test_health_crf.py tests/test_health_impact.py tests/test_health_decomposition.py
+	$(PYTHON_INTERPRETER) -m pytest tests/test_health_crf.py tests/test_health_impact.py tests/test_health_decomposition.py tests/test_health_specifications.py
 
 
 ## [PAUSED: annual non-KEPCO panel] Download ENV-INFO annual power-sector facility air pollutant emissions
@@ -604,13 +845,10 @@ check-scraper-cli:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southern_power annual-generation --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southeast_power --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.southeast_power.generation_scraper --help
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power emissions --help
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power generation --help
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.thermal.midland_power --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.epsis --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.airkorea --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.health.kosis --help
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.weather.kma --help
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.weather.kma --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.cleansys --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.scrape.env_info --help
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.archive.annual_panel.process.crosswalk --help

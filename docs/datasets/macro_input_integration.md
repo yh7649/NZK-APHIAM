@@ -33,6 +33,37 @@ timestamp, contributor, note, SHA-256, and detected columns. It then prints
 the exact follow-up `make` command to run. See
 [`src/nzk_aphiam/data/external/ingest_macro.py`](../../src/nzk_aphiam/data/external/ingest_macro.py).
 
+## Synthetic non-power pipeline fixture
+
+When the native non-power activity deliverable is unavailable, generate the
+explicitly synthetic activity-index fixture:
+
+```bash
+make build-macro-nonpower-proxy PYTHON_INTERPRETER=.venv/bin/python
+make validate-macro-nonpower-proxy PYTHON_INTERPRETER=.venv/bin/python
+```
+
+The primary five-column input is written to:
+
+- `data/processed/macro/scenarios/nonpower_proxy_2025_2050/gcam_kaist_sector_fuel_activity_proxy_2023_2050.csv`
+
+It is CAPSS-category aligned for smoke testing, uses `2023 = 100` and `2025 = 100`
+normalized activity indices, and supplies the existing `no_nzk`, `nzk_low`, and
+`nzk_high` scenario names through 2050. A separate rich table retains the 50 P1
+inventory activities, conceptual technology labels, reference physical units,
+profile assignments, endpoint assumptions, double-counting flags, and model-use
+status.
+
+This fixture is not placed under `data/external/macro/` because it is reproducible
+local output, not a third-party GCAM-KAIST deliverable. It must never be described
+as a model run or forecast. Method, files, assumptions, and safeguards are in
+[`gcam_kaist_nonpower_proxy.md`](../methods/gcam_kaist_nonpower_proxy.md).
+
+To combine the resulting screening emissions with the matching MACRO-shaped
+KEPCO power fixture as Global InMAP point and grid inputs, run
+`make build-inmap-combined-inputs`. See
+[`inmap_combined_inventory.md`](../methods/inmap_combined_inventory.md).
+
 ## Running the integration
 
 Run:
@@ -78,6 +109,14 @@ labels such as `도로이동오염원` and already-normalized keys such as
 passed through as CAPSS keys; this is mainly useful for tests or hand-aligned
 inputs.
 
+The tracked legacy mapping is currently header-only because the team-supplied
+non-power GCAM-KAIST taxonomy is not present; it deliberately makes no guessed
+native mappings. The populated one-to-many research crosswalk and legal EF
+denominators are documented in
+[`nonpower_sector_inventory.md`](nonpower_sector_inventory.md). That framework
+will eventually augment or replace the aggregate intensity method below, but
+does not change this integrator in inventory version `0.2.0`.
+
 Outputs are written under:
 
 - `data/processed/macro/macro_projected_emissions.csv`
@@ -91,6 +130,11 @@ The method is:
 2. aggregate GCAM-KAIST base-year activity by scenario and sector/fuel;
 3. calculate `emission_factor_kg_per_activity`;
 4. multiply every projected activity row by that emission factor.
+
+This is a clearly labeled fallback/validation intensity rather than the primary
+future EF database. It assumes one sector, one fuel, one base-year intensity,
+and one direct mapping, so it cannot yet represent separate process and
+combustion sources or annual technology/fleet/control weighting.
 
 Review `macro_input_diagnostics.csv` before using the output. It flags GCAM
 activity without CAPSS emissions, CAPSS emissions without matching base-year

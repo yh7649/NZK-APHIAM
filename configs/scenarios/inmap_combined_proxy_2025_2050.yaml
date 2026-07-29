@@ -1,0 +1,94 @@
+name: combined_power_nonpower_inmap_screening_bundle_2025_2050
+bundle_status: synthetic_first_pass_for_pipeline_testing_not_analytical_inventory
+years: [2025, 2030, 2035, 2040, 2045, 2050]
+
+inputs:
+  power_generation: data/processed/kepco/scenarios/poc_2025_2050/macro_generation_scenarios_2025_2050.csv
+  kepco_monthly: data/processed/kepco/kepco_monthly_generation_emissions.csv
+  stack_properties: docs/references/crosswalk/stack_properties.csv
+  nonpower_projected_emissions: data/processed/macro/scenarios/nonpower_proxy_2025_2050/integration/macro_projected_emissions.csv
+  nonpower_factor_catalog: data/processed/nonpower_emissions/nonpower_emission_factors.parquet
+  nonpower_factor_links: data/processed/nonpower_emissions/nonpower_emission_factor_inventory_links.parquet
+
+# Canonical bundle names can point to differently named power/non-power inputs.
+# This first-pass proportional KEPCO fixture already shares the canonical labels.
+scenario_pairs:
+  no_nzk:
+    power: no_nzk
+    nonpower: no_nzk
+  nzk_low:
+    power: nzk_low
+    nonpower: nzk_low
+  nzk_high:
+    power: nzk_high
+    nonpower: nzk_high
+
+power:
+  ef_base_year: 2024
+  mass_balance_tolerance_mwh: 0.001
+  province_crosswalk:
+    CNA: Chungcheongnam-do
+    CNB: Chungcheongbuk-do
+    DJJ: Daejeon
+    GGI: Gyeonggi-do
+    GNA: Gyeongsangnam-do
+    GNB: Gyeongsangbuk-do
+    GWN: Gangwon-do
+    INC: Incheon
+    JEJ: Jeju-do
+    JNA: Jeollanam-do
+    JNB: Jeonbuk-do
+    KWJ: Gwangju
+    PUS: Busan
+    SEL: Seoul
+    SJG: Sejong
+    TAE: Daegu
+    USN: Ulsan
+  technology_crosswalk:
+    ThermalPower:
+      Coal: conventional_steam_turbine
+      NaturalGas: combined_cycle_gas_turbine
+      Oil: conventional_steam_turbine
+      Biomass: conventional_steam_turbine
+    ThermalSteam:
+      Coal: cogeneration_chp
+      NaturalGas: cogeneration_chp
+      Oil: conventional_steam_turbine
+      Biomass: cogeneration_chp
+    ThermalPowerCCS:
+      Coal: conventional_steam_turbine
+      NaturalGas: combined_cycle_gas_turbine
+  fuel_crosswalk:
+    Coal: coal
+    NaturalGas: natural_gas
+    Oil: oil
+    Biomass: biomass
+  fuel_compatibility:
+    coal: [coal]
+    natural_gas: [natural_gas, oil_and_natural_gas]
+    oil: [oil, oil_and_natural_gas, bio_oil_and_diesel]
+    biomass: [biomass, bio_oil_and_diesel]
+
+nonpower:
+  # The catalog and inventory-link tables are audited on every build. Their current
+  # zero production-ready rows prohibit approved_factor_inventory mode. Until
+  # physical GCAM activity and approved factors arrive, this explicitly selected
+  # screening mode uses the existing 2023 CAPSS aggregate-intensity integration.
+  emissions_mode: capss_base_intensity_screening
+  proxy_grid:
+    status: national_four_cell_uniform_proxy_not_exposure_ready
+    latitudes: [35.5, 37.5]
+    longitudes: [126.5, 128.5]
+    weights:
+      - [0.25, 0.25]
+      - [0.25, 0.25]
+
+assumptions:
+  - The power file and non-power activity paths are deterministic scenario fixtures, not team-supplied MACRO or GCAM-KAIST projections.
+  - Power generation is allocated to the documented KEPCO unit roster and uses 2024 generation-weighted KEPCO NOx, SOx, and TSP factors.
+  - TSP is retained for audit but never relabeled as primary PM2.5; power PM2.5, NH3, and VOC remain explicitly omitted.
+  - Current non-power factor rows and links are candidates with production_ready=false and do not drive this screening build.
+  - Non-power mass uses the existing CAPSS 2023 aggregate emissions-per-index intensity integration.
+  - The four-cell non-power grid preserves national mass only; it is not a sector-specific spatial surrogate.
+  - Facility-like non-power sectors are temporarily gridded and machine-readably flagged as point-preferred.
+  - Every generated bundle sets analytical_use_permitted=false.

@@ -8,6 +8,7 @@
 # ---- Setup -------------------------------------------------------------------
 
 source(file.path("analysis", "R", "paths.R"))
+source(file.path("analysis", "kepco", "ef_eligibility.R"))
 
 options(
   stringsAsFactors = FALSE,
@@ -214,11 +215,14 @@ print(coverage_by_dataset)
 
 # ---- Fast KEPCO EF diagnostics and projections ------------------------------
 
-# This section mirrors the audited subsidiary analysis logic:
+# This section applies one explicit pollutant-month eligibility table:
 #   1. pollutant EF = kg emissions / MWh generation
-#   2. exclude warning/critical pollutant values using the Python audit fields
-#   3. suppress aggregates with less than 50% surviving generation coverage
-#   4. aggregate EF as total valid emissions / total valid generation
+#   2. hard-exclude missing/nonpositive inputs, duplicates, negative physical
+#      values, pollutant-specific high EFs, and implausible pollutant zeros
+#   3. use an operational primary specification that also excludes CF < 1%
+#   4. retain low-load-inclusive and conservative-quality sensitivities
+#   5. suppress aggregates with less than 50% surviving generation coverage
+#   6. aggregate EF as total valid emissions / total valid generation
 
 required_r_packages <- c("ggplot2", "dplyr", "tidyr", "readr", "lubridate", "scales", "broom")
 missing_r_packages <- required_r_packages[
@@ -251,29 +255,79 @@ pollutants <- data.frame(
   stringsAsFactors = FALSE
 )
 
-analysis_kepco <- kepco
-if ("row_status" %in% names(analysis_kepco)) {
-  analysis_kepco <- analysis_kepco %>%
-    filter(is.na(row_status) | row_status != "inactive_placeholder")
-}
+kepco$.ef_source_row_id <- seq_len(nrow(kepco))
 fallback_unit_id <- paste(
-    analysis_kepco$plant_name,
-    ifelse(is.na(analysis_kepco$plant_number), "NA", analysis_kepco$plant_number),
-    analysis_kepco$fuel_type,
-    sep = " | "
-  )
-analysis_kepco$plant_unit_id <- ifelse(
-  "reporting_unit_id" %in% names(analysis_kepco) &
-    !is.na(analysis_kepco$reporting_unit_id) &
-    analysis_kepco$reporting_unit_id != "",
-  analysis_kepco$reporting_unit_id,
+  kepco$plant_name,
+  ifelse(is.na(kepco$plant_number), "NA", kepco$plant_number),
+  kepco$fuel_type,
+  sep = " | "
+)
+kepco$plant_unit_id <- ifelse(
+  "reporting_unit_id" %in% names(kepco) &
+    !is.na(kepco$reporting_unit_id) &
+    kepco$reporting_unit_id != "",
+  kepco$reporting_unit_id,
   fallback_unit_id
 )
-analysis_kepco$fuel_type_clean <- ifelse(
-  is.na(analysis_kepco$fuel_type) | analysis_kepco$fuel_type == "",
+kepco$fuel_type_clean <- ifelse(
+  is.na(kepco$fuel_type) | kepco$fuel_type == "",
   "unknown",
-  analysis_kepco$fuel_type
+  kepco$fuel_type
 )
+
+ef_eligibility <- build_ef_eligibility(kepco, pollutants)
+save_table(
+  ef_eligibility,
+  file.path("audit", "kepco_monthly_ef_eligibility.csv")
+)
+
+analysis_kepco <- apply_ef_specification(
+  kepco,
+  ef_eligibility,
+  pollutants,
+  "operational_primary"
+)
+analysis_kepco_low_load_inclusive <- apply_ef_specification(
+  kepco,
+  ef_eligibility,
+  pollutants,
+  "low_load_inclusive"
+)
+analysis_kepco_conservative <- apply_ef_specification(
+  kepco,
+  ef_eligibility,
+  pollutants,
+  "conservative_quality"
+)
+
+analysis_rows <- is.na(kepco$row_status) | kepco$row_status != "inactive_placeholder"
+analysis_kepco <- analysis_kepco[analysis_rows, , drop = FALSE]
+analysis_kepco_low_load_inclusive <- analysis_kepco_low_load_inclusive[
+  analysis_rows,
+  ,
+  drop = FALSE
+]
+analysis_kepco_conservative <- analysis_kepco_conservative[
+  analysis_rows,
+  ,
+  drop = FALSE
+]
+
+audit_exclusion_log <- ef_exclusion_log(ef_eligibility, "operational_primary")
+save_table(
+  audit_exclusion_log,
+  file.path("audit", "kepco_operational_ef_exclusions.csv")
+)
+for (superseded_audit_file in c(
+  "kepco_audit_excluded.csv",
+  "kepco_ef_outliers_removed.csv"
+)) {
+  superseded_path <- file.path(tables_dir, "audit", superseded_audit_file)
+  if (file.exists(superseded_path)) {
+    unlink(superseded_path)
+    message("Deleted superseded audit output: ", superseded_path)
+  }
+}
 
 format_month_label <- function(x) {
   paste0(format(as.Date(x), "%Y"), "m", as.integer(format(as.Date(x), "%m")))
@@ -334,52 +388,6 @@ line_colors <- c(
   "#1F77B4", "#D81B60", "#009E73", "#E69F00", "#6A3D9A", "#4D4D4D",
   "#56B4E9", "#CC79A7"
 )
-
-# Use the canonical Python audit rather than recomputing a second IQR rule in
-# R. A pollutant is excluded only for its own warning/critical issue codes;
-# review-tier flags remain available for analysis.
-audit_exclusion_pattern <- function(pollutant) {
-  paste0(
-    "high_", pollutant, "_emission_factor",
-    "|recent_shift_(high|low)_", pollutant, "_mass",
-    "|zero_", pollutant, "_(with_generation|coal_generation)"
-  )
-}
-
-audit_exclusion_log <- data.frame()
-
-for (i in seq_len(nrow(pollutants))) {
-  ef_var <- pollutants$ef[[i]]
-  outlier_var <- paste0("high_outlier_", pollutants$pollutant[[i]])
-
-  issue_codes <- ifelse(
-    is.na(analysis_kepco$audit_issue_codes), "", analysis_kepco$audit_issue_codes
-  )
-  analysis_kepco[[outlier_var]] <-
-    analysis_kepco$audit_severity %in% c("critical", "warning") &
-    grepl(audit_exclusion_pattern(pollutants$pollutant[[i]]), issue_codes)
-
-  flagged <- analysis_kepco[analysis_kepco[[outlier_var]], c(
-    "source_dataset", "date", "plant_name", "plant_number", "fuel_type_clean",
-    "energy_generated_mwh", pollutants$pollutant[[i]], ef_var,
-    "audit_severity", "audit_issue_codes"
-  )]
-
-  if (nrow(flagged) > 0) {
-    names(flagged)[names(flagged) == pollutants$pollutant[[i]]] <- "emissions_kg"
-    names(flagged)[names(flagged) == ef_var] <- "ef_kg_per_mwh"
-    flagged$pollutant <- pollutants$label[[i]]
-    audit_exclusion_log <- rbind(audit_exclusion_log, flagged)
-  }
-
-  analysis_kepco[[pollutants$pollutant[[i]]]][analysis_kepco[[outlier_var]]] <- NA_real_
-  analysis_kepco[[ef_var]][analysis_kepco[[outlier_var]]] <- NA_real_
-}
-
-save_table(audit_exclusion_log, file.path("audit", "kepco_audit_excluded.csv"))
-# Retain the historical filename for downstream code; its contents now use
-# the canonical audit exclusions rather than a separately computed R rule.
-save_table(audit_exclusion_log, file.path("audit", "kepco_ef_outliers_removed.csv"))
 
 summarize_vector <- function(x) {
   x <- x[!is.na(x)]
@@ -1349,6 +1357,7 @@ for (i in seq_len(nrow(pollutants))) {
   }
 }
 ef_point_estimates <- do.call(rbind, point_estimate_rows)
+ef_point_estimates$ef_specification <- "operational_primary"
 save_table(
   ef_point_estimates,
   file.path("point_estimates", "kepco_generation_weighted_ef_point_estimates.csv")
@@ -1583,27 +1592,65 @@ format_fuel_technology_handoff_table <- function(data, province_level = FALSE) {
     arrange(across(all_of(id_cols)))
 }
 
+build_annual_ef_distribution <- function(data, province_level = FALSE) {
+  years <- sort(unique(data$year[!is.na(data$year)]))
+  pieces <- lapply(years, function(estimate_year) {
+    annual_fuel_technology_distribution_rows(
+      data = data,
+      estimate_year = estimate_year,
+      province_level = province_level
+    )
+  })
+  pieces <- pieces[vapply(pieces, nrow, integer(1)) > 0]
+  if (length(pieces) == 0) {
+    return(data.frame())
+  }
+  do.call(rbind, pieces)
+}
+
 annual_years <- sort(unique(analysis_kepco$year[!is.na(analysis_kepco$year)]))
-annual_fuel_technology_ef <- do.call(
-  rbind,
-  lapply(annual_years, function(estimate_year) {
-    annual_fuel_technology_distribution_rows(
-      data = analysis_kepco,
-      estimate_year = estimate_year,
-      province_level = FALSE
-    )
-  })
+annual_fuel_technology_ef <- build_annual_ef_distribution(
+  analysis_kepco,
+  province_level = FALSE
 )
-annual_province_fuel_technology_ef <- do.call(
-  rbind,
-  lapply(annual_years, function(estimate_year) {
-    annual_fuel_technology_distribution_rows(
-      data = analysis_kepco,
-      estimate_year = estimate_year,
-      province_level = TRUE
-    )
-  })
+annual_fuel_technology_ef$ef_specification <- "operational_primary"
+annual_province_fuel_technology_ef <- build_annual_ef_distribution(
+  analysis_kepco,
+  province_level = TRUE
 )
+annual_province_fuel_technology_ef$ef_specification <- "operational_primary"
+
+annual_fuel_technology_sensitivity <- bind_rows(
+  annual_fuel_technology_ef,
+  build_annual_ef_distribution(
+    analysis_kepco_low_load_inclusive,
+    province_level = FALSE
+  ) %>% mutate(ef_specification = "low_load_inclusive"),
+  build_annual_ef_distribution(
+    analysis_kepco_conservative,
+    province_level = FALSE
+  ) %>% mutate(ef_specification = "conservative_quality")
+) %>%
+  arrange(year, fuel_type_clean, technology, pollutant, ef_specification)
+annual_province_fuel_technology_sensitivity <- bind_rows(
+  annual_province_fuel_technology_ef,
+  build_annual_ef_distribution(
+    analysis_kepco_low_load_inclusive,
+    province_level = TRUE
+  ) %>% mutate(ef_specification = "low_load_inclusive"),
+  build_annual_ef_distribution(
+    analysis_kepco_conservative,
+    province_level = TRUE
+  ) %>% mutate(ef_specification = "conservative_quality")
+) %>%
+  arrange(
+    year,
+    plant_province,
+    fuel_type_clean,
+    technology,
+    pollutant,
+    ef_specification
+  )
 
 annual_fuel_technology_handoff <- format_fuel_technology_handoff_table(
   annual_fuel_technology_ef,
@@ -1742,6 +1789,20 @@ save_table(
   file.path(
     "annual_handoff",
     "kepco_annual_ef_distribution_long_by_province_fuel_technology.csv"
+  )
+)
+save_table(
+  annual_fuel_technology_sensitivity,
+  file.path(
+    "annual_handoff",
+    "kepco_annual_ef_sensitivity_long_by_fuel_technology.csv"
+  )
+)
+save_table(
+  annual_province_fuel_technology_sensitivity,
+  file.path(
+    "annual_handoff",
+    "kepco_annual_ef_sensitivity_long_by_province_fuel_technology.csv"
   )
 )
 save_table(

@@ -97,7 +97,7 @@ def test_real_crosswalk_file_loads_and_parses_dates() -> None:
     assert {"subsidiary_company", "plant_name", "plant_latitude", "plant_longitude", "plant_province", "plant_district"}.issubset(
         crosswalk.columns
     )
-    assert len(crosswalk) == 29
+    assert len(crosswalk) == 32
     assert pd.api.types.is_datetime64_any_dtype(crosswalk["plant_opening_date"])
 
 

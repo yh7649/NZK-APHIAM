@@ -1,0 +1,20 @@
+{
+  "provider": "Korea Midland Power (KOMIPO)",
+  "delivery_method": "Direct response to project data request",
+  "received_date": "2026-07-22",
+  "original_filename": "대기오염물질 배출량(24-25년)_kg자료.xlsx",
+  "sha256": "365789f6686b98a86925d56fc48d0cfc5824c49c97bd054c6b0011f2e8aa93d1",
+  "coverage_start": "2024-01",
+  "coverage_end": "2025-12",
+  "reported_unit": "kg",
+  "worksheets": [
+    "보령",
+    "신보령",
+    "서천",
+    "인천",
+    "서울",
+    "세종",
+    "제주"
+  ],
+  "immutability_policy": "Do not edit or resave; verify SHA-256 before use."
+}

@@ -1,0 +1,10 @@
+pollutant,canonical_name,capss_name,aliases,mass_unit,included_in_mvp,notes
+NOx,Nitrogen oxides,NOx,NOX|nitrogen oxides|NO2-equivalent,kg,true,CAPSS reports NOx; retain and record any source-specific NO2-equivalent convention rather than silently converting.
+SOx,Sulfur oxides,SOx,SOX|sulfur oxides|SO2-equivalent,kg,true,CAPSS reports SOx; retain and record any source-specific SO2-equivalent convention rather than silently converting.
+PM2.5,Fine particulate matter,PM2.5,PM-2.5|PM_2_5|PM25|fine particulate matter,kg,true,Particulate matter with aerodynamic diameter at or below 2.5 micrometres.
+PM10,Inhalable particulate matter,PM10,PM-10|PM_10|inhalable particulate matter,kg,true,Particulate matter with aerodynamic diameter at or below 10 micrometres.
+TSP,Total suspended particulate matter,TSP,total suspended particulates|total suspended particulate matter,kg,true,Do not substitute for PM10 or PM2.5 without a documented size fraction.
+VOCs,Volatile organic compounds,VOCs,VOC|NMVOC|NMVOCs|volatile organic compound|volatile organic compounds,kg,true,CAPSS canonical plural is VOCs; source definitions may exclude methane and must be retained.
+NH3,Ammonia,NH3,ammonia|NH_3,kg,true,Preserve the mass basis stated by the source when nitrogen-equivalent rather than NH3 mass is reported.
+CO,Carbon monoxide,CO,carbon monoxide,kg,true,Direct mass of carbon monoxide.
+BC,Black carbon,BC,black carbon|Black Carbon,kg,true,CAPSS coverage is not uniform across years; missing BC is not zero.

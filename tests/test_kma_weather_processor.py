@@ -4,15 +4,16 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from nzk_aphiam.data.process.weather.kma.processor import (
+from nzk_aphiam.archive.kma_weather.process.processor import (
     add_station_location,
+    build_local_readme,
     derive_sounding_features,
     normalize_stations,
     normalize_surface,
     summarize_sounding,
     wind_components,
 )
-from nzk_aphiam.data.scrape.weather.kma.schemas import ASOS_COLUMNS
+from nzk_aphiam.archive.kma_weather.scrape.schemas import ASOS_COLUMNS
 
 
 def surface_row(**updates: str) -> pd.DataFrame:
@@ -139,3 +140,15 @@ def test_station_history_retains_coordinates_by_network_and_year() -> None:
     joined = add_station_location(observations, result, "SFC")
     assert joined.loc[0, "station_latitude"] == pytest.approx(37.57)
     assert np.isnan(joined.loc[1, "station_latitude"])
+
+
+def test_local_readme_uses_archived_paths_and_command() -> None:
+    readme = build_local_readme(
+        [{"dataset": "surface_hourly", "year": 2024, "rows": 1, "path": "unused"}],
+        2024,
+        2024,
+    )
+
+    assert "data/archive/processed/weather/kma/" in readme
+    assert "nzk_aphiam.archive.kma_weather.process" in readme
+    assert "make process-kma-weather" not in readme

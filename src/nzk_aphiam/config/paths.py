@@ -18,8 +18,8 @@ ARCHIVE_PROCESSED_DIR = ARCHIVE_DIR / "processed"
 CLEANSYS_DIR = ARCHIVE_RAW_DIR / "cleansys_tms"
 
 # Three-stage pipeline roots: raw (scraper output), interim (cleaner
-# output), processed (auditor/merger output). Each domain (kepco today;
-# airkorea/health/weather as they're added) gets its own subdirectory under
+# output), processed (auditor/merger output). Each active domain (kepco today;
+# airkorea/health as they're added) gets its own subdirectory under
 # each stage, e.g. data/raw/kepco_subsidiaries/eastwest_power, data/processed/kepco.
 THERMAL_RAW_DIR = DATA_DIR / "raw"
 THERMAL_INTERIM_DIR = DATA_DIR / "interim"
@@ -27,11 +27,10 @@ PROCESSED_DIR = DATA_DIR / "processed"
 KEPCO_PROCESSED_DIR = PROCESSED_DIR / "kepco"
 THERMAL_PROCESSED_DIR = KEPCO_PROCESSED_DIR
 
-# KMA meteorology: official API responses, normalized observation tables,
-# and analysis-ready dispersion features.
-WEATHER_RAW_DIR = DATA_DIR / "raw" / "weather" / "kma"
-WEATHER_INTERIM_DIR = DATA_DIR / "interim" / "weather" / "kma"
-WEATHER_PROCESSED_DIR = PROCESSED_DIR / "weather" / "kma"
+# Archived KMA hourly meteorology. The active annual Global InMAP workflow uses
+# its packaged meteorology and built-in bias correction instead.
+KMA_WEATHER_ARCHIVE_RAW_DIR = ARCHIVE_RAW_DIR / "weather" / "kma"
+KMA_WEATHER_ARCHIVE_PROCESSED_DIR = ARCHIVE_PROCESSED_DIR / "weather" / "kma"
 
 # AirKorea station registry and year-specific station-location crosswalk.
 AIRKOREA_RAW_DIR = DATA_DIR / "raw" / "airkorea"
@@ -53,3 +52,9 @@ EXTERNAL_DIR = DATA_DIR / "external"
 # activity tables and CAPSS historical emissions intensities.
 MACRO_EXTERNAL_DIR = EXTERNAL_DIR / "macro"
 MACRO_PROCESSED_DIR = PROCESSED_DIR / "macro"
+
+# Version-controlled non-power inventory inputs and reproducible local outputs.
+NONPOWER_REFERENCE_DIR = PROJECT_ROOT / "docs" / "references" / "nonpower_emissions"
+NONPOWER_PROCESSED_DIR = PROCESSED_DIR / "nonpower_emissions"
+NONPOWER_INTERIM_DIR = DATA_DIR / "interim" / "nonpower_emissions"
+NONPOWER_DIAGNOSTIC_DIR = PROJECT_ROOT / "results" / "diagnostics" / "nonpower_emissions"
