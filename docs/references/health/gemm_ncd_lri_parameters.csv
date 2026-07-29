@@ -1,0 +1,13 @@
+parameter_set,age_band,parameter_age_years,theta,theta_se,alpha,mu,nu,counterfactual_ugm3,chinese_male_cohort_included,source_table,evidence_id
+gemm_ncd_lri_with_chinese_cohort,25-29,27.5,0.1585,0.01477,1.6,15.5,36.8,2.4,true,Burnett et al. 2018 SI Table S2,burnett_2018_gemm_ncd_lri_table_s2
+gemm_ncd_lri_with_chinese_cohort,30-34,32.5,0.1577,0.01470,1.6,15.5,36.8,2.4,true,Burnett et al. 2018 SI Table S2,burnett_2018_gemm_ncd_lri_table_s2
+gemm_ncd_lri_with_chinese_cohort,35-39,37.5,0.1570,0.01463,1.6,15.5,36.8,2.4,true,Burnett et al. 2018 SI Table S2,burnett_2018_gemm_ncd_lri_table_s2
+gemm_ncd_lri_with_chinese_cohort,40-44,42.5,0.1558,0.01450,1.6,15.5,36.8,2.4,true,Burnett et al. 2018 SI Table S2,burnett_2018_gemm_ncd_lri_table_s2
+gemm_ncd_lri_with_chinese_cohort,45-49,47.5,0.1532,0.01425,1.6,15.5,36.8,2.4,true,Burnett et al. 2018 SI Table S2,burnett_2018_gemm_ncd_lri_table_s2
+gemm_ncd_lri_with_chinese_cohort,50-54,52.5,0.1499,0.01394,1.6,15.5,36.8,2.4,true,Burnett et al. 2018 SI Table S2,burnett_2018_gemm_ncd_lri_table_s2
+gemm_ncd_lri_with_chinese_cohort,55-59,57.5,0.1462,0.01361,1.6,15.5,36.8,2.4,true,Burnett et al. 2018 SI Table S2,burnett_2018_gemm_ncd_lri_table_s2
+gemm_ncd_lri_with_chinese_cohort,60-64,62.5,0.1421,0.01325,1.6,15.5,36.8,2.4,true,Burnett et al. 2018 SI Table S2,burnett_2018_gemm_ncd_lri_table_s2
+gemm_ncd_lri_with_chinese_cohort,65-69,67.5,0.1374,0.01284,1.6,15.5,36.8,2.4,true,Burnett et al. 2018 SI Table S2,burnett_2018_gemm_ncd_lri_table_s2
+gemm_ncd_lri_with_chinese_cohort,70-74,72.5,0.1319,0.01234,1.6,15.5,36.8,2.4,true,Burnett et al. 2018 SI Table S2,burnett_2018_gemm_ncd_lri_table_s2
+gemm_ncd_lri_with_chinese_cohort,75-79,77.5,0.1253,0.01174,1.6,15.5,36.8,2.4,true,Burnett et al. 2018 SI Table S2,burnett_2018_gemm_ncd_lri_table_s2
+gemm_ncd_lri_with_chinese_cohort,80+,85,0.1141,0.01071,1.6,15.5,36.8,2.4,true,Burnett et al. 2018 SI Table S2,burnett_2018_gemm_ncd_lri_table_s2

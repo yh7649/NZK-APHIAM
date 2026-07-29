@@ -1,83 +1,110 @@
 # Health-impact assessment (stage 5) and decomposition (stage 6)
 
-This implements the Korean-equivalent of Huang & Peng (2025)'s BenMAP-CE
-health-impact stage and their sequential decomposition, as `src/nzk_aphiam/health/`.
-BenMAP has no Korea configuration, so the concentration-response function (CRF)
-and attributable-deaths calculation are implemented by hand in `crf.py` and
-`impact.py`; the decomposition is implemented in `decomposition.py`.
+This is the Korean equivalent of Huang & Peng (2025)'s BenMAP-CE
+health-impact stage and sequential decomposition. BenMAP has no Korea
+configuration, so `src/nzk_aphiam/health/` implements the same attributable
+fraction and population-health arithmetic directly. This is a BenMAP-equivalent
+calculation, not a claim that BenMAP itself was run.
 
-This module is deliberately self-contained: it takes PM2.5 concentrations,
-population, and baseline mortality rates as arguments. It does not itself run,
-call, or depend on InMAP. The thermal-power MVP now supplies a separate adapter
-at `mvp/peng_replication/health_adapter.py`; see
-[`peng_replication_mvp.md`](peng_replication_mvp.md). District exposure and
-boundary harmonization remain unavailable.
+The core module accepts PM2.5 concentration, population, and endpoint-matched
+baseline mortality tables. The Peng MVP adapter at
+`src/nzk_aphiam/mvp/peng_replication/health_adapter.py` converts national
+population-weighted InMAP scenario outputs into those inputs, runs the complete
+prespecified CRF suite, and records each specification as complete or blocked.
+See [`peng_replication_mvp.md`](peng_replication_mvp.md).
+
+For a slide-production brief that explains this module, see
+[`claude_pptx_health_impact_module.md`](claude_pptx_health_impact_module.md).
 
 ## Concentration-response function
 
-The primary CRF is Krewski et al. 2009 (HEI Research Report 140), the ACS
-Extended Follow-up study, log-linear form -- the same estimate Huang & Peng
-(2025) use as their main result (their Equation 2, citing this paper).
+The primary remains the same Krewski et al. (2009) ACS Extended Follow-up
+log-linear estimate used by Huang & Peng. Its HR is 1.06 (95% CI 1.04–1.08)
+per 10 µg/m³ annual PM2.5 for all-cause mortality, giving
+`beta = ln(HR)/10 = 0.0058269` per µg/m³. The ACS cohort enrolled people age
+30+, so both population and mortality denominators begin at 30.
 
-- **Hazard ratio**: 1.06 (95% CI 1.04-1.08) per 10 µg/m³ PM2.5, all-cause
-  mortality, standard Cox model, PM2.5 (1979-1983 exposure metric), Table 3
-  of the Investigators' Report (PDF page 29). This matches the task brief's
-  expectation (HR near 1.06 per 10 µg/m³) with no material discrepancy.
-- **β = ln(HR)/10 = 0.0058269 µg/m³⁻¹** (ci_low 0.0039221, ci_high 0.0076961).
-- **Age restriction**: the ACS CPS-II cohort enrolled only persons "at least
-  30 years of age" (Materials and Methods, Study Population, PDF page 20).
-  `valid_age_min = 30`. `Pop` and `Y0` must both be restricted to age bands
-  at or above 30; `impact.py` and `decomposition.py` raise rather than
-  silently drop or include younger bands. KOSIS age bands align cleanly at
-  30, so no band splitting is needed.
-- All parameters are read from `docs/references/health/crf_parameters.csv`,
-  not hardcoded; every numeric value there traces to a row in
-  `crf_parameters_official_evidence.csv` with a source and page/table number.
+The complete suite is:
 
-### Sensitivity CRF: GEMM is deferred, not implemented
+| Registry ID | Model and role | Mortality endpoint | Ages | Main parameter |
+|---|---|---:|---:|---|
+| `peng_krewski_2009_all_cause` | Huang–Peng primary, log-linear | all-cause | 30+ | HR 1.06 (1.04–1.08) per 10 µg/m³ |
+| `gemm_2018_ncd_lri_with_china` | Huang–Peng nonlinear sensitivity | NCD+LRI | 25+ | Burnett SI Table S2 age-specific θ; `α=1.6`, `μ=15.5`, `ν=36.8` |
+| `byun_2024_korea_non_accidental` | primary Korea-cohort sensitivity | non-accidental | 30+ | HR 1.10 (1.01–1.20) per 10 µg/m³ |
+| `kim_2020_korea_all_cause` | lower Korea-cohort sensitivity | all-cause | 18+ | HR 1.034 (1.027–1.041) per 10 µg/m³ |
+| `korea_guide_hoek_2013_policy` | Korean policy-HIA benchmark | all-cause | 30+ convention | β 0.006015 (0.00399032–0.00803968) |
+| `lim_2020_korea_elderly_all_cause` | elderly Korea-cohort sensitivity | all-cause | 65+ | HR 1.024 (1.009–1.039) per 10 µg/m³ |
 
-Huang & Peng (2025) also report a GEMM (Burnett et al. 2018) sensitivity run
-(~200% higher attributable deaths than the Krewski log-linear function, "but
-the relative differences across scenarios... remain similar"). GEMM is
-**out of scope for this task** -- it is not implemented, and no stub or
-placeholder row exists for it in `crf_parameters.csv`.
+Kim's source cohort starts at age 18. Because the KOSIS input uses five-year
+bands, the implementation starts with the complete 20–24 band rather than
+including ages 15–17. The GUIDE row's age-30 minimum is an explicit
+comparability convention, not a source-cohort enrollment rule. Byun and Lim
+use multi-year moving-average exposure metrics, so applying their coefficients
+to annual InMAP scenarios is a structural sensitivity, not an exact replication
+of their lagged exposure construction.
 
-`crf.py` defines `ConcentrationResponseFunction` as a `Protocol` capturing
-the interface any CRF must satisfy (`beta`, `ci_low`, `ci_high`,
-`valid_age_min`, `counterfactual_ugm3`, `delta_pm`, `is_truncated`, `apply`).
-`impact.py` and `decomposition.py` type-hint against this protocol, not the
-concrete `LogLinearCRF` class, so a future `GEMM` implementation (its own
-functional form, `T(z) = log(1+z/α)ω(z)`, fitted θ/α/μ/ν parameters from the
-PNAS SI appendix -- not yet held in this repo) can be added as a new class in
-`crf.py` without changing `impact.py` or `decomposition.py` at all.
+All registry metadata and log-linear coefficients are in
+`docs/references/health/crf_parameters.csv`. GEMM's twelve age-specific rows
+are in `gemm_ncd_lri_parameters.csv`. Evidence is split between the original
+`crf_parameters_official_evidence.csv` and the additive
+`crf_specification_evidence.csv`.
 
-## Counterfactual concentration
+### GEMM implementation
 
-`counterfactual_ugm3` is a required parameter of every CRF with **no
-default** -- `AF = 1 - exp(-β · max(0, pm25_ugm3 - counterfactual_ugm3))`.
-Four candidate sources were evaluated (see
-`crf_parameters_official_evidence.csv` for full evidence rows):
+The Burnett et al. (2018) main NCD+LRI model including the Chinese male cohort
+is implemented exactly as:
 
-| Candidate | What it gives | Usable here? |
-|---|---|---|
-| Krewski (2009) Table 1, lowest measured PM2.5 (1979-1983), 0th percentile | **10.77 µg/m³** across the same 58-MSA sample that produced the Table 3 HR used for β | **Yes** -- fully documented, from the same underlying exposure data as our β |
-| Orellano et al. (2024) WHO AQG update meta-analysis | Pooled RR only (1.095 per 10 µg/m³); the paper itself states no numeric TMREL/threshold -- it is the supporting systematic review for the 2021 WHO AQG, not the guideline document | No -- no number to extract; would need the actual WHO AQG 2021 guideline document, which is not held in this repo |
-| GBD TMREL (2019/2021 rounds) | Reported in the general literature as a small range (commonly ~2.4-5.9 µg/m³ depending on GBD round), but no official GBD PM2.5 risk-factor appendix is held in `docs/references/literature/` | No -- not a locally sourced/traceable value; would need that document added first |
-| CREA (2021) *HIA South Korea* | Korean HIA precedent, but uses **GBD 2019 (IHME)**'s integrated exposure-response function, not the Krewski log-linear form, and states no explicit numeric counterfactual/TMREL in the report text itself | No transferable number; establishes that the one Korean HIA precedent in this repo used a different (GBD-based) methodology, not Krewski's |
+```text
+z = max(0, PM2.5 - 2.4)
+T(z) = log(1 + z/α) / (1 + exp(-(z-μ)/ν))
+RR = exp(θ_age × T(z))
+AF = 1 - 1/RR
+```
 
-**Recommendation:** use the Krewski lowest-measured-level candidate,
-**10.77 µg/m³**. It is the only candidate with a fully documented, in-repo
-numeric value, and it comes from the same exposure data that produced the β
-this module actually uses -- so the CRF is not extrapolated below the range
-it was estimated over. This is implemented as the adopted
-`counterfactual_ugm3` in `crf_parameters.csv`, but **it is a recommendation,
-not a unilateral decision** -- it should be confirmed before being relied on
-for any reported estimate.
+The twelve θ values cover 25–29 through 75–79 and 80+. Its interval substitutes
+`θ ± 1.96 × SE(θ)` and therefore represents GEMM parameter uncertainty only.
+GEMM requires age-specific NCD+LRI baseline mortality. Generic
+non-accidental or all-cause rates are not accepted as substitutes.
 
-Truncation (`pm25_ugm3 < counterfactual_ugm3`) is handled via
-`max(0, pm25 - counterfactual)` and logged as a warning naming the
-district-year, rather than silently zeroed, because it breaks the clean
-scaling of the marginal estimand.
+## Counterfactual concentration and InMAP interpretation
+
+The Peng primary uses `counterfactual_ugm3 = 0`: Huang & Peng's equations use
+the modeled scenario concentration as ΔPM and do not subtract the ACS sample
+minimum. The registry retains 10.77 µg/m³ as the lowest concentration observed
+in the Krewski cohort, so results below that support boundary are explicitly
+extrapolations. The old 10.77-cutoff row remains under
+`krewski_2009_acs_extended` for reproducibility but is not in the recommended
+suite.
+
+The Korea-derived log-linear sensitivities also use zero as an unthresholded
+scenario-total convention, because their papers do not supply transferable
+numeric no-effect thresholds. This choice must not be interpreted as evidence
+of a biological zero-risk threshold.
+
+The adapter supports two explicit exposure modes:
+
+- `direct_scenario_concentration`: the InMAP column is already each scenario's
+  total ambient PM2.5 concentration.
+- `background_plus_inmap_contribution`: add a sourced scenario-specific or
+  common ambient background to an InMAP source contribution.
+
+The current thermal-only inventory yields a power-sector source contribution,
+not total ambient PM2.5. It can test signs and plumbing, but a reportable Peng
+run requires an all-source InMAP scenario or a defensible background. The
+`exposure_scope` column and run manifest preserve this distinction. The default
+configuration also sets `health.analytical_use_permitted: false`; changing that
+flag is an explicit assertion that exposure scope, convergence, mortality
+endpoints, and scenario design are fit for the intended analysis.
+
+## Endpoint safety
+
+Each CRF requests one exact endpoint: `all_cause`, `non_accidental`, or
+`ncd_lri`. The canonical KOSIS table supplies age-specific all-cause mortality.
+The default configuration leaves the other two paths null, so the Byun and
+GEMM rows receive machine-readable blocked statuses while all compatible
+specifications still run. Non-all-cause inputs must include a
+`mortality_endpoint` column matching the requested endpoint. No cross-endpoint
+fallback occurs.
 
 ## Attributable deaths
 
@@ -99,10 +126,11 @@ Two distinct functions, matching two distinct uses:
    pm25_a)`. `tests/test_health_impact.py::test_marginal_deaths_is_not_af_of_concentration_difference`
    exists specifically so this is not "simplified" away later.
 
-Output carries the central attributable-death estimate plus CI bounds
-obtained by substituting `ci_low`/`ci_high` for β -- this is how Huang & Peng
-propagate uncertainty, and it reflects uncertainty in the CRF coefficient
-only, not in PM2.5, population, or baseline mortality inputs.
+Output carries the central attributable-death estimate plus CRF-only bounds.
+Log-linear specifications substitute the lower and upper β; GEMM substitutes
+the age-specific `θ ± 1.96 × SE(θ)`. Neither interval includes uncertainty in
+PM2.5, population, baseline mortality, background concentration, or model
+structure.
 
 Inputs are validated loudly: negative concentrations, mortality rates above 1
 (the KOSIS-per-100,000 trap), and age bands below `valid_age_min` all raise
@@ -171,10 +199,22 @@ not an all-ages reading of Equations 5-7. Given Korea's demographic profile
 study), this is a meaningful departure from an all-ages decomposition, not a
 technicality.
 
-## Out of scope
+## Outputs and remaining scope
 
-InMAP, meteorology, emissions, downscaling, exposure aggregation to 시군구,
-scenario definitions, boundary harmonization, GEMM, infant-mortality
-endpoints, and the CAPSS 시군구 code join remain out of scope for this core
-health module. The thermal MVP keeps those responsibilities in an upstream
-adapter rather than duplicating the verified health equations here.
+The Peng MVP writes:
+
+- `national_scenario_exposures.csv`: population-weighted InMAP concentration
+  and concentration scope by scenario;
+- `health_model_inputs.csv`: age-specific denominator and concentration rows
+  for every runnable CRF;
+- `health_scenario_totals.csv`: attributable mortality by CRF and scenario;
+- `health_impacts.csv`: reference-minus-policy avoided mortality and CRF-only
+  interval by specification; and
+- `health_specification_status.csv`: complete or blocked status and reason for
+  every requested CRF.
+
+The core health module still leaves InMAP execution, meteorology, emissions,
+and boundary harmonization upstream. District exposure and district
+decomposition remain unavailable until compatible district boundaries and
+population allocation are connected. Infant mortality and morbidity endpoints
+are not implemented.

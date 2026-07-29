@@ -99,6 +99,13 @@ def validate_inputs(df: pd.DataFrame, crf: ConcentrationResponseFunction) -> Non
             f"{bad_bands}. Restrict Pop and Y0 to bands at or above valid_age_min "
             "before calling -- this module does not drop or include them silently."
         )
+    if crf.valid_age_max is not None:
+        above_max = lower_bounds > crf.valid_age_max
+        if above_max.any():
+            bad_bands = sorted(df.loc[above_max, "age_band"].unique())
+            raise ValueError(
+                f"age_band values above crf.valid_age_max={crf.valid_age_max} found: {bad_bands}."
+            )
 
 
 def _warn_truncated_rows(df: pd.DataFrame, crf: ConcentrationResponseFunction) -> None:
@@ -118,9 +125,13 @@ def _warn_truncated_rows(df: pd.DataFrame, crf: ConcentrationResponseFunction) -
 
 
 def _attributable_deaths(
-    df: pd.DataFrame, crf: ConcentrationResponseFunction, beta: float
+    df: pd.DataFrame, crf: ConcentrationResponseFunction, estimate: str
 ) -> pd.Series:
-    attributable_fraction = crf.apply(df["pm25_ugm3"], beta=beta)
+    attributable_fraction = crf.apply(
+        df["pm25_ugm3"],
+        age_band=df["age_band"],
+        estimate=estimate,
+    )
     return attributable_fraction * df["baseline_mortality_rate_per_person"] * df["population"]
 
 
@@ -143,9 +154,9 @@ def compute_attributable_deaths(
     _warn_truncated_rows(df, crf)
 
     working = df.copy()
-    working["attributable_deaths"] = _attributable_deaths(working, crf, crf.beta)
-    working["attributable_deaths_ci_low"] = _attributable_deaths(working, crf, crf.ci_low)
-    working["attributable_deaths_ci_high"] = _attributable_deaths(working, crf, crf.ci_high)
+    working["attributable_deaths"] = _attributable_deaths(working, crf, "central")
+    working["attributable_deaths_ci_low"] = _attributable_deaths(working, crf, "lower")
+    working["attributable_deaths_ci_high"] = _attributable_deaths(working, crf, "upper")
 
     totals = (
         working.groupby(["scenario", "year"], as_index=False)[list(TOTAL_COLUMNS)]

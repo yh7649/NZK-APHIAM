@@ -142,9 +142,24 @@ def decompose(
             "(end_year, policy_scenario) for the decomposition to be well defined."
         )
 
-    af_base = crf.apply(base["pm25_ugm3"])
-    af_end_baseline = crf.apply(end_baseline["pm25_ugm3"])
-    af_end_policy = crf.apply(end_policy["pm25_ugm3"])
+    base_age_band = pd.Series(base.index.get_level_values("age_band"), index=base.index)
+    end_baseline_age_band = pd.Series(
+        end_baseline.index.get_level_values("age_band"),
+        index=end_baseline.index,
+    )
+    end_policy_age_band = pd.Series(
+        end_policy.index.get_level_values("age_band"),
+        index=end_policy.index,
+    )
+    af_base = crf.apply(base["pm25_ugm3"], age_band=base_age_band)
+    af_end_baseline = crf.apply(
+        end_baseline["pm25_ugm3"],
+        age_band=end_baseline_age_band,
+    )
+    af_end_policy = crf.apply(
+        end_policy["pm25_ugm3"],
+        age_band=end_policy_age_band,
+    )
 
     mortality_base_year = float(
         (base["baseline_mortality_rate_per_person"] * base["population"] * af_base).sum()
