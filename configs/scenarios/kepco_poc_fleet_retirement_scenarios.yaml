@@ -1,0 +1,60 @@
+name: kepco_thermal_fleet_unit_retirement_poc_2025_2050
+baseline_data_year: 2024
+years: [2025, 2030, 2035, 2040, 2045, 2050]
+allocation_method: discrete_unit_retirement
+
+inputs:
+  kepco_monthly: data/processed/kepco/kepco_monthly_generation_emissions.csv
+  stack_properties: docs/references/crosswalk/stack_properties.csv
+
+scenarios:
+  no_nzk_fleet_hold:
+    phaseout: none
+    phaseout_fuels: []
+    description: Hold every 2024-proxy KEPCO thermal unit at baseline generation through 2050.
+  nzk_low_unit_retirement:
+    phaseout: selected_fuels
+    phaseout_fuels: [coal, oil, oil_and_natural_gas, bio_oil_and_diesel]
+    description: Retire whole coal and oil-family units by 2050; retain LNG and biomass.
+  nzk_high_unit_retirement:
+    phaseout: all_thermal
+    phaseout_fuels: []
+    description: Retire every KEPCO thermal unit by 2050.
+
+province_codes:
+  Busan: PUS
+  Chungcheongnam-do: CNA
+  Gangwon-do: GWN
+  Gyeonggi-do: GGI
+  Gyeongsangbuk-do: GNB
+  Gyeongsangnam-do: GNA
+  Incheon: INC
+  Jeju-do: JEJ
+  Jeollanam-do: JNA
+  Jeonbuk-do: JNB
+  Sejong: SJG
+  Seoul: SEL
+  Ulsan: USN
+
+assumptions:
+  - This is a deterministic proof-of-concept fixture, not a MACRO-team forecast.
+  - KEPCO units in the complete 2024 calendar-year extract are treated as the entire Korean thermal roster.
+  - The scenario begins in 2025, but 2024 is used as its proxy because the local 2025 extract is incomplete.
+  - Missing generation months are annualized by 12 divided by the number of non-missing months.
+  - Units retire as indivisible reporting boundaries; surviving units remain at baseline generation until their retirement milestone.
+  - Documented closure dates are assigned to the first five-year scenario snapshot after closure.
+  - Undated targeted units are ranked by oldest commissioning year, lowest baseline capacity factor, highest NOx-plus-SOx intensity, and unit ID.
+  - Ranked units are retired until cumulative baseline generation meets or exceeds 20, 40, 60, 80, and 100 percent at the five-year milestones.
+  - 2024 generation-weighted KEPCO fuel-technology emission factors are held constant while a unit operates.
+  - TSP is retained separately and is not relabeled as primary PM2.5.
+  - Primary PM2.5, NH3, and VOC are zero-valued omitted inputs because no documented factors are applied.
+  - Non-thermal generation and non-KEPCO plants are outside this fixture.
+  - The no-NZK fleet-hold counterfactual does not enforce documented retirement dates.
+
+sources:
+  - title: Korea 2050 Carbon Neutral Scenarios
+    url: https://www.2050cnc.go.kr/storage/board/base/2021/10/26/BOARD_ATTACH_1635231399780.pdf
+    use: Scenario A supports the all-thermal 2050 endpoint; Scenario B supports coal elimination with residual LNG.
+  - title: EPSIS generation by energy source
+    url: https://epsis.kpx.or.kr/epsisnew/selectEkgeGepGesGrid.do?locale=eng&menuId=060102
+    use: Official national generation context and latest finalized annual-data convention.

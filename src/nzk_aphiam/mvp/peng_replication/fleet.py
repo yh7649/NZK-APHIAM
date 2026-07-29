@@ -27,6 +27,32 @@ def _first_nonmissing(series: pd.Series) -> Any:
     return values.iloc[0] if not values.empty else pd.NA
 
 
+def add_canonical_unit_ids(monthly: pd.DataFrame) -> pd.DataFrame:
+    """Attach the canonical reporting-boundary identifier used by the fleet."""
+    required = {
+        "subsidiary_company",
+        "plant_name",
+        "reporting_unit_id",
+        "fuel_type",
+        "technology",
+    }
+    missing = sorted(required - set(monthly.columns))
+    if missing:
+        raise ValueError(f"Monthly KEPCO data are missing unit identity columns: {missing}")
+    prepared = monthly.copy()
+    fallback_id = (
+        prepared["subsidiary_company"].astype(str)
+        + ":"
+        + prepared["plant_name"].astype(str)
+        + ":site_boundary:"
+        + prepared["fuel_type"].astype(str)
+        + ":"
+        + prepared["technology"].astype(str)
+    )
+    prepared["unit_id"] = prepared["reporting_unit_id"].fillna(fallback_id)
+    return prepared
+
+
 def build_thermal_fleet(
     monthly_path: Path,
     *,
@@ -53,16 +79,7 @@ def build_thermal_fleet(
     if missing:
         raise ValueError(f"{monthly_path} is missing roster columns: {missing}")
     monthly = monthly.loc[monthly["fuel_type"].notna() & monthly["technology"].notna()].copy()
-    fallback_id = (
-        monthly["subsidiary_company"].astype(str)
-        + ":"
-        + monthly["plant_name"].astype(str)
-        + ":site_boundary:"
-        + monthly["fuel_type"].astype(str)
-        + ":"
-        + monthly["technology"].astype(str)
-    )
-    monthly["unit_id"] = monthly["reporting_unit_id"].fillna(fallback_id)
+    monthly = add_canonical_unit_ids(monthly)
     monthly["plant_id"] = (
         monthly["subsidiary_company"].map(_slug) + ":" + monthly["plant_name"].map(_slug)
     )

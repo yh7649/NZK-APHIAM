@@ -116,6 +116,24 @@ def allocate_generation(
             fuel_compatibility=fuel_compatibility,
         )
         if requested == 0:
+            if not candidates.empty:
+                allocated = candidates.copy()
+                allocated["scenario"] = scenario
+                allocated["year"] = int(year)
+                allocated["requested_province"] = province
+                allocated["requested_fuel"] = fuel
+                allocated["requested_technology"] = technology
+                allocated["generation_mwh"] = 0.0
+                allocated["allocation_share"] = 0.0
+                allocated["allocation_rule"] = f"zero_generation:{match_level}"
+                allocated["allocation_assumption"] = "existing_site_allocation"
+                allocated["synthetic_technology_assignment"] = synthetic_technology
+                allocated["synthetic_fuel_assignment"] = synthetic_fuel
+                allocated["synthetic_site_flag"] = allocated.get(
+                    "synthetic_site_flag", pd.Series(False, index=allocated.index)
+                ).fillna(False)
+                allocated["implied_capacity_factor"] = 0.0
+                rows.append(allocated)
             diagnostics.append(
                 {
                     **dict(zip(GROUP_COLUMNS, group_key, strict=True)),
