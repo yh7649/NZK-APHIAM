@@ -54,42 +54,40 @@ currently end in 2042, so they do not support a district-level 2050+ horizon.
 data/raw/health/kosis/
 ├── metadata.json
 ├── monthly_deaths/
-│   ├── monthly_deaths.csv
-│   └── raw/DT_1B82A01_<year>.json
+│   └── DT_1B82A01_<year>.json
 ├── cause_deaths/
-│   ├── cause_deaths.csv
-│   └── raw/DT_1B34E13_<year>.json
+│   └── DT_1B34E13_<year>.json
 ├── population/
-│   ├── population.csv
-│   └── raw/DT_1B040A3_<year>.json
+│   └── DT_1B040A3_<year>.json
 ├── age_population/
-│   ├── age_population.csv
-│   └── raw/DT_1B04006_<year>.json
+│   └── DT_1B04006_<year>.json
 ├── age_mortality/
-│   ├── age_mortality.csv
-│   └── raw/DT_1B80A18_<year>.json
+│   └── DT_1B80A18_<year>.json
 ├── population_projection_age/
-│   ├── population_projection_age.csv
-│   └── raw/DT_1BPB002E_<year>.json
+│   └── DT_1BPB002E_<year>.json
 ├── aging/
-│   ├── aging.csv
-│   └── raw/DT_1YL20631_<year>.json
+│   └── DT_1YL20631_<year>.json
 ├── sex_ratio/
-│   ├── sex_ratio.csv
-│   └── raw/DT_1YL20701_<year>.json
+│   └── DT_1YL20701_<year>.json
 ├── foreign_residents/
-│   ├── foreign_residents.csv
-│   └── raw/TX_11025_A001_A_<year>.json
+│   └── TX_11025_A001_A_<year>.json
 ├── fiscal_independence/
-│   ├── fiscal_independence.csv
-│   └── raw/DT_1YL20921_<year>.json
+│   └── DT_1YL20921_<year>.json
 └── elderly_living_alone/
-    ├── elderly_living_alone.csv
-    └── raw/DT_1YL12701_<year>.json
+    └── DT_1YL12701_<year>.json
+
+data/interim/health/kosis/
+├── monthly_deaths/monthly_deaths.csv
+├── cause_deaths/cause_deaths.csv
+├── population/population.csv
+├── age_population/age_population.csv
+├── age_mortality/age_mortality.csv
+└── population_projection_age/population_projection_age.csv
 ```
 
-The annual JSON files preserve the KOSIS responses. The CSV files are
-deterministic normalized extracts. `metadata.json` is the machine-readable
+The annual JSON files under `data/raw/` preserve the KOSIS responses. The CSV
+files under `data/interim/` are deterministic normalized extracts.
+`metadata.json` is the machine-readable
 provenance manifest and records retrieval time, coverage, row counts, relative
 paths, reuse/download status, and SHA-256 checksums for every raw annual file
 and normalized CSV.
@@ -99,7 +97,7 @@ Full default scrapes write `metadata.json`. Targeted commands such as
 `metadata_selected_<hash>.json` in the same directory so selected-run
 provenance does not overwrite full-baseline provenance.
 
-Current normalized-file checksums:
+Current interim normalized-file checksums:
 
 | File | SHA-256 |
 |---|---|
@@ -242,6 +240,8 @@ PYTHONPATH=src .venv/bin/python -m nzk_aphiam.data.scrape.health.kosis \
 - KOSIS OpenAPI information: `https://kosis.kr/openapi/`
 - Source catalog and access dates: `docs/references/data_sources.csv`
 - Machine-readable snapshot metadata: `data/raw/health/kosis/metadata.json`
+- Normalized analysis inputs: `data/interim/health/kosis/`
 
-Raw data are not committed to Git. Share or archive the data together with
-`metadata.json` so checksums and year-level provenance remain attached.
+Raw and interim data are not committed to Git. Share or archive both roots
+together with `metadata.json` so checksums and year-level provenance remain
+attached.

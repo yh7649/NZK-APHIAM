@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -19,6 +20,7 @@ from nzk_aphiam.mvp.peng_replication.health_adapter import (
 from nzk_aphiam.mvp.peng_replication.pipeline import (
     _label_diagnostic_poc_health,
     _pm_change_figure,
+    _write_report,
 )
 from nzk_aphiam.mvp.peng_replication.scenarios import (
     normalize_macro_scenarios,
@@ -411,3 +413,31 @@ def test_health_config_requires_background_and_explicit_analytical_flag() -> Non
     config["health"]["analytical_use_permitted"] = "false"
     with pytest.raises(ValueError, match="must be true or false"):
         _validate_health_config(config)
+
+
+def test_audit_report_tolerates_legacy_installation_manifest(tmp_path: Path) -> None:
+    installation_dir = tmp_path / "inmap"
+    installation_dir.mkdir()
+    (installation_dir / "installation_manifest.json").write_text(
+        json.dumps({"source_release": "legacy"}),
+        encoding="utf-8",
+    )
+    selection = {
+        "comparison_type": "historical_to_scenario",
+        "reference_scenario": "observed",
+        "historical_year": 2021,
+        "policy_scenario": "macro",
+        "target_year": 2030,
+        "causal_policy_claim_permitted": False,
+    }
+    manifest = {
+        "steps": {"audit": "complete"},
+        "blockers": [],
+        "resume_command": "make peng-mvp",
+    }
+
+    _write_report(tmp_path, selection, None, manifest)
+
+    report = (tmp_path / "MVP_REPORT.md").read_text(encoding="utf-8")
+    assert "Requested release: `legacy`" in report
+    assert "Requested version and source commit: `not recorded`" in report

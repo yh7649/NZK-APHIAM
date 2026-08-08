@@ -9,11 +9,11 @@ comparison:
   fallback_comparison_type: historical_to_scenario
 
 inputs:
-  macro_generation: data/external/macro/generation_by_province_long.csv
-  macro_metadata: data/external/macro/generation_by_province_long.metadata.json
+  macro_generation: model_inputs/scenarios/peng_replication_mvp/upstream/macro/generation_by_province_long.csv
+  macro_metadata: model_inputs/scenarios/peng_replication_mvp/upstream/macro/generation_by_province_long.metadata.json
   observed_generation: data/processed/epsis/epsis_observed_generation_for_validation_2021.csv
   kepco_monthly: data/processed/kepco/kepco_monthly_generation_emissions.csv
-  ef_table: results/tables/kepco/annual_handoff/kepco_annual_ef_distribution_long_by_fuel_technology.csv
+  ef_table: data/processed/kepco/emission_factors/kepco_annual_ef_distribution_long_by_fuel_technology.csv
   ef_year: 2021
   plant_location_dates: docs/references/crosswalk/plant_location_dates.csv
   plant_geography: docs/references/crosswalk/plant_geography.csv
@@ -22,8 +22,8 @@ inputs:
   stack_unit_map: docs/references/crosswalk/stack_unit_map.csv
   technology_mapping: docs/references/thermal/kepco_technology_mapping.csv
   province_level_power: docs/references/province_level_power/province_level_power.xlsx
-  population_projection: data/raw/health/kosis/population_projection_age/population_projection_age.csv
-  age_mortality_all_cause: data/raw/health/kosis/age_mortality/age_mortality.csv
+  population_projection: data/interim/health/kosis/population_projection_age/population_projection_age.csv
+  age_mortality_all_cause: data/interim/health/kosis/age_mortality/age_mortality.csv
   # Supply an endpoint-matched national age-specific table to activate Byun.
   # The pipeline will not substitute all-cause mortality when this is absent.
   age_mortality_non_accidental: null
