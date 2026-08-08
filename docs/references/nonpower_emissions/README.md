@@ -25,8 +25,17 @@ annual GCAM-KAIST activity
 
 - `gcam_kaist_nonpower_sector_inventory.csv`: one row per distinct modeled or
   supplemental activity boundary.
+- `gcam_kaist_native_activity_crosswalk.csv`: reviewed selectors from native
+  GCAM XML paths and units to stable inventory IDs, including explicit blocked
+  conversion rows.
+- `gcam_nzk_poc_activity_conversion_assumptions.csv`: non-analytical
+  occupancy, payload, fuel-intensity, energy-density, flight, and native-index
+  fallbacks that enable all listed native selectors in the maximum-coverage
+  POC without changing production approval.
 - `gcam_capss_nonpower_crosswalk.csv`: one-to-many links to the native 2023
   CAPSS major/intermediate/minor taxonomy, including unresolved links.
+- `nonpower_spatial_geometry.csv`: reviewed point/grid coordinate and stack
+  interface; currently header-only and production-blocking.
 - `nonpower_ef_denominator_registry.csv`: pollutant-specific legal activity–EF
   joins. It contains units and weighting requirements, not EF values.
 - `nonpower_source_registry.csv`: official Korean activity/EF sources and
@@ -101,14 +110,17 @@ no direct non-power target.
 
 ## Relationship to GCAM-KAIST and MACRO/NZK-APHIAM
 
-GCAM-KAIST supplies annual scenario activity. The corresponding non-power
-activity/taxonomy file is a restricted team deliverable and is not currently
-present in `data/external/macro/`. Therefore, version `0.2.0` keeps the requested
-conceptual activity in `conceptual_activity`, labels the `gcam_*` fields
-`conceptual_pending_model_file`, and does not claim that those labels are
-model-native. Once the file is supplied through `make ingest-macro-external`,
-the model-native labels should be inspected and inserted without changing the
-inventory schema.
+GCAM-KAIST supplies annual scenario activity. The native `CORE_9_NZ` XML is now
+present under `model_inputs/scenarios/team_handoff/` and is streamed directly
+from its DVC-tracked ZIP. The native activity crosswalk uses the XML's
+sector/subsector/technology/node fields while retaining the stable inventory
+schema. It currently maps 12 of 50 P1 inventory IDs; conceptual fields remain
+useful compatibility labels, not assertions that every inventory row exists
+natively in GCAM.
+
+The XML also contains national native pollutant emissions. Those values are
+retained only for validation: they lack source coordinates and directly usable
+primary PM2.5, and they do not replace the Korean activity-times-factor lane.
 
 The existing MACRO integrator derives a fallback base-year intensity from
 aggregate CAPSS emissions divided by GCAM sector/fuel activity. That code is
@@ -117,6 +129,15 @@ technology-specific factors. The legacy four-column mapping file at
 `docs/references/macro/gcam_capss_sector_fuel_mapping.csv` is intentionally
 header-only until native GCAM labels exist; passing it to the current integrator
 preserves rows as unmapped rather than inventing a mapping.
+
+The native NZK maximum-coverage POC intentionally goes further than that
+production lane. It first uses a denominator-compatible linked candidate, then
+CAPSS base emissions divided by GCAM activity, then a linked factor with an
+incompatible denominator, and finally a global median for the pollutant. It
+also fills missing spatial patterns with national CAPSS pollutant shares and
+places administrative shares at AirKorea monitor centroids. The generated
+factor and spatial audits retain the selected rank and fallback status, and
+every row remains `analytical_use_permitted=false`.
 
 ## Direct-emissions boundary
 
@@ -205,11 +226,13 @@ tracked inputs. Canonical tables are sorted by stable ID before export.
 
 ## Known gaps and next steps
 
-The largest gaps are confirmed model-native GCAM-KAIST labels, chemical and
-refinery flaring activity, cement grinding/fugitive dust, pulp recovery and
-lime kilns, port and forestry machinery, aviation cruise allocation, route-
-specific hydrogen process mappings, and public access to detailed ship-factor
-data. Aggregate proxy rows also need physical annual allocation weights.
+The largest gaps are native physical conversions for transport, waste,
+refinery throughput, machinery, solvent, and other supplemental activities;
+chemical and refinery flaring; cement grinding/fugitive dust; pulp recovery
+and lime kilns; aviation cruise allocation; and public access to detailed
+ship-factor data. Aggregate proxy rows also need physical annual allocation
+weights. All production factor links require human approval, and every modeled
+inventory ID still needs reviewed point or grid coordinates.
 
 The next implementation task is: **write dedicated parsers for the formula-heavy
 road, aviation-ground-equipment, and other nonstandard tables; then review

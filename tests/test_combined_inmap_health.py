@@ -156,3 +156,46 @@ def test_all_scenario_mortality_and_outputs_are_labeled_diagnostic(
     assert not manifest["analytical_use_permitted"]
     assert manifest["primary_scenario_rows"] == 6
     assert (output_dir / "diagnostic_nonconverged_scenario_mortality_primary.csv").is_file()
+
+
+def test_all_scenario_mortality_accepts_a_named_reference_scenario(
+    tmp_path: Path,
+) -> None:
+    names = {
+        "no_nzk": "nzk_nonpower_no_nzk_power",
+        "nzk_low": "nzk_nonpower_low_nzk_power",
+        "nzk_high": "nzk_nonpower_high_nzk_power",
+    }
+    exposures = _exposures()
+    exposures["scenario"] = exposures["scenario"].replace(names)
+    reference = names["no_nzk"]
+    run_manifest = {
+        "solver_mode": "fixed_iterations_poc",
+        "num_iterations": 50,
+        "emissions_scope": "thermal_power_only",
+    }
+
+    suite = evaluate_all_scenario_mortality(
+        exposures,
+        _config(tmp_path),
+        run_manifest,
+        reference_scenario=reference,
+    )
+
+    assert set(suite.impacts["reference_scenario"]) == {reference}
+    assert set(suite.impacts["policy_scenario"]) == {
+        names["nzk_low"],
+        names["nzk_high"],
+    }
+    assert set(suite.scenario_totals["exposure_scope"]) == {
+        "incremental_korean_thermal_power_source_contribution_screening_not_total_ambient"
+    }
+    manifest_path = write_health_outputs(
+        exposures,
+        suite,
+        run_manifest,
+        tmp_path / "health",
+        reference_scenario=reference,
+    )
+    manifest = json.loads(manifest_path.read_text())
+    assert manifest["reference_scenario"] == reference

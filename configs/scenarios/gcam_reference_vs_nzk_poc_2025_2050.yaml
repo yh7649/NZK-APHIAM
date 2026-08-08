@@ -1,0 +1,92 @@
+name: gcam_reference_vs_nzk_power_and_economy_poc_2025_2050
+bundle_status: proof_of_concept_assumed_activity_conversions_ranked_factors_and_monitor_centroid_spatial_proxy_not_analytical
+years: [2050]
+
+inputs:
+  power_generation: data/processed/kepco/scenarios/poc_2025_2050/macro_generation_scenarios_2025_2050.csv
+  kepco_monthly: data/processed/kepco/kepco_monthly_generation_emissions.csv
+  stack_properties: docs/references/crosswalk/stack_properties.csv
+  nonpower_projected_emissions: model_inputs/scenarios/team_handoff/aphiam/gcam_kaist/reference_vs_nzk/maximum_coverage_poc_projected_emissions.csv
+  nonpower_factor_catalog: data/processed/nonpower_emissions/nonpower_emission_factors.parquet
+  nonpower_factor_links: data/processed/nonpower_emissions/nonpower_emission_factor_inventory_links.parquet
+  nonpower_spatial_surrogates: model_inputs/scenarios/team_handoff/aphiam/gcam_kaist/nzk/capss_2021_monitor_coordinate_surrogate_weights.parquet
+
+# Unlike the three-pathway POC (which holds non-power fixed to the NZK path and
+# varies only power), this bundle varies power AND non-power together, pairing
+# each power case with the matching whole-economy GCAM-KAIST scenario:
+#   no_nzk   = current/no-policy thermal fleet + GCAM-KAIST Reference economy
+#   nzk_high = full 2050 thermal phase-out    + GCAM-KAIST CORE_9_NZ economy
+# This answers "what does full reference-vs-net-zero look like," not "what does
+# the power sector alone contribute." Canonical names match combined_report's
+# built-in no_nzk/nzk_high labels and colors, so no report-code changes needed.
+scenario_pairs:
+  no_nzk:
+    power: no_nzk
+    nonpower: reference
+  nzk_high:
+    power: nzk_high
+    nonpower: nzk
+
+power:
+  ef_base_year: 2024
+  mass_balance_tolerance_mwh: 0.001
+  province_crosswalk:
+    CNA: Chungcheongnam-do
+    CNB: Chungcheongbuk-do
+    DJJ: Daejeon
+    GGI: Gyeonggi-do
+    GNA: Gyeongsangnam-do
+    GNB: Gyeongsangbuk-do
+    GWN: Gangwon-do
+    INC: Incheon
+    JEJ: Jeju-do
+    JNA: Jeollanam-do
+    JNB: Jeonbuk-do
+    KWJ: Gwangju
+    PUS: Busan
+    SEL: Seoul
+    SJG: Sejong
+    TAE: Daegu
+    USN: Ulsan
+  technology_crosswalk:
+    ThermalPower:
+      Coal: conventional_steam_turbine
+      NaturalGas: combined_cycle_gas_turbine
+      Oil: conventional_steam_turbine
+      Biomass: conventional_steam_turbine
+    ThermalSteam:
+      Coal: cogeneration_chp
+      NaturalGas: cogeneration_chp
+      Oil: conventional_steam_turbine
+      Biomass: cogeneration_chp
+    ThermalPowerCCS:
+      Coal: conventional_steam_turbine
+      NaturalGas: combined_cycle_gas_turbine
+  fuel_crosswalk:
+    Coal: coal
+    NaturalGas: natural_gas
+    Oil: oil
+    Biomass: biomass
+  fuel_compatibility:
+    coal: [coal]
+    natural_gas: [natural_gas, oil_and_natural_gas]
+    oil: [oil, oil_and_natural_gas, bio_oil_and_diesel]
+    biomass: [biomass, bio_oil_and_diesel]
+
+nonpower:
+  emissions_mode: maximum_coverage_poc
+  native_emissions_use: validation_only
+  spatialization_mode: capss_monitor_coordinate_proxy
+
+assumptions:
+  - This bundle varies power AND non-power together; it is not a power-isolation
+    comparison like gcam_nzk_three_power_poc_2025_2050.
+  - no_nzk pairs the current/no-policy thermal fleet with the GCAM-KAIST
+    Reference economy-wide activity pathway.
+  - nzk_high pairs the full 2050 thermal phase-out with the GCAM-KAIST CORE_9_NZ
+    net-zero economy-wide activity pathway.
+  - Both non-power sources go through the same maximum-coverage POC EF ladder and
+    CAPSS-monitor-centroid spatial proxy as the NZK-only POC.
+  - Restricted to 2050 only, for a fast two-job comparison; broaden `years` to
+    rerun the full 2025-2050 trajectory once the quick check looks right.
+  - Every bundle and run sets analytical_use_permitted=false.

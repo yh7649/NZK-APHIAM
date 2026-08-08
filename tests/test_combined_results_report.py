@@ -86,6 +86,15 @@ def test_report_tables_calculate_reductions_and_headline_year() -> None:
 
 def test_combined_report_writes_tables_figures_and_manifest(tmp_path: Path) -> None:
     exposures, mortality, comparisons = _report_inputs()
+    names = {
+        "no_nzk": "nzk_nonpower_no_nzk_power",
+        "nzk_low": "nzk_nonpower_low_nzk_power",
+        "nzk_high": "nzk_nonpower_high_nzk_power",
+    }
+    exposures["scenario"] = exposures["scenario"].replace(names)
+    mortality["scenario"] = mortality["scenario"].replace(names)
+    comparisons["reference_scenario"] = comparisons["reference_scenario"].replace(names)
+    comparisons["policy_scenario"] = comparisons["policy_scenario"].replace(names)
     health_dir = tmp_path / "health"
     health_dir.mkdir()
     exposures.to_csv(health_dir / "exposures.csv", index=False)
@@ -96,6 +105,7 @@ def test_combined_report_writes_tables_figures_and_manifest(tmp_path: Path) -> N
             {
                 "inmap_num_iterations": 50,
                 "result_status": "nonconverged_poc_diagnostic_not_for_inference",
+                "reference_scenario": names["no_nzk"],
                 "outputs": {
                     "exposures": "exposures.csv",
                     "primary_totals": "mortality.csv",
@@ -119,3 +129,5 @@ def test_combined_report_writes_tables_figures_and_manifest(tmp_path: Path) -> N
     for path in [*manifest["figures"].values(), *manifest["tables"].values()]:
         assert Path(path).is_file()
         assert Path(path).stat().st_size > 0
+    report_exposures = pd.read_csv(manifest["tables"]["inmap_scenario_results"])
+    assert set(report_exposures["scenario"]) == {"no_nzk", "nzk_low", "nzk_high"}

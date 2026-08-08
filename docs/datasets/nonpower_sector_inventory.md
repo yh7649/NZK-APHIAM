@@ -18,7 +18,9 @@ All build inputs are tracked CSVs under
 `docs/references/nonpower_emissions/`:
 
 - `gcam_kaist_nonpower_sector_inventory.csv`
+- `gcam_kaist_native_activity_crosswalk.csv`
 - `gcam_capss_nonpower_crosswalk.csv`
+- `nonpower_spatial_geometry.csv`
 - `nonpower_ef_denominator_registry.csv`
 - `nonpower_source_registry.csv`
 - `pollutant_registry.csv`
@@ -29,10 +31,11 @@ All build inputs are tracked CSVs under
 - `non_mass_normalized_evidence.csv`
 - `nonpower_ef_collection_gaps.csv`
 
-The inventory's `gcam_*` labels are provisional conceptual labels because the
-team-supplied non-power GCAM-KAIST activity file is not currently present.
-`conceptual_activity` and `gcam_label_status` keep that limitation
-machine-readable.
+The inventory's broad `gcam_*` labels remain conceptual compatibility fields.
+The team-supplied native `CORE_9_NZ` XML is present, and the separate native
+activity crosswalk matches its full sector/subsector/technology/node path
+without changing stable `inventory_id` values. Unmapped conceptual rows remain
+machine-readable gaps.
 
 ## Commands
 
@@ -57,6 +60,12 @@ The equivalent module interface is:
 PYTHONPATH=src python -m nzk_aphiam.data.process.nonpower_sector_inventory
 PYTHONPATH=src python -m nzk_aphiam.data.process.nonpower_emission_factors
 PYTHONPATH=src python -m nzk_aphiam.data.scrape.capss.nonpower_emission_factors
+```
+
+Build the active native NZK activity, factor, and spatial interfaces with:
+
+```bash
+make build-gcam-nzk-interface
 ```
 
 Structural errors return a nonzero exit code. A deliberately unresolved
@@ -146,16 +155,15 @@ as a provisional fallback and validation workflow. It currently:
 
 Those assumptions cannot represent process versus combustion sources,
 technology/fleet/control weighting, source-specific physical denominators, or
-one GCAM activity mapping to several CAPSS components. The new inventory does
-not replace that code yet. It adds stable compatibility fields and documents a
-migration path:
+one GCAM activity mapping to several CAPSS components. The native NZK interface
+now completes the first two migration steps for the active scenario while the
+legacy integrator remains a screening fixture. The remaining path is:
 
-1. ingest and inspect the native GCAM-KAIST non-power taxonomy;
-2. replace provisional `gcam_*` labels while retaining stable `inventory_id`;
-3. extract raw factors into tables keyed by `inventory_id`, pollutant,
+1. extend reviewed native selectors beyond the current 12/50 P1 inventory IDs;
+2. extract raw factors into tables keyed by `inventory_id`, pollutant,
    denominator, technology, fuel, control status, and source;
-4. build annual effective factors from explicit scenario shares; and
-5. join effective factors to annual activity, while retaining the old CAPSS
+3. build annual effective factors from explicit scenario shares; and
+4. join effective factors to annual activity, while retaining the old CAPSS
    aggregate intensity only as a labeled fallback/validation result.
 
 The header-only legacy file
@@ -181,8 +189,9 @@ The only activities without a direct target are electric passenger rail,
 electric freight rail, and electrolytic hydrogen because their upstream power
 emissions are outside this non-power boundary.
 
-Remaining requirements include native GCAM label confirmation, dedicated
-normalizers for formula-heavy/nonstandard tables, row-level review,
-activity-unit conversion parameters, technology/fleet/control shares,
-restricted ship-factor access, and resolution of the gaps listed in the
-reference README. Missing or unresolved factors are not zero.
+Remaining requirements include native mappings and reviewed conversions for
+the other 38 P1 activities, dedicated normalizers for
+formula-heavy/nonstandard tables, row-level factor review,
+technology/fleet/control shares, restricted ship-factor access, and reviewed
+point/grid coordinates. Missing or unresolved factors and locations are not
+zero.
