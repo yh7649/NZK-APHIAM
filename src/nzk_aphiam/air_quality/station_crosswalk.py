@@ -19,13 +19,23 @@ def normalize_korean_text(value: object) -> str:
 
 def historical_station_identities(hourly: pd.DataFrame) -> pd.DataFrame:
     """Extract station identity as reported in each annual finalized archive."""
-    required = {"monitor_id", "datetime", "station_name", "address"}
+    required = {"monitor_id", "station_name", "address"}
     missing = required.difference(hourly.columns)
     if missing:
         raise ValueError(f"Hourly AirKorea data lacks station identity columns: {sorted(missing)}")
-    history = hourly[["monitor_id", "datetime", "station_name", "address"]].copy()
-    history["year"] = history["datetime"].dt.year.astype("Int64")
-    history = history.drop(columns="datetime").drop_duplicates().dropna(subset=["year"])
+    if "reporting_year" not in hourly and "datetime" not in hourly:
+        raise ValueError("Hourly AirKorea data needs reporting_year or datetime")
+    optional = [column for column in ("region", "network_type") if column in hourly]
+    columns = ["monitor_id", "station_name", "address", *optional]
+    if "reporting_year" in hourly:
+        history = hourly[[*columns, "reporting_year"]].copy()
+        history["year"] = pd.to_numeric(history.pop("reporting_year"), errors="coerce").astype(
+            "Int64"
+        )
+    else:
+        history = hourly[[*columns, "datetime"]].copy()
+        history["year"] = history.pop("datetime").dt.year.astype("Int64")
+    history = history.drop_duplicates().dropna(subset=["year"])
     history["station_name_key"] = history["station_name"].map(normalize_korean_text)
     history["address_key"] = history["address"].map(normalize_korean_text)
     return history.reset_index(drop=True)
@@ -157,6 +167,12 @@ def build_station_crosswalk(
             "historical_station_name": " | ".join(sorted(set(group["station_name"].dropna()))),
             "historical_address": " | ".join(sorted(set(group["address"].dropna()))),
         }
+        if "region" in group:
+            base["historical_region"] = " | ".join(sorted(set(group["region"].dropna())))
+        if "network_type" in group:
+            base["historical_network_type"] = " | ".join(
+                sorted(set(group["network_type"].dropna()))
+            )
         if len(coordinates) == 1:
             selected = resolved.iloc[0]
             base.update(
@@ -165,6 +181,7 @@ def build_station_crosswalk(
                     "longitude": selected["longitude"],
                     "coordinate_match_method": selected["coordinate_match_method"],
                     "coordinate_match_confidence": selected["coordinate_match_confidence"],
+                    "coordinate_candidate_count": selected["coordinate_candidate_count"],
                     "current_registry_address": selected["current_registry_address"],
                 }
             )
@@ -175,6 +192,7 @@ def build_station_crosswalk(
                     "longitude": pd.NA,
                     "coordinate_match_method": "multiple_locations_within_year",
                     "coordinate_match_confidence": "unresolved",
+                    "coordinate_candidate_count": len(coordinates),
                     "current_registry_address": pd.NA,
                 }
             )
@@ -186,6 +204,7 @@ def build_station_crosswalk(
                     "longitude": pd.NA,
                     "coordinate_match_method": selected["coordinate_match_method"],
                     "coordinate_match_confidence": "unresolved",
+                    "coordinate_candidate_count": selected["coordinate_candidate_count"],
                     "current_registry_address": selected["current_registry_address"],
                 }
             )
@@ -204,7 +223,12 @@ def add_station_coordinates(hourly: pd.DataFrame, crosswalk: pd.DataFrame) -> pd
         raise ValueError(f"Station crosswalk lacks columns: {sorted(missing)}")
     data = hourly.copy()
     data = data.drop(columns=["latitude", "longitude"], errors="ignore")
-    data["station_year"] = data["datetime"].dt.year.astype("Int64")
+    if "reporting_year" in data:
+        data["station_year"] = pd.to_numeric(data["reporting_year"], errors="coerce").astype(
+            "Int64"
+        )
+    else:
+        data["station_year"] = data["datetime"].dt.year.astype("Int64")
     reference = crosswalk.rename(columns={"year": "station_year"})
     result = data.merge(
         reference,

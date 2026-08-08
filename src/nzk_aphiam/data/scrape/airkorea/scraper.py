@@ -23,11 +23,12 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from nzk_aphiam.config.paths import PROJECT_ROOT
+
 BASE_URL = "https://www.airkorea.or.kr"
 SOURCE_PAGE_URL = f"{BASE_URL}/web/last_amb_hour_data"
 FIRST_YEAR = 2001
 
-PROJECT_ROOT = Path(__file__).resolve().parents[5]
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "airkorea" / "hourly_finalized"
 
 ARCHIVE_PATTERN = re.compile(

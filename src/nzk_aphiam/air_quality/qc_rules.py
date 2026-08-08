@@ -65,19 +65,25 @@ def apply_rule_flags(data: pd.DataFrame, config: RuleConfig | None = None) -> pd
 
     lower = result["pollutant"].map({k: v[0] for k, v in config.bounds.items()})
     upper = result["pollutant"].map({k: v[1] for k, v in config.bounds.items()})
-    result["flag_impossible"] = result["value_raw"].lt(lower) | result["value_raw"].gt(upper)
+    result["flag_impossible"] = (
+        result["value_raw"].lt(lower) | result["value_raw"].gt(upper)
+    ).fillna(False)
 
     result = result.sort_values(["pollutant", "monitor_id", "datetime"], kind="stable")
     groups = result.groupby(["pollutant", "monitor_id"], sort=False, observed=True)
-    result["flag_flatline"] = groups["value_raw"].transform(
-        lambda values: _flatline_mask(values, config.flatline_hours)
+    result["flag_flatline"] = (
+        groups["value_raw"]
+        .transform(lambda values: _flatline_mask(values, config.flatline_hours))
+        .fillna(False)
     )
     difference = groups["value_raw"].diff().abs()
     typical = groups["value_raw"].transform(
         lambda values: values.diff().abs().rolling(24 * 30, min_periods=24).median()
     )
     minimum = result["pollutant"].map(config.jump_minimum).fillna(np.inf)
-    result["flag_jump"] = difference.gt(minimum) & difference.gt(typical * config.jump_multiplier)
+    result["flag_jump"] = (
+        difference.gt(minimum) & difference.gt(typical * config.jump_multiplier)
+    ).fillna(False)
 
     names = {
         "flag_missing": "missing",
@@ -85,7 +91,10 @@ def apply_rule_flags(data: pd.DataFrame, config: RuleConfig | None = None) -> pd
         "flag_flatline": "flatline",
         "flag_jump": "jump",
     }
-    result["flag_rule"] = result.apply(
-        lambda row: "|".join(label for column, label in names.items() if bool(row[column])), axis=1
-    )
+    summary = pd.Series("", index=result.index, dtype="string")
+    for column, label in names.items():
+        addition = pd.Series("", index=result.index, dtype="string")
+        addition.loc[result[column].fillna(False).astype(bool)] = label
+        summary = summary.str.cat(addition, sep="|").str.strip("|")
+    result["flag_rule"] = summary
     return result.sort_index()

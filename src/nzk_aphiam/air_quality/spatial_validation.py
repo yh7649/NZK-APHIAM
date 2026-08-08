@@ -47,7 +47,11 @@ def add_spatial_support(
     }
 
     for (_, _), frame in result.groupby(["pollutant", "datetime"], observed=True, sort=False):
-        z_by_monitor = frame.set_index(frame["monitor_id"].astype(str))["residual_robust_z"]
+        z_by_monitor = (
+            frame.set_index(frame["monitor_id"].astype(str))["residual_robust_z"]
+            .groupby(level=0)
+            .mean()
+        )
         for index in frame.index[frame["flag_ml"]]:
             station = str(result.at[index, "monitor_id"])
             available = z_by_monitor.reindex(list(neighbors.get(station, set()))).dropna()

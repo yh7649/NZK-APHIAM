@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from nzk_aphiam.air_quality.anomaly_model import ModelConfig
+from nzk_aphiam.air_quality.anomaly_model import ModelConfig, add_oof_predictions
 from nzk_aphiam.air_quality.features import add_temporal_and_lag_features
 from nzk_aphiam.air_quality.pipeline import (
     AirQualityQCPipeline,
@@ -30,6 +30,38 @@ def test_optional_coordinates_with_pandas_na_are_numeric_for_modeling() -> None:
     assert "latitude" in numeric
     assert featured["latitude"].dtype == float
     assert featured["longitude"].dtype == float
+
+
+def test_model_qc_handles_nullable_values_without_predictions() -> None:
+    times = pd.date_range("2024-01-01", periods=40, freq="h")
+    values = pd.Series(np.linspace(10, 20, len(times)), dtype="Float64")
+    values.iloc[0] = pd.NA
+    frame = pd.DataFrame(
+        {
+            "monitor_id": "A",
+            "datetime": times,
+            "pollutant": "PM10",
+            "value_raw": values,
+            "flag_missing": [True, *([False] * (len(times) - 1))],
+            "flag_impossible": False,
+        }
+    )
+    featured, numeric, categorical = add_temporal_and_lag_features(frame)
+    result = add_oof_predictions(
+        featured,
+        numeric,
+        categorical,
+        ModelConfig(
+            n_estimators=2,
+            n_folds=2,
+            minimum_training_rows=10,
+            n_jobs=1,
+        ),
+    )
+
+    assert pd.isna(result.loc[0, "model_residual"])
+    assert pd.isna(result.loc[0, "residual_robust_z"])
+    assert result.loc[1:, "model_residual"].notna().all()
 
 
 def test_standardize_airkorea_frame_preserves_raw_values() -> None:

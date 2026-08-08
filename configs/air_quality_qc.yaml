@@ -25,7 +25,18 @@ model:
   n_folds: 5
   mad_threshold: 6.0
   minimum_training_rows: 200
+  max_training_rows: 500000
 spatial:
   radius_km: 25.0
   support_robust_z: 3.0
   minimum_neighbors: 1
+aggregation:
+  daily_min_fraction: 0.75
+  quarterly_min_fraction: 0.75
+  required_valid_quarters: 4
+  annual_pollutants: [PM10, PM25]
+grid:
+  interpolation: idw_monitor_residual
+  neighbor_count: 8
+  power: 2.0
+  max_distance_km: 250.0

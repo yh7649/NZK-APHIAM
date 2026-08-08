@@ -19,6 +19,7 @@ from nzk_aphiam.air_quality.station_crosswalk import (
     add_station_coordinates,
     build_station_crosswalk,
 )
+from nzk_aphiam.config.paths import PROJECT_ROOT
 from nzk_aphiam.data.scrape.airkorea.stations import (
     DEFAULT_OUTPUT as DEFAULT_STATION_REGISTRY,
 )
@@ -28,7 +29,6 @@ from nzk_aphiam.data.scrape.airkorea.stations import (
     save_registry,
 )
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "air_quality_qc.yaml"
 DEFAULT_INPUT = PROJECT_ROOT / "data" / "raw" / "airkorea" / "hourly_finalized"
 DEFAULT_INTERIM = PROJECT_ROOT / "data" / "interim" / "air_quality"

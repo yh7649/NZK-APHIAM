@@ -1,5 +1,11 @@
 # AirKorea hourly quality control
 
+The canonical staged implementation and end-to-end commands are documented in
+[`docs/methods/airkorea_monitor_workflow.md`](../methods/airkorea_monitor_workflow.md).
+The older one-shot command described below remains available for small,
+backward-compatible filtered runs, but it is not the resumable full-history
+build.
+
 The QC pipeline reads annual ZIP archives in place, converts their XLSX
 workbooks to one canonical long table, and preserves every source observation
 in `value_raw`.
