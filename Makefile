@@ -238,33 +238,70 @@ scrape-capss-vii-nonpower-efs-verified:
 build-nonpower-emissions: scrape-capss-vii-nonpower-efs build-nonpower-sector-inventory build-nonpower-emission-factors
 
 
-MACRO_ACTIVITY ?= data/external/macro/gcam_kaist_sector_fuel_activity.csv
+MODEL_INPUT_SCENARIO ?= team_handoff
+MODEL_INPUT_SOURCE_MODEL ?= macro
+MACRO_ACTIVITY ?= model_inputs/scenarios/$(MODEL_INPUT_SCENARIO)/upstream/gcam_kaist/gcam_kaist_sector_fuel_activity.csv
+MACRO_APHIAM_INPUT_DIR ?= model_inputs/scenarios/$(MODEL_INPUT_SCENARIO)/aphiam
 MACRO_MAPPING ?=
 MACRO_BASE_YEAR ?=
 MACRO_SCENARIO_COLUMNS ?= scenario
 MACRO_POLLUTANTS ?= SOx,NOx,NH3,VOCs,PM2.5
-MACRO_GENERATION ?=
-KEPCO_EF ?= results/tables/kepco/annual_handoff/kepco_annual_ef_distribution_long_by_fuel_technology.csv
+MACRO_GENERATION ?= model_inputs/scenarios/peng_replication_mvp/upstream/macro/generation_by_province_long.csv
+KEPCO_EF ?= data/processed/kepco/emission_factors/kepco_annual_ef_distribution_long_by_fuel_technology.csv
 CAPSS_POWER_ACTUAL ?= data/processed/capss/power_fuel_technology_2016_2023.parquet
 MACRO_KEPCO_CAPSS_CROSSWALK ?= docs/references/macro/macro_kepco_capss_power_crosswalk.csv
-MACRO_INGEST_SOURCE ?=
-MACRO_INGEST_KIND ?= activity
-MACRO_INGEST_DEST_NAME ?=
-MACRO_INGEST_CONTRIBUTOR ?=
-MACRO_INGEST_NOTE ?=
+MODEL_INPUT_SOURCE ?=
+MODEL_INPUT_KIND ?= activity
+MODEL_INPUT_DEST_NAME ?=
+MODEL_INPUT_CONTRIBUTOR ?=
+MODEL_INPUT_NOTE ?=
+MODEL_INPUT_FORCE ?=
+MODEL_INPUT_UPSTREAM_SCENARIO ?=
+GCAM_XML_SOURCE ?= model_inputs/scenarios/team_handoff/upstream/gcam_kaist/nzk/CORE_9_NZ_2026-8-7T12_32_50+09_00.xml.zip
+GCAM_XML_UPSTREAM_SCENARIO ?= nzk
+GCAM_XML_SCENARIO_LABEL ?= nzk
+GCAM_XML_YEARS ?= 2021,2025,2030,2035,2040,2045,2050
+GCAM_NZK_APHIAM_OUTPUT ?= model_inputs/scenarios/team_handoff/aphiam/gcam_kaist/nzk
 MACRO_NONPOWER_PROXY_CONFIG ?= configs/scenarios/gcam_kaist_nonpower_proxy_2025_2050.yaml
-MACRO_NONPOWER_PROXY_OUTPUT ?= data/processed/macro/scenarios/nonpower_proxy_2025_2050
+MACRO_NONPOWER_PROXY_OUTPUT ?= model_inputs/scenarios/nonpower_proxy_2025_2050/aphiam
 MACRO_NONPOWER_PROXY_CAPSS ?= data/interim/capss/emissions_statistics/capss_emissions_tidy.parquet
 INMAP_COMBINED_CONFIG ?= configs/scenarios/inmap_combined_proxy_2025_2050.yaml
 INMAP_COMBINED_OUTPUT ?= data/processed/inmap/combined_proxy_2025_2050
 INMAP_INSTALLATION_MANIFEST ?= .cache/inmap/installation_manifest.json
-INMAP_COMBINED_RUN_ROOT ?= results/models/inmap/combined_proxy_2025_2050
+INMAP_COMBINED_RUN_ROOT ?= results/runs/inmap/combined_proxy_2025_2050
 INMAP_COMBINED_POC_ITERATIONS ?= 200
 INMAP_COMBINED_FAST_POC_ITERATIONS ?= 50
 INMAP_COMBINED_PARALLEL_WORKERS ?= 2
 INMAP_COMBINED_HEALTH_CONFIG ?= configs/scenarios/peng_replication_mvp.yaml
 INMAP_COMBINED_FIGURE_ROOT ?= results/figures/inmap/combined_proxy_2025_2050
 INMAP_COMBINED_TABLE_ROOT ?= results/tables/inmap/combined_proxy_2025_2050
+INMAP_GCAM_NZK_CONFIG ?= configs/scenarios/gcam_nzk_power_toggle_2025_2050.yaml
+INMAP_GCAM_NZK_OUTPUT ?= data/processed/inmap/gcam_nzk_power_toggle_2025_2050
+INMAP_GCAM_NZK_POC_CONFIG ?= configs/scenarios/gcam_nzk_three_power_poc_2025_2050.yaml
+INMAP_GCAM_NZK_POC_OUTPUT ?= data/processed/inmap/gcam_nzk_three_power_poc_2025_2050
+INMAP_GCAM_NZK_POC_RUN_ROOT ?= results/runs/inmap/gcam_nzk_three_power_poc_2025_2050
+INMAP_GCAM_NZK_POC_ITERATIONS ?= 50
+INMAP_GCAM_NZK_POC_WORKERS ?= 2
+INMAP_GCAM_NZK_POC_HEALTH_CONFIG ?= configs/scenarios/peng_replication_mvp.yaml
+INMAP_GCAM_NZK_POC_FIGURE_ROOT ?= results/figures/inmap/gcam_nzk_three_power_poc_2025_2050
+INMAP_GCAM_NZK_POC_TABLE_ROOT ?= results/tables/inmap/gcam_nzk_three_power_poc_2025_2050
+INMAP_GCAM_NZK_POC_VIDEO_ROOT ?= results/videos/inmap/gcam_nzk_three_power_poc_2025_2050
+INMAP_GCAM_NZK_POWER_ONLY_YEAR ?= 2050
+INMAP_GCAM_NZK_POWER_ONLY_RUN_DIR ?= $(INMAP_GCAM_NZK_POC_RUN_ROOT)/power_only_poc_$(INMAP_GCAM_NZK_POC_ITERATIONS)_iterations
+INMAP_GCAM_NZK_POWER_ONLY_FIGURE_DIR ?= $(INMAP_GCAM_NZK_POC_FIGURE_ROOT)/power_only_poc_$(INMAP_GCAM_NZK_POC_ITERATIONS)_iterations
+INMAP_GCAM_NZK_POWER_ONLY_TABLE_DIR ?= $(INMAP_GCAM_NZK_POC_TABLE_ROOT)/power_only_poc_$(INMAP_GCAM_NZK_POC_ITERATIONS)_iterations
+GCAM_XML_REFERENCE_SOURCE ?= model_inputs/scenarios/team_handoff/upstream/gcam_kaist/reference/gcam9_ref.xml.zip
+GCAM_XML_REFERENCE_SCENARIO_LABEL ?= reference
+GCAM_REFERENCE_APHIAM_OUTPUT ?= model_inputs/scenarios/team_handoff/aphiam/gcam_kaist/reference
+GCAM_REFERENCE_VS_NZK_NONPOWER_MERGED ?= model_inputs/scenarios/team_handoff/aphiam/gcam_kaist/reference_vs_nzk/maximum_coverage_poc_projected_emissions.csv
+INMAP_REFVSNZK_CONFIG ?= configs/scenarios/gcam_reference_vs_nzk_poc_2025_2050.yaml
+INMAP_REFVSNZK_OUTPUT ?= data/processed/inmap/gcam_reference_vs_nzk_poc_2025_2050
+INMAP_REFVSNZK_RUN_ROOT ?= results/runs/inmap/gcam_reference_vs_nzk_poc_2025_2050
+INMAP_REFVSNZK_ITERATIONS ?= 20
+INMAP_REFVSNZK_WORKERS ?= 2
+INMAP_REFVSNZK_HEALTH_CONFIG ?= configs/scenarios/peng_replication_mvp.yaml
+INMAP_REFVSNZK_FIGURE_ROOT ?= results/figures/inmap/gcam_reference_vs_nzk_poc_2025_2050
+INMAP_REFVSNZK_TABLE_ROOT ?= results/tables/inmap/gcam_reference_vs_nzk_poc_2025_2050
 PENG_MVP_CONFIG ?= configs/scenarios/peng_replication_mvp.yaml
 PENG_MVP_ARGS ?=
 PENG_MVP_POC_ITERATIONS ?= 200
@@ -276,15 +313,282 @@ KEPCO_POC_RETIREMENT_OUTPUT ?= data/processed/kepco/scenarios/poc_2025_2050_unit
 KEPCO_POC_RETIREMENT_FIGURES ?= results/figures/kepco/poc_scenarios_unit_retirement
 
 
-## Place a team-supplied MACRO/GCAM-KAIST file under data/external/macro/ with provenance
-.PHONY: ingest-macro-external
-ingest-macro-external:
-	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.external.ingest_macro \
-		$(if $(MACRO_INGEST_SOURCE),--source $(MACRO_INGEST_SOURCE),) \
-		--kind $(MACRO_INGEST_KIND) \
-		$(if $(MACRO_INGEST_DEST_NAME),--dest-name $(MACRO_INGEST_DEST_NAME),) \
-		$(if $(MACRO_INGEST_CONTRIBUTOR),--contributor "$(MACRO_INGEST_CONTRIBUTOR)",) \
-		$(if $(MACRO_INGEST_NOTE),--note "$(MACRO_INGEST_NOTE)",)
+## Add a mutable MACRO/GCAM-KAIST handoff to a named model-input scenario bundle
+.PHONY: ingest-model-input
+ingest-model-input:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.model_inputs.ingest_macro \
+		$(if $(MODEL_INPUT_SOURCE),--source $(MODEL_INPUT_SOURCE),) \
+		--kind $(MODEL_INPUT_KIND) \
+		--scenario-bundle $(MODEL_INPUT_SCENARIO) \
+		--source-model $(MODEL_INPUT_SOURCE_MODEL) \
+		$(if $(MODEL_INPUT_DEST_NAME),--dest-name $(MODEL_INPUT_DEST_NAME),) \
+		$(if $(MODEL_INPUT_CONTRIBUTOR),--contributor "$(MODEL_INPUT_CONTRIBUTOR)",) \
+		$(if $(MODEL_INPUT_NOTE),--note "$(MODEL_INPUT_NOTE)",) \
+		$(if $(MODEL_INPUT_UPSTREAM_SCENARIO),--upstream-scenario $(MODEL_INPUT_UPSTREAM_SCENARIO),) \
+		$(if $(MODEL_INPUT_FORCE),--force,)
+
+
+## Validate and ingest a GCAM XML/ZIP handoff under its upstream scenario directory
+.PHONY: ingest-gcam-xml
+ingest-gcam-xml:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.model_inputs.ingest_macro \
+		$(if $(MODEL_INPUT_SOURCE),--source $(MODEL_INPUT_SOURCE),) \
+		--kind gcam_xml_archive \
+		--scenario-bundle $(MODEL_INPUT_SCENARIO) \
+		--source-model gcam_kaist \
+		--upstream-scenario $(GCAM_XML_UPSTREAM_SCENARIO) \
+		$(if $(MODEL_INPUT_DEST_NAME),--dest-name $(MODEL_INPUT_DEST_NAME),) \
+		$(if $(MODEL_INPUT_CONTRIBUTOR),--contributor "$(MODEL_INPUT_CONTRIBUTOR)",) \
+		$(if $(MODEL_INPUT_NOTE),--note "$(MODEL_INPUT_NOTE)",) \
+		$(if $(MODEL_INPUT_FORCE),--force,)
+
+
+## Validate the GCAM NZK archive and report its scenario, years, regions, and model version
+.PHONY: inspect-gcam-nzk
+inspect-gcam-nzk:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.model_inputs.gcam_xml \
+		--source $(GCAM_XML_SOURCE) \
+		--inspect-only
+
+
+## Extract the large GCAM NZK XML directly from ZIP into APHIAM activity and native-emissions tables
+.PHONY: extract-gcam-nzk
+extract-gcam-nzk:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.model_inputs.gcam_xml \
+		--source $(GCAM_XML_SOURCE) \
+		--output-dir $(GCAM_NZK_APHIAM_OUTPUT) \
+		--scenario-label $(GCAM_XML_SCENARIO_LABEL) \
+		--years $(GCAM_XML_YEARS)
+
+
+## Map GCAM NZK activity and build approved, candidate, and maximum-coverage POC interfaces
+.PHONY: build-gcam-nzk-nonpower-interface
+build-gcam-nzk-nonpower-interface: extract-gcam-nzk build-nonpower-emission-factors build-gcam-nzk-spatial-interface
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.nonpower_native \
+		--output-dir $(GCAM_NZK_APHIAM_OUTPUT)
+
+
+## Build CAPSS administrative spatial weights and audit missing InMAP coordinate geometry
+.PHONY: build-gcam-nzk-spatial-interface
+build-gcam-nzk-spatial-interface:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.nonpower_spatial \
+		--output-dir $(GCAM_NZK_APHIAM_OUTPUT)
+
+
+## Build the complete fail-closed GCAM NZK activity, factor, and spatial interface
+.PHONY: build-gcam-nzk-interface
+build-gcam-nzk-interface: build-gcam-nzk-nonpower-interface build-gcam-nzk-spatial-interface
+
+
+## Track a large GCAM XML archive with DVC after ingestion
+.PHONY: track-gcam-xml
+track-gcam-xml:
+	$(DVC) add $(GCAM_XML_SOURCE)
+	@echo "Commit the generated .dvc pointer and local .gitignore; run dvc push after configuring a remote."
+
+
+## Attempt the NZK power-plant on/off InMAP bundle; fails closed until factors and geometry are ready
+.PHONY: build-inmap-gcam-nzk-toggle
+build-inmap-gcam-nzk-toggle: build-gcam-nzk-interface
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_inventory \
+		--config $(INMAP_GCAM_NZK_CONFIG) \
+		--output-dir $(INMAP_GCAM_NZK_OUTPUT)
+
+
+## Build the three-power-pathway GCAM NZK maximum-coverage POC input bundle
+.PHONY: build-inmap-gcam-nzk-poc-inputs
+build-inmap-gcam-nzk-poc-inputs: build-gcam-nzk-nonpower-interface kepco-poc-scenarios
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_inventory \
+		--config $(INMAP_GCAM_NZK_POC_CONFIG) \
+		--output-dir $(INMAP_GCAM_NZK_POC_OUTPUT)
+
+
+## Prepare fixed-iteration InMAP jobs for the three-power-pathway GCAM NZK POC
+.PHONY: inmap-gcam-nzk-poc-prepare
+inmap-gcam-nzk-poc-prepare: build-inmap-gcam-nzk-poc-inputs
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner prepare \
+		--bundle-dir $(INMAP_GCAM_NZK_POC_OUTPUT) \
+		--installation-manifest $(INMAP_INSTALLATION_MANIFEST) \
+		--run-dir $(INMAP_GCAM_NZK_POC_RUN_ROOT)/poc_$(INMAP_GCAM_NZK_POC_ITERATIONS)_iterations \
+		--num-iterations $(INMAP_GCAM_NZK_POC_ITERATIONS)
+
+
+## Build and run all 18 GCAM NZK plus simulated-power proof-of-concept jobs
+.PHONY: inmap-gcam-nzk-poc
+inmap-gcam-nzk-poc: inmap-gcam-nzk-poc-prepare
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner run \
+			--job-manifest $(INMAP_GCAM_NZK_POC_RUN_ROOT)/poc_$(INMAP_GCAM_NZK_POC_ITERATIONS)_iterations/run_jobs.json \
+			--max-workers $(INMAP_GCAM_NZK_POC_WORKERS)
+
+
+## Run BenMAP-equivalent health diagnostics and make presentation figures, GIFs, and MP4s
+.PHONY: inmap-gcam-nzk-poc-health
+inmap-gcam-nzk-poc-health:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.health.combined_inmap \
+		--job-manifest $(INMAP_GCAM_NZK_POC_RUN_ROOT)/poc_$(INMAP_GCAM_NZK_POC_ITERATIONS)_iterations/run_jobs.json \
+		--config $(INMAP_GCAM_NZK_POC_HEALTH_CONFIG) \
+		--output-dir $(INMAP_GCAM_NZK_POC_RUN_ROOT)/poc_$(INMAP_GCAM_NZK_POC_ITERATIONS)_iterations/health \
+		--allow-nonconverged-diagnostic \
+		--reference-scenario nzk_nonpower_no_nzk_power
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.health.combined_report \
+		--health-dir $(INMAP_GCAM_NZK_POC_RUN_ROOT)/poc_$(INMAP_GCAM_NZK_POC_ITERATIONS)_iterations/health \
+		--figure-dir $(INMAP_GCAM_NZK_POC_FIGURE_ROOT)/poc_$(INMAP_GCAM_NZK_POC_ITERATIONS)_iterations \
+		--table-dir $(INMAP_GCAM_NZK_POC_TABLE_ROOT)/poc_$(INMAP_GCAM_NZK_POC_ITERATIONS)_iterations
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.health.gcam_nzk_presentation \
+		--job-manifest $(INMAP_GCAM_NZK_POC_RUN_ROOT)/poc_$(INMAP_GCAM_NZK_POC_ITERATIONS)_iterations/run_jobs.json \
+		--config $(INMAP_GCAM_NZK_POC_HEALTH_CONFIG) \
+		--figure-dir $(INMAP_GCAM_NZK_POC_FIGURE_ROOT)/poc_$(INMAP_GCAM_NZK_POC_ITERATIONS)_iterations \
+		--video-dir $(INMAP_GCAM_NZK_POC_VIDEO_ROOT)/poc_$(INMAP_GCAM_NZK_POC_ITERATIONS)_iterations \
+		--table-dir $(INMAP_GCAM_NZK_POC_TABLE_ROOT)/poc_$(INMAP_GCAM_NZK_POC_ITERATIONS)_iterations
+
+
+## Run the GCAM-NZK POC, BenMAP-equivalent diagnostics, and presentation package
+.PHONY: inmap-gcam-nzk-poc-with-health
+inmap-gcam-nzk-poc-with-health: inmap-gcam-nzk-poc inmap-gcam-nzk-poc-health
+
+
+## Prepare two power-only 2050 jobs: current thermal pathway versus complete shutdown
+.PHONY: inmap-gcam-nzk-power-only-poc-prepare
+inmap-gcam-nzk-power-only-poc-prepare:
+	@test -f $(INMAP_GCAM_NZK_POC_OUTPUT)/combined_inmap_input_manifest.json || \
+		{ echo "Missing GCAM-NZK POC inputs; run make build-inmap-gcam-nzk-poc-inputs first."; exit 1; }
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner prepare \
+		--bundle-dir $(INMAP_GCAM_NZK_POC_OUTPUT) \
+		--installation-manifest $(INMAP_INSTALLATION_MANIFEST) \
+		--run-dir $(INMAP_GCAM_NZK_POWER_ONLY_RUN_DIR) \
+		--num-iterations $(INMAP_GCAM_NZK_POC_ITERATIONS) \
+		--power-only \
+		--scenario nzk_nonpower_no_nzk_power \
+		--scenario nzk_nonpower_high_nzk_power \
+		--year $(INMAP_GCAM_NZK_POWER_ONLY_YEAR)
+
+
+## Run the two-job thermal-power-only InMAP shutdown diagnostic
+.PHONY: inmap-gcam-nzk-power-only-poc
+inmap-gcam-nzk-power-only-poc: inmap-gcam-nzk-power-only-poc-prepare
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner run \
+		--job-manifest $(INMAP_GCAM_NZK_POWER_ONLY_RUN_DIR)/run_jobs.json \
+		--max-workers $(INMAP_GCAM_NZK_POC_WORKERS)
+
+
+## Calculate power-only mortality and write diagnostic figures and tables
+.PHONY: inmap-gcam-nzk-power-only-poc-health
+inmap-gcam-nzk-power-only-poc-health: inmap-gcam-nzk-power-only-poc
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.health.combined_inmap \
+		--job-manifest $(INMAP_GCAM_NZK_POWER_ONLY_RUN_DIR)/run_jobs.json \
+		--config $(INMAP_GCAM_NZK_POC_HEALTH_CONFIG) \
+		--output-dir $(INMAP_GCAM_NZK_POWER_ONLY_RUN_DIR)/health \
+		--allow-nonconverged-diagnostic \
+		--reference-scenario nzk_nonpower_no_nzk_power
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.health.combined_report \
+		--health-dir $(INMAP_GCAM_NZK_POWER_ONLY_RUN_DIR)/health \
+		--figure-dir $(INMAP_GCAM_NZK_POWER_ONLY_FIGURE_DIR) \
+		--table-dir $(INMAP_GCAM_NZK_POWER_ONLY_TABLE_DIR)
+
+
+## Run the 2050 thermal-power-only shutdown diagnostic through health in one command
+.PHONY: inmap-gcam-nzk-power-only-poc-with-health
+inmap-gcam-nzk-power-only-poc-with-health: inmap-gcam-nzk-power-only-poc-health
+
+
+## Validate the GCAM Reference archive and report its scenario, years, regions, and model version
+.PHONY: inspect-gcam-reference
+inspect-gcam-reference:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.model_inputs.gcam_xml \
+		--source $(GCAM_XML_REFERENCE_SOURCE) \
+		--inspect-only
+
+
+## Extract the large GCAM Reference XML directly from ZIP into APHIAM activity and native-emissions tables
+.PHONY: extract-gcam-reference
+extract-gcam-reference:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.model_inputs.gcam_xml \
+		--source $(GCAM_XML_REFERENCE_SOURCE) \
+		--output-dir $(GCAM_REFERENCE_APHIAM_OUTPUT) \
+		--scenario-label $(GCAM_XML_REFERENCE_SCENARIO_LABEL) \
+		--years $(GCAM_XML_YEARS)
+
+
+## Map GCAM Reference activity through the same maximum-coverage POC ladder used for NZK
+.PHONY: build-gcam-reference-nonpower-interface
+build-gcam-reference-nonpower-interface: extract-gcam-reference build-nonpower-emission-factors
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.nonpower_native \
+		--activity $(GCAM_REFERENCE_APHIAM_OUTPUT)/gcam_kaist_reference_activity.parquet \
+		--native-emissions $(GCAM_REFERENCE_APHIAM_OUTPUT)/gcam_kaist_reference_native_emissions.parquet \
+		--output-dir $(GCAM_REFERENCE_APHIAM_OUTPUT) \
+		--capss-admin-weights $(GCAM_NZK_APHIAM_OUTPUT)/capss_2021_admin_surrogate_weights.parquet
+
+
+## Merge the independently-mapped Reference and NZK non-power projections into one file
+## (checks for both interfaces instead of rebuilding them, since each rebuild re-parses a
+## 2GB+ GCAM XML archive from scratch; run the two build-* targets above first if missing)
+.PHONY: merge-gcam-reference-vs-nzk-nonpower
+merge-gcam-reference-vs-nzk-nonpower:
+	@test -f $(GCAM_REFERENCE_APHIAM_OUTPUT)/maximum_coverage_poc_projected_emissions.csv || \
+		{ echo "Missing GCAM Reference non-power interface; run make build-gcam-reference-nonpower-interface first."; exit 1; }
+	@test -f $(GCAM_NZK_APHIAM_OUTPUT)/maximum_coverage_poc_projected_emissions.csv || \
+		{ echo "Missing GCAM NZK non-power interface; run make build-gcam-nzk-nonpower-interface first."; exit 1; }
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.process.merge_nonpower_scenarios \
+		--input $(GCAM_REFERENCE_APHIAM_OUTPUT)/maximum_coverage_poc_projected_emissions.csv \
+		--input $(GCAM_NZK_APHIAM_OUTPUT)/maximum_coverage_poc_projected_emissions.csv \
+		--output $(GCAM_REFERENCE_VS_NZK_NONPOWER_MERGED)
+
+
+## Build the no_nzk+Reference vs nzk_high+NZK InMAP input bundle (2 scenario-years by default)
+## (checks for the merged non-power file and KEPCO fixture instead of rebuilding them; run
+## make merge-gcam-reference-vs-nzk-nonpower / make kepco-poc-scenarios first if missing)
+.PHONY: build-inmap-reference-vs-nzk-poc-inputs
+build-inmap-reference-vs-nzk-poc-inputs:
+	@test -f $(GCAM_REFERENCE_VS_NZK_NONPOWER_MERGED) || \
+		{ echo "Missing merged reference-vs-NZK non-power projections; run make merge-gcam-reference-vs-nzk-nonpower first."; exit 1; }
+	@test -f $(KEPCO_POC_SCENARIO_OUTPUT)/macro_generation_scenarios_2025_2050.csv || \
+		{ echo "Missing KEPCO POC power scenarios; run make kepco-poc-scenarios first."; exit 1; }
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_inventory \
+		--config $(INMAP_REFVSNZK_CONFIG) \
+		--output-dir $(INMAP_REFVSNZK_OUTPUT)
+
+
+## Prepare the fixed-iteration InMAP jobs for the reference-vs-NZK comparison
+.PHONY: inmap-reference-vs-nzk-poc-prepare
+inmap-reference-vs-nzk-poc-prepare: build-inmap-reference-vs-nzk-poc-inputs
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner prepare \
+		--bundle-dir $(INMAP_REFVSNZK_OUTPUT) \
+		--installation-manifest $(INMAP_INSTALLATION_MANIFEST) \
+		--run-dir $(INMAP_REFVSNZK_RUN_ROOT)/poc_$(INMAP_REFVSNZK_ITERATIONS)_iterations \
+		--num-iterations $(INMAP_REFVSNZK_ITERATIONS)
+
+
+## Run the no_nzk+Reference vs nzk_high+NZK InMAP jobs
+.PHONY: inmap-reference-vs-nzk-poc
+inmap-reference-vs-nzk-poc: inmap-reference-vs-nzk-poc-prepare
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.inmap.combined_runner run \
+		--job-manifest $(INMAP_REFVSNZK_RUN_ROOT)/poc_$(INMAP_REFVSNZK_ITERATIONS)_iterations/run_jobs.json \
+		--max-workers $(INMAP_REFVSNZK_WORKERS)
+
+
+## Calculate diagnostic mortality and write the PM2.5/mortality figures, tables, and Korea maps
+.PHONY: inmap-reference-vs-nzk-poc-health
+inmap-reference-vs-nzk-poc-health: inmap-reference-vs-nzk-poc
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.health.combined_inmap \
+		--job-manifest $(INMAP_REFVSNZK_RUN_ROOT)/poc_$(INMAP_REFVSNZK_ITERATIONS)_iterations/run_jobs.json \
+		--config $(INMAP_REFVSNZK_HEALTH_CONFIG) \
+		--output-dir $(INMAP_REFVSNZK_RUN_ROOT)/poc_$(INMAP_REFVSNZK_ITERATIONS)_iterations/health \
+		--allow-nonconverged-diagnostic \
+		--reference-scenario no_nzk
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.health.combined_report \
+		--health-dir $(INMAP_REFVSNZK_RUN_ROOT)/poc_$(INMAP_REFVSNZK_ITERATIONS)_iterations/health \
+		--figure-dir $(INMAP_REFVSNZK_FIGURE_ROOT)/poc_$(INMAP_REFVSNZK_ITERATIONS)_iterations \
+		--table-dir $(INMAP_REFVSNZK_TABLE_ROOT)/poc_$(INMAP_REFVSNZK_ITERATIONS)_iterations
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.health.scenario_pm25_maps \
+		--job-manifest $(INMAP_REFVSNZK_RUN_ROOT)/poc_$(INMAP_REFVSNZK_ITERATIONS)_iterations/run_jobs.json \
+		--config $(INMAP_REFVSNZK_HEALTH_CONFIG) \
+		--figure-dir $(INMAP_REFVSNZK_FIGURE_ROOT)/poc_$(INMAP_REFVSNZK_ITERATIONS)_iterations \
+		--reference-scenario no_nzk
+
+
+## Run the reference-vs-NZK POC end to end: inputs, InMAP, health, figures, and tables
+.PHONY: inmap-reference-vs-nzk-poc-with-health
+inmap-reference-vs-nzk-poc-with-health: inmap-reference-vs-nzk-poc-health
 
 
 ## Build the double-clickable macOS app for adding a MACRO generation file (no terminal needed afterward)
@@ -302,6 +606,7 @@ integrate-macro-inputs:
 		--gcam-activity $(MACRO_ACTIVITY) \
 		$(if $(MACRO_MAPPING),--mapping $(MACRO_MAPPING),) \
 		$(if $(MACRO_BASE_YEAR),--base-year $(MACRO_BASE_YEAR),) \
+		--output-dir $(MACRO_APHIAM_INPUT_DIR) \
 		--scenario-columns $(MACRO_SCENARIO_COLUMNS) \
 		--pollutants $(MACRO_POLLUTANTS)
 
@@ -456,7 +761,7 @@ inmap-combined-fast-poc-with-health: inmap-combined-fast-poc
 
 ## Validate 2021 MACRO generation times KEPCO EFs against CAPSS actual power emissions
 .PHONY: validate-macro-2021-kepco-ef
-validate-macro-2021-kepco-ef: export-capss-power-fuel-technology
+validate-macro-2021-kepco-ef: build-kepco-emission-factors export-capss-power-fuel-technology
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.integration.macro_kepco_validation \
 		--year 2021 \
 		--kepco-ef $(KEPCO_EF) \
@@ -467,7 +772,7 @@ validate-macro-2021-kepco-ef: export-capss-power-fuel-technology
 
 ## Validate 2021 observed EPSIS generation times KEPCO EFs against CAPSS actual power emissions
 .PHONY: validate-epsis-2021-kepco-ef
-validate-epsis-2021-kepco-ef: export-capss-power-fuel-technology
+validate-epsis-2021-kepco-ef: build-kepco-emission-factors export-capss-power-fuel-technology
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.integration.epsis_kepco_capss_validation \
 		--year 2021 \
 		--kepco-ef $(KEPCO_EF) \
@@ -476,7 +781,7 @@ validate-epsis-2021-kepco-ef: export-capss-power-fuel-technology
 
 ## Audit all local inputs for the Korean thermal-power replication MVP
 .PHONY: peng-mvp-audit
-peng-mvp-audit:
+peng-mvp-audit: build-kepco-emission-factors
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
 		--config $(PENG_MVP_CONFIG) --stage audit $(PENG_MVP_ARGS)
 
@@ -501,7 +806,7 @@ kepco-poc-retirement-scenarios:
 
 ## Build fleet allocation, emissions, stack diagnostics, and InMAP point inputs
 .PHONY: peng-mvp-inventory
-peng-mvp-inventory:
+peng-mvp-inventory: build-kepco-emission-factors
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
 		--config $(PENG_MVP_CONFIG) --stage inventory $(PENG_MVP_ARGS)
 
@@ -536,14 +841,14 @@ peng-mvp-health:
 
 ## Execute the resumable end-to-end Korean thermal-power replication MVP
 .PHONY: peng-mvp
-peng-mvp:
+peng-mvp: build-kepco-emission-factors
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
 		--config $(PENG_MVP_CONFIG) --stage all --resume $(PENG_MVP_ARGS)
 
 
 ## Run a real-binary, fixed-iteration InMAP diagnostic; health output is prohibited
 .PHONY: peng-mvp-poc
-peng-mvp-poc:
+peng-mvp-poc: build-kepco-emission-factors
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
 		--config $(PENG_MVP_CONFIG) --stage all --resume \
 		--inmap-poc-iterations $(PENG_MVP_POC_ITERATIONS) $(PENG_MVP_ARGS)
@@ -551,7 +856,7 @@ peng-mvp-poc:
 
 ## Opt in to a separately labeled, non-inferential health diagnostic from the InMAP POC
 .PHONY: peng-mvp-poc-health-diagnostic
-peng-mvp-poc-health-diagnostic:
+peng-mvp-poc-health-diagnostic: build-kepco-emission-factors
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.mvp.peng_replication \
 		--config $(PENG_MVP_CONFIG) --stage all --resume \
 		--inmap-poc-iterations $(PENG_MVP_POC_ITERATIONS) \
@@ -669,7 +974,7 @@ track-kepco-snapshots:
 		data/raw/kepco_subsidiaries/western_power \
 		data/raw/kepco_subsidiaries/southern_power \
 		data/raw/kepco_subsidiaries/southeast_power \
-		data/raw/kepco_subsidiaries/midland_power
+		data/raw/kepco_subsidiaries/midland_power/generation
 	@echo "Snapshots staged for git (review with 'git status', then commit)."
 	@echo "Run 'dvc push' once a remote is configured to share them."
 
@@ -708,12 +1013,50 @@ scrape-cleansys:
 
 AIRKOREA_START_YEAR ?= 2001
 AIRKOREA_END_YEAR ?=
+AIRKOREA_WORKFLOW_ARGS ?=
+AIRKOREA_INMAP_GRID ?=
+AIRKOREA_GRID_YEAR ?=
 
 
 ## Download finalized hourly monitor-level air quality archives from AirKorea
 .PHONY: scrape-airkorea
 scrape-airkorea:
 	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.data.scrape.airkorea --start-year $(AIRKOREA_START_YEAR) $(if $(AIRKOREA_END_YEAR),--end-year $(AIRKOREA_END_YEAR),)
+
+
+## Standardize/merge AirKorea workbooks into row-preserving Parquet and build the coordinate crosswalk
+.PHONY: airkorea-canonicalize
+airkorea-canonicalize:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.monitor_workflow canonicalize $(AIRKOREA_WORKFLOW_ARGS)
+
+
+## Apply rule flags, out-of-fold random-forest QC, and spatial confirmation to canonical AirKorea data
+.PHONY: airkorea-clean
+airkorea-clean:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.monitor_workflow clean $(AIRKOREA_WORKFLOW_ARGS)
+
+
+## Build canonical monthly data and EPA-style annual AirKorea PM monitor means
+.PHONY: airkorea-aggregate
+airkorea-aggregate:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.monitor_workflow aggregate $(AIRKOREA_WORKFLOW_ARGS)
+
+
+## Run the complete resumable AirKorea monitor workflow, with optional InMAP bias grid
+.PHONY: airkorea-monitor-workflow
+airkorea-monitor-workflow:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.monitor_workflow all \
+		$(AIRKOREA_WORKFLOW_ARGS) \
+		$(if $(AIRKOREA_INMAP_GRID),--inmap-grid "$(AIRKOREA_INMAP_GRID)",) \
+		$(if $(AIRKOREA_GRID_YEAR),--grid-year $(AIRKOREA_GRID_YEAR),)
+
+
+## Interpolate annual AirKorea-minus-InMAP monitor residuals to an InMAP grid
+.PHONY: airkorea-inmap-bias-grid
+airkorea-inmap-bias-grid:
+	PYTHONPATH=src $(PYTHON_INTERPRETER) -m nzk_aphiam.air_quality.monitor_workflow grid \
+		--inmap-grid "$(AIRKOREA_INMAP_GRID)" \
+		--grid-year $(AIRKOREA_GRID_YEAR)
 
 
 ## Archive official plant-location/date evidence for offline reproducibility
@@ -872,6 +1215,11 @@ r-analysis: combine-kepco
 	Rscript analysis/kepco/kepco_monthly_analysis.R
 
 
+## Materialize the canonical KEPCO annual emission-factor dataset under data/processed
+.PHONY: build-kepco-emission-factors
+build-kepco-emission-factors: r-analysis
+
+
 ## Set up Python interpreter environment
 .PHONY: create_environment
 create_environment:
@@ -897,14 +1245,5 @@ data: reproduce-kepco-monthly
 
 .DEFAULT_GOAL := help
 
-define PRINT_HELP_PYSCRIPT
-import re, sys; \
-lines = '\n'.join([line for line in sys.stdin]); \
-matches = re.findall(r'\n## (.*)\n[\s\S]+?\n([a-zA-Z_-]+):', lines); \
-print('Available rules:\n'); \
-print('\n'.join(['{:40}{}'.format(*reversed(match)) for match in matches]))
-endef
-export PRINT_HELP_PYSCRIPT
-
 help:
-	@$(PYTHON_INTERPRETER) -c "${PRINT_HELP_PYSCRIPT}" < $(MAKEFILE_LIST)
+	@$(PYTHON_INTERPRETER) tools/make_help.py $(firstword $(MAKEFILE_LIST))
