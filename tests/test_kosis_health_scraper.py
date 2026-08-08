@@ -206,7 +206,9 @@ def test_validate_payload_surfaces_kosis_error() -> None:
 
 def test_scrape_dataset_rebuilds_from_preserved_raw_file(tmp_path: Path) -> None:
     dataset = scraper.DATASETS["monthly-deaths"]
-    raw_dir = tmp_path / "monthly_deaths" / "raw"
+    raw_root = tmp_path / "raw"
+    interim_root = tmp_path / "interim"
+    raw_dir = raw_root / "monthly_deaths"
     raw_dir.mkdir(parents=True)
     payload = [
         {
@@ -226,7 +228,8 @@ def test_scrape_dataset_rebuilds_from_preserved_raw_file(tmp_path: Path) -> None
     result = scraper.scrape_dataset(
         session=None,  # type: ignore[arg-type]
         dataset=dataset,
-        output_dir=tmp_path,
+        raw_root=raw_root,
+        interim_root=interim_root,
         start_year=2024,
         end_year=2024,
         api_key="unused",
@@ -235,6 +238,8 @@ def test_scrape_dataset_rebuilds_from_preserved_raw_file(tmp_path: Path) -> None
     )
 
     assert result["normalized_rows"] == 1
-    csv_text = (tmp_path / "monthly_deaths" / "monthly_deaths.csv").read_text()
+    csv_text = (interim_root / "monthly_deaths" / "monthly_deaths.csv").read_text()
     assert "종로구" in csv_text
     assert result["files"][0]["status"] == "reused"
+    assert result["files"][0]["raw_file"] == "monthly_deaths/DT_1B82A01_2024.json"
+    assert result["normalized_file"] == "monthly_deaths/monthly_deaths.csv"

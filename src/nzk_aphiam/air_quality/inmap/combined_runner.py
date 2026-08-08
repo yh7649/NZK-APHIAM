@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 import json
@@ -16,13 +17,11 @@ from nzk_aphiam.air_quality.inmap.emission_inputs import (
 from nzk_aphiam.air_quality.inmap.inventory import write_config
 from nzk_aphiam.air_quality.inmap.outputs import read_output
 from nzk_aphiam.air_quality.inmap.runner import run_scenario
-from nzk_aphiam.config.paths import PROCESSED_DIR, PROJECT_ROOT
+from nzk_aphiam.config.paths import PROCESSED_DIR, PROJECT_ROOT, RESULTS_RUNS_DIR
 
 DEFAULT_BUNDLE_DIR = PROCESSED_DIR / "inmap" / "combined_proxy_2025_2050"
 DEFAULT_INSTALLATION_MANIFEST = PROJECT_ROOT / ".cache" / "inmap" / "installation_manifest.json"
-DEFAULT_RUN_DIR = (
-    PROJECT_ROOT / "results" / "models" / "inmap" / "combined_proxy_2025_2050" / "strict"
-)
+DEFAULT_RUN_DIR = RESULTS_RUNS_DIR / "inmap" / "combined_proxy_2025_2050" / "strict"
 INSTALLATION_FIELDS = {
     "executable",
     "inmap_data",
@@ -101,6 +100,9 @@ def prepare_run_instructions(
     run_dir: Path,
     *,
     num_iterations: int = 0,
+    power_only: bool = False,
+    scenarios: Sequence[str] | None = None,
+    years: Sequence[int] | None = None,
 ) -> Path:
     """Write one runnable TOML per scenario-year and a resumable job manifest."""
     if num_iterations < 0:
@@ -112,29 +114,47 @@ def prepare_run_instructions(
     run_dir.mkdir(parents=True, exist_ok=True)
     instructions: list[dict[str, Any]] = []
 
-    for job in bundle["jobs"]:
+    selected_scenarios = set(scenarios or ())
+    selected_years = {int(year) for year in years or ()}
+    selected_jobs = [
+        job
+        for job in bundle["jobs"]
+        if (not selected_scenarios or str(job["scenario"]) in selected_scenarios)
+        and (not selected_years or int(job["year"]) in selected_years)
+    ]
+    if not selected_jobs:
+        raise ValueError(
+            "No bundle jobs match the requested scenario/year filters: "
+            f"scenarios={sorted(selected_scenarios)}, years={sorted(selected_years)}"
+        )
+
+    for job in selected_jobs:
         scenario = str(job["scenario"])
         year = int(job["year"])
         label = f"{scenario}_{year}"
         resolved, input_manifest_path = _job_inputs(bundle_dir, job)
         point = resolved["point"]
         grid = resolved["grid"]
-        supplemental = select_supplemental_emissions(
-            [
-                {
-                    "id": grid["id"],
-                    "sector": grid["sector"],
-                    "format": "coards",
-                    "path": grid["path"],
-                    "units": grid["units"],
-                    "coards_year": grid["coards_year"],
-                    "scenarios": [scenario],
-                    "years": [year],
-                }
-            ],
-            scenario=scenario,
-            year=year,
-            shapefile_units=str(point["units"]),
+        supplemental = (
+            []
+            if power_only
+            else select_supplemental_emissions(
+                [
+                    {
+                        "id": grid["id"],
+                        "sector": grid["sector"],
+                        "format": "coards",
+                        "path": grid["path"],
+                        "units": grid["units"],
+                        "coards_year": grid["coards_year"],
+                        "scenarios": [scenario],
+                        "years": [year],
+                    }
+                ],
+                scenario=scenario,
+                year=year,
+                shapefile_units=str(point["units"]),
+            )
         )
         output_path = run_dir / "outputs" / scenario / str(year) / "concentrations.shp"
         config_path = run_dir / "configs" / f"{label}.toml"
@@ -162,7 +182,7 @@ def prepare_run_instructions(
                 "shapefile": _relative_path(Path(point["path"]), run_dir),
                 "emission_files": [
                     _relative_path(Path(point["path"]), run_dir),
-                    _relative_path(Path(grid["path"]), run_dir),
+                    *([] if power_only else [_relative_path(Path(grid["path"]), run_dir)]),
                 ],
                 "input_manifest": _relative_path(input_manifest_path, run_dir),
                 "num_iterations": num_iterations,
@@ -183,6 +203,9 @@ def prepare_run_instructions(
         "solver_mode": solver_mode,
         "num_iterations": num_iterations,
         "strict_solver_convergence_requested": num_iterations == 0,
+        "emissions_scope": "thermal_power_only" if power_only else "power_and_nonpower",
+        "selected_scenarios": sorted({str(job["scenario"]) for job in selected_jobs}),
+        "selected_years": sorted({int(job["year"]) for job in selected_jobs}),
         "input_analytical_use_permitted": bool(bundle.get("analytical_use_permitted", False)),
         "analytical_use_permitted": False,
         "analytical_use_note": (
@@ -302,6 +325,22 @@ def main() -> None:
     )
     prepare.add_argument("--run-dir", type=Path, default=DEFAULT_RUN_DIR)
     prepare.add_argument("--num-iterations", type=int, default=0)
+    prepare.add_argument(
+        "--power-only",
+        action="store_true",
+        help="Exclude all supplemental non-power emissions from every selected job.",
+    )
+    prepare.add_argument(
+        "--scenario",
+        action="append",
+        help="Prepare only this scenario; repeat to select multiple scenarios.",
+    )
+    prepare.add_argument(
+        "--year",
+        action="append",
+        type=int,
+        help="Prepare only this year; repeat to select multiple years.",
+    )
 
     run = subparsers.add_parser("run", help="Run every job in an instruction manifest.")
     run.add_argument("--job-manifest", type=Path, required=True)
@@ -317,6 +356,9 @@ def main() -> None:
             args.installation_manifest,
             args.run_dir,
             num_iterations=args.num_iterations,
+            power_only=args.power_only,
+            scenarios=args.scenario,
+            years=args.year,
         )
         print(f"Wrote runnable Global InMAP instructions to {path}")
     else:

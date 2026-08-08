@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-from nzk_aphiam.config.paths import KEPCO_PROCESSED_DIR, PROJECT_ROOT
+from nzk_aphiam.config.paths import KEPCO_PROCESSED_DIR, PROJECT_ROOT, RESULTS_FIGURES_DIR
 from nzk_aphiam.mvp.peng_replication.fleet import (
     add_canonical_unit_ids,
     build_thermal_fleet,
@@ -22,7 +22,7 @@ from nzk_aphiam.mvp.peng_replication.stacks import impute_stack_parameters
 
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "configs" / "scenarios" / "kepco_poc_fleet_scenarios.yaml"
 DEFAULT_OUTPUT_DIR = KEPCO_PROCESSED_DIR / "scenarios" / "poc_2025_2050"
-DEFAULT_FIGURE_DIR = PROJECT_ROOT / "results" / "figures" / "kepco" / "poc_scenarios"
+DEFAULT_FIGURE_DIR = RESULTS_FIGURES_DIR / "kepco" / "poc_scenarios"
 MASS_COLUMNS = {
     "nox": "nox_kg",
     "sox": "sox_kg",

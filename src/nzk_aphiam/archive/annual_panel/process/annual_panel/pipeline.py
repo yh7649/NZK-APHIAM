@@ -19,30 +19,37 @@ from nzk_aphiam.archive.annual_panel.process.crosswalk.builder import (
     normalize_plant,
     similarity,
 )
-
-PROJECT_ROOT = Path(__file__).resolve().parents[6]
-SUPPORTING_DATA_DIR = PROJECT_ROOT / "data" / "interim" / "supporting"
-DEFAULT_GENERATION_DIR = (
-    SUPPORTING_DATA_DIR / "plant_rosters" / "epsis" / "raw" / "annual_generation"
+from nzk_aphiam.config.paths import (
+    ANNUAL_PANEL_ARCHIVE_INTERIM_DIR,
+    ANNUAL_PANEL_ARCHIVE_PROCESSED_DIR,
+    ANNUAL_PANEL_ARCHIVE_RAW_DIR,
+    KEPCO_PROCESSED_DIR,
+    PROJECT_ROOT,
 )
-DEFAULT_ROSTER_DIR = SUPPORTING_DATA_DIR / "plant_rosters" / "epsis" / "raw" / "annual"
-DEFAULT_PLANTS_PATH = SUPPORTING_DATA_DIR / "crosswalks" / "thermal" / "epsis_thermal_plants.csv"
+
+DEFAULT_GENERATION_DIR = (
+    ANNUAL_PANEL_ARCHIVE_RAW_DIR / "plant_rosters" / "epsis" / "annual_generation"
+)
+DEFAULT_ROSTER_DIR = ANNUAL_PANEL_ARCHIVE_RAW_DIR / "plant_rosters" / "epsis" / "annual"
+DEFAULT_PLANTS_PATH = (
+    ANNUAL_PANEL_ARCHIVE_INTERIM_DIR / "crosswalks" / "thermal" / "epsis_thermal_plants.csv"
+)
 DEFAULT_LINKS_PATH = (
-    SUPPORTING_DATA_DIR / "crosswalks" / "thermal" / "epsis_emissions_facility_links.csv"
+    ANNUAL_PANEL_ARCHIVE_INTERIM_DIR
+    / "crosswalks"
+    / "thermal"
+    / "epsis_emissions_facility_links.csv"
 )
 DEFAULT_CLEANSYS_PATH = (
-    SUPPORTING_DATA_DIR / "emissions" / "cleansys" / "raw" / "cleansys_annual_emissions_panel.csv"
+    ANNUAL_PANEL_ARCHIVE_RAW_DIR / "emissions" / "cleansys" / "cleansys_annual_emissions_panel.csv"
 )
 DEFAULT_ENV_INFO_PATH = (
-    SUPPORTING_DATA_DIR
+    ANNUAL_PANEL_ARCHIVE_RAW_DIR
     / "emissions"
     / "env_info"
-    / "raw"
     / "env_info_power_emissions_2015_2024.csv"
 )
-DEFAULT_DIRECT_PATH = (
-    PROJECT_ROOT / "data" / "kepco" / "processed" / "kepco_monthly_generation_emissions.csv"
-)
+DEFAULT_DIRECT_PATH = KEPCO_PROCESSED_DIR / "kepco_monthly_generation_emissions.csv"
 DEFAULT_GENERATION_OVERRIDES = (
     PROJECT_ROOT / "docs" / "references" / "archive" / "annual_panel" / "generation_overrides.csv"
 )
@@ -54,7 +61,7 @@ DEFAULT_DIRECT_LINKS = (
     / "annual_panel"
     / "direct_company_plant_links.csv"
 )
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "archive" / "annual_plant"
+DEFAULT_OUTPUT_DIR = ANNUAL_PANEL_ARCHIVE_PROCESSED_DIR
 
 POLLUTANTS = ("nox", "sox", "tsp")
 THERMAL_TERMS = (

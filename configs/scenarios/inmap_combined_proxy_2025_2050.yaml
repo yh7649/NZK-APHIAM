@@ -6,7 +6,7 @@ inputs:
   power_generation: data/processed/kepco/scenarios/poc_2025_2050/macro_generation_scenarios_2025_2050.csv
   kepco_monthly: data/processed/kepco/kepco_monthly_generation_emissions.csv
   stack_properties: docs/references/crosswalk/stack_properties.csv
-  nonpower_projected_emissions: data/processed/macro/scenarios/nonpower_proxy_2025_2050/integration/macro_projected_emissions.csv
+  nonpower_projected_emissions: model_inputs/scenarios/nonpower_proxy_2025_2050/aphiam/integration/macro_projected_emissions.csv
   nonpower_factor_catalog: data/processed/nonpower_emissions/nonpower_emission_factors.parquet
   nonpower_factor_links: data/processed/nonpower_emissions/nonpower_emission_factor_inventory_links.parquet
 

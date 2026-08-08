@@ -34,10 +34,12 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from nzk_aphiam.config.paths import KOSIS_INTERIM_DIR, KOSIS_RAW_DIR, PROJECT_ROOT
+
 API_URL = "https://kosis.kr/openapi/Param/statisticsParameterData.do"
 OPENAPI_PAGE_URL = "https://kosis.kr/openapi/"
-PROJECT_ROOT = Path(__file__).resolve().parents[6]
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "health" / "kosis"
+DEFAULT_RAW_DIR = KOSIS_RAW_DIR
+DEFAULT_INTERIM_DIR = KOSIS_INTERIM_DIR
 DEFAULT_START_YEAR = 2001
 DEFAULT_END_YEAR = 2024
 SINGLE_YEAR_AGE_BATCHES = (
@@ -1185,7 +1187,8 @@ def file_sha256(path: Path) -> str:
 def scrape_dataset(
     session: requests.Session,
     dataset: Dataset,
-    output_dir: Path,
+    raw_root: Path,
+    interim_root: Path,
     start_year: int,
     end_year: int,
     api_key: str,
@@ -1200,9 +1203,11 @@ def scrape_dataset(
             f"No requested years overlap available coverage for {dataset.key}: "
             f"{dataset.first_year}-{dataset.last_year or 'present'}."
         )
-    dataset_dir = output_dir / dataset.key.replace("-", "_")
-    raw_dir = dataset_dir / "raw"
+    dataset_name = dataset.key.replace("-", "_")
+    raw_dir = raw_root / dataset_name
+    interim_dir = interim_root / dataset_name
     raw_dir.mkdir(parents=True, exist_ok=True)
+    interim_dir.mkdir(parents=True, exist_ok=True)
     rows: list[dict[str, Any]] = []
     files: list[dict[str, Any]] = []
 
@@ -1224,7 +1229,7 @@ def scrape_dataset(
         files.append(
             {
                 "year": year,
-                "raw_file": str(raw_path.relative_to(output_dir)),
+                "raw_file": str(raw_path.relative_to(raw_root)),
                 "raw_rows": len(payload),
                 "raw_sha256": sha256(raw_bytes).hexdigest(),
                 "status": status,
@@ -1232,7 +1237,7 @@ def scrape_dataset(
         )
         print(f"{dataset.key} {year}: {len(payload)} rows ({status})")
 
-    csv_path = dataset_dir / f"{dataset.key.replace('-', '_')}.csv"
+    csv_path = interim_dir / f"{dataset_name}.csv"
     write_csv(csv_path, dataset.output_columns, rows)
     return {
         "key": dataset.key,
@@ -1240,7 +1245,7 @@ def scrape_dataset(
         "table_id": dataset.table_id,
         "period": dataset.period,
         "coverage": [effective_start, effective_end],
-        "normalized_file": str(csv_path.relative_to(output_dir)),
+        "normalized_file": str(csv_path.relative_to(interim_root)),
         "normalized_rows": len(rows),
         "normalized_sha256": file_sha256(csv_path),
         "files": files,
@@ -1259,7 +1264,8 @@ def resolve_api_key() -> str:
 
 
 def scrape(
-    output_dir: Path,
+    raw_dir: Path,
+    interim_dir: Path,
     start_year: int,
     end_year: int,
     dataset_keys: list[str],
@@ -1276,13 +1282,15 @@ def scrape(
         raise ValueError(f"Unknown KOSIS health dataset(s): {', '.join(unknown)}")
 
     key = api_key or resolve_api_key()
-    output_dir.mkdir(parents=True, exist_ok=True)
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    interim_dir.mkdir(parents=True, exist_ok=True)
     session = build_session()
     results = [
         scrape_dataset(
             session,
             DATASETS[dataset_key],
-            output_dir,
+            raw_dir,
+            interim_dir,
             start_year,
             end_year,
             key,
@@ -1297,6 +1305,8 @@ def scrape(
         "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
         "api_url": API_URL,
         "openapi_page_url": OPENAPI_PAGE_URL,
+        "raw_root": "data/raw/health/kosis",
+        "interim_root": "data/interim/health/kosis",
         "requested_coverage": [start_year, end_year],
         "geographic_basis": "Published administrative area; mortality is by residence.",
         "analysis_notes": [
@@ -1314,7 +1324,7 @@ def scrape(
         selection_hash = sha256(",".join(selected).encode("utf-8")).hexdigest()[:12]
         metadata_name = f"metadata_selected_{selection_hash}.json"
         metadata["selection"] = selected
-    (output_dir / metadata_name).write_text(
+    (raw_dir / metadata_name).write_text(
         json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
@@ -1334,7 +1344,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--start-year", type=int, default=DEFAULT_START_YEAR)
     parser.add_argument("--end-year", type=int, default=DEFAULT_END_YEAR)
-    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument("--raw-dir", type=Path, default=DEFAULT_RAW_DIR)
+    parser.add_argument("--interim-dir", type=Path, default=DEFAULT_INTERIM_DIR)
     parser.add_argument("--timeout", type=int, default=60)
     parser.add_argument("--overwrite", action="store_true")
     return parser
@@ -1343,7 +1354,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = build_parser().parse_args()
     scrape(
-        output_dir=args.output_dir,
+        raw_dir=args.raw_dir,
+        interim_dir=args.interim_dir,
         start_year=args.start_year,
         end_year=args.end_year,
         dataset_keys=args.datasets,

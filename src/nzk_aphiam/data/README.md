@@ -67,7 +67,7 @@ make reproduce-annual-plant-panel-offline PYTHON_INTERPRETER=.venv/bin/python
 
 This classifies and assigns EPSIS annual-generation rows, reconciles direct
 subsidiary/CleanSYS/ENV-INFO emissions without adding overlapping sources, and
-writes the plant-year panel under `data/archive/annual_plant/`.
+writes the plant-year panel under `data/archive/processed/annual_panel/`.
 Detailed rules and output definitions are in
 [`docs/archive/annual_plant_panel_methods.md`](../../../docs/archive/annual_plant_panel_methods.md).
 
@@ -81,7 +81,7 @@ The public annual series covers 2015 through the latest finalized reporting
 year. Raw JSON responses and normalized CSV files are written to:
 
 ```text
-data/interim/supporting/emissions/cleansys/raw/
+data/archive/raw/annual_panel/emissions/cleansys/
 ```
 
 Each facility row reports total, dust (TSP), SOx, NOx, HCl, HF, NH3, and CO
@@ -277,7 +277,7 @@ Annual generator-detail rosters cover 2012 through 2024. The scraper preserves
 the raw EPSIS grid response and writes a faithful UTF-8 CSV under:
 
 ```text
-data/interim/supporting/plant_rosters/epsis/raw/annual/
+data/archive/raw/annual_panel/plant_rosters/epsis/annual/
 ```
 
 The generator-change board contains irregular dated snapshots beginning on
@@ -285,7 +285,7 @@ December 31, 2012. Each original ZIP contains provider-generated CSV and XLSX
 files. ZIPs are preserved without extraction under:
 
 ```text
-data/interim/supporting/plant_rosters/epsis/raw/snapshots/
+data/archive/raw/annual_panel/plant_rosters/epsis/snapshots/
 ```
 
 The snapshot command writes a complete board manifest with source attachment
@@ -297,7 +297,7 @@ EPSIS also publishes annual capacity and generation records from 2002 through
 2024 under:
 
 ```text
-data/interim/supporting/plant_rosters/epsis/raw/annual_generation/
+data/archive/raw/annual_panel/plant_rosters/epsis/annual_generation/
 ```
 
 These records include reported capacity, gross generation, station use, net
@@ -326,7 +326,7 @@ The scraper preserves compressed public detail pages and writes yearly CSVs
 plus a combined 2015-2024 panel under:
 
 ```text
-data/interim/supporting/emissions/env_info/raw/
+data/archive/raw/annual_panel/emissions/env_info/
 ```
 
 The normalized fields include facility name and annual NOx, SOx, and TSP in
@@ -343,7 +343,7 @@ Build the EPSIS thermal plant dimension and link it to ENV-INFO and CleanSYS:
 make build-thermal-crosswalk
 ```
 
-Outputs under `data/interim/supporting/crosswalks/thermal/` include:
+Outputs under `data/archive/interim/annual_panel/crosswalks/thermal/` include:
 
 - `epsis_thermal_plants.csv`: normalized EPSIS plant entities.
 - `epsis_emissions_facility_crosswalk.csv`: preferred source matches.
@@ -451,7 +451,7 @@ It never drops or imputes a row. It rewrites each subsidiary's processed CSV
 and the final combined CSV with `audit_severity` (the worst flag raised, or missing) and
 `audit_issue_codes` (every issue code, joined with `;`), and writes
 long-format flag detail and summary tables to
-`results/tables/<subsidiary>/audit/`. To re-run just the audit stage without
+`results/diagnostics/kepco_subsidiaries/<subsidiary>/audit/`. To re-run just the audit stage without
 recombining (e.g. after changing a threshold but not the data), use
 `make audit-kepco`.
 
@@ -544,7 +544,7 @@ The generation scraper retains source field names and values and writes XML
 snapshots, a normalized CSV extract, and redacted request metadata under:
 
 ```text
-data/raw/kepco_subsidiaries/midland_power/
+data/raw/kepco_subsidiaries/midland_power/generation/
 ```
 
 It refuses to replace existing outputs unless `--overwrite` is explicitly

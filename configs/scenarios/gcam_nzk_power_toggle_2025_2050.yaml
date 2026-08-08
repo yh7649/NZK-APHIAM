@@ -1,0 +1,82 @@
+name: gcam_nzk_with_and_without_power_plant_nzk_2025_2050
+bundle_status: blocked_until_approved_nonpower_factors_and_coordinate_geometry_are_available
+years: [2025, 2030, 2035, 2040, 2045, 2050]
+
+inputs:
+  power_generation: data/processed/kepco/scenarios/poc_2025_2050/macro_generation_scenarios_2025_2050.csv
+  kepco_monthly: data/processed/kepco/kepco_monthly_generation_emissions.csv
+  stack_properties: docs/references/crosswalk/stack_properties.csv
+  nonpower_projected_emissions: model_inputs/scenarios/team_handoff/aphiam/gcam_kaist/nzk/approved_projected_emissions.csv
+  nonpower_factor_catalog: data/processed/nonpower_emissions/nonpower_emission_factors.parquet
+  nonpower_factor_links: data/processed/nonpower_emissions/nonpower_emission_factor_inventory_links.parquet
+  nonpower_spatial_geometry: docs/references/nonpower_emissions/nonpower_spatial_geometry.csv
+
+# Both cases use the same CORE_9_NZ non-power pathway. Only the power pathway
+# changes, isolating the additional effect of applying NZK to power plants.
+scenario_pairs:
+  nzk_with_power_plant_nzk:
+    power: nzk_high
+    nonpower: nzk
+  nzk_without_power_plant_nzk:
+    power: no_nzk
+    nonpower: nzk
+
+power:
+  ef_base_year: 2024
+  mass_balance_tolerance_mwh: 0.001
+  province_crosswalk:
+    CNA: Chungcheongnam-do
+    CNB: Chungcheongbuk-do
+    DJJ: Daejeon
+    GGI: Gyeonggi-do
+    GNA: Gyeongsangnam-do
+    GNB: Gyeongsangbuk-do
+    GWN: Gangwon-do
+    INC: Incheon
+    JEJ: Jeju-do
+    JNA: Jeollanam-do
+    JNB: Jeonbuk-do
+    KWJ: Gwangju
+    PUS: Busan
+    SEL: Seoul
+    SJG: Sejong
+    TAE: Daegu
+    USN: Ulsan
+  technology_crosswalk:
+    ThermalPower:
+      Coal: conventional_steam_turbine
+      NaturalGas: combined_cycle_gas_turbine
+      Oil: conventional_steam_turbine
+      Biomass: conventional_steam_turbine
+    ThermalSteam:
+      Coal: cogeneration_chp
+      NaturalGas: cogeneration_chp
+      Oil: conventional_steam_turbine
+      Biomass: cogeneration_chp
+    ThermalPowerCCS:
+      Coal: conventional_steam_turbine
+      NaturalGas: combined_cycle_gas_turbine
+  fuel_crosswalk:
+    Coal: coal
+    NaturalGas: natural_gas
+    Oil: oil
+    Biomass: biomass
+  fuel_compatibility:
+    coal: [coal]
+    natural_gas: [natural_gas, oil_and_natural_gas]
+    oil: [oil, oil_and_natural_gas, bio_oil_and_diesel]
+    biomass: [biomass, bio_oil_and_diesel]
+
+nonpower:
+  emissions_mode: approved_factor_inventory
+  native_emissions_use: validation_only
+  spatialization_mode: reviewed_coordinate_geometry
+  activity_crosswalk: docs/references/nonpower_emissions/gcam_kaist_native_activity_crosswalk.csv
+
+assumptions:
+  - CORE_9_NZ is the common non-power pathway in both combined cases.
+  - nzk_high is the temporary power-plant-NZK-on pathway.
+  - no_nzk is the temporary power-plant-NZK-off pathway.
+  - The reference GCAM XML is paused and is not required by this configuration.
+  - Production assembly fails closed until approved denominator-compatible factors and coordinate geometry are present.
+  - Native GCAM pollutant emissions are retained only for validation and are never silently substituted for Korean activity-times-factor emissions.

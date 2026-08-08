@@ -41,6 +41,7 @@ DEFAULT_GENERATION_INPUT_PATH = (
     / "raw"
     / "kepco_subsidiaries"
     / "midland_power"
+    / "generation"
     / "midland_power_monthly_generation.csv"
 )
 DEFAULT_AGGREGATE_INPUT_PATH = (

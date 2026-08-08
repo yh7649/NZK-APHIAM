@@ -27,6 +27,7 @@ from dotenv import load_dotenv
 import pandas as pd
 import requests
 
+from nzk_aphiam.config.paths import PROJECT_ROOT
 from nzk_aphiam.data.scrape.common.period_snapshot import save_period_snapshots
 from nzk_aphiam.data.scrape.thermal.southern_power.provenance import (
     ENRICHMENT_SOURCES,
@@ -41,7 +42,6 @@ DATE_COLUMN = "년월"
 DEFAULT_PER_PAGE = 1000
 DEFAULT_RETRIES = 3
 
-PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "kepco_subsidiaries" / "southern_power"
 
 SECRET_QUERY_KEYS = {"servicekey", "service_key", "apikey", "api_key", "key"}

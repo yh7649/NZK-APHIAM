@@ -1,0 +1,12 @@
+bundle_id: peng_replication_mvp
+status: mutable_team_handoff
+source_models:
+  - macro
+upstream_files:
+  macro_generation: upstream/macro/generation_by_province_long.csv
+  macro_metadata: upstream/macro/generation_by_province_long.metadata.json
+consumers:
+  - configs/scenarios/peng_replication_mvp.yaml
+notes:
+  - The upstream file may change when the team supplies a revised MACRO pathway.
+  - APHIAM run manifests preserve the checksum of the exact file used.

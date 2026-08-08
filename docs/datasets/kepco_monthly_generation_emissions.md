@@ -407,7 +407,7 @@ remain untracked.
 
 Long-format detail per subsidiary — every flagged row with its value,
 threshold, and explanation, plus summary tables — is written to
-`results/tables/{subsidiary}/audit/`.
+`results/diagnostics/kepco_subsidiaries/{subsidiary}/audit/`.
 
 To re-run just the audit stage without recombining (for example, after
 changing an audit threshold but not the underlying data), use:

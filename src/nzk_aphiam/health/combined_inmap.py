@@ -29,6 +29,17 @@ PRIMARY_CRF_ID = "peng_krewski_2009_all_cause"
 EXPOSURE_SCOPE = (
     "incremental_korean_power_and_nonpower_source_contribution_screening_not_total_ambient"
 )
+POWER_ONLY_EXPOSURE_SCOPE = (
+    "incremental_korean_thermal_power_source_contribution_screening_not_total_ambient"
+)
+
+
+def _exposure_scope(run_manifest: dict[str, Any]) -> str:
+    return (
+        POWER_ONLY_EXPOSURE_SCOPE
+        if run_manifest.get("emissions_scope") == "thermal_power_only"
+        else EXPOSURE_SCOPE
+    )
 
 
 def _read_run_state(output_path: Path) -> dict[str, Any]:
@@ -61,6 +72,7 @@ def collect_national_scenario_exposures(
         )
     rows: list[pd.DataFrame] = []
     incomplete: list[str] = []
+    exposure_scope = _exposure_scope(run_manifest)
     for job in jobs:
         output_path = Path(job["output"])
         try:
@@ -74,7 +86,7 @@ def collect_national_scenario_exposures(
             scenario=str(job["scenario"]),
             year=int(job["year"]),
             country_iso_a3=country_iso_a3,
-            concentration_scope=EXPOSURE_SCOPE,
+            concentration_scope=exposure_scope,
         )
         exposure["solver_mode"] = state["solver_mode"]
         exposure["inmap_num_iterations"] = int(state["num_iterations"])
@@ -275,7 +287,7 @@ def evaluate_all_scenario_mortality(
                 concentration_column="population_weighted_pm25_ugm3",
                 concentration_mode="direct_scenario_concentration",
                 background_pm25_ugm3=None,
-                exposure_scope=EXPOSURE_SCOPE,
+                exposure_scope=_exposure_scope(run_manifest),
                 comparison_type="same_year_scenario_comparison",
                 analytical_use_permitted=False,
             )
@@ -321,7 +333,7 @@ def evaluate_all_scenario_mortality(
         "annual_deaths_attributable_to_modeled_pm25_source_contribution"
     )
     combined_impacts = pd.concat(impacts, ignore_index=True)
-    combined_impacts["comparison_metric"] = "no_nzk_minus_policy_positive_is_avoided_deaths"
+    combined_impacts["comparison_metric"] = "reference_minus_policy_positive_is_avoided_deaths"
     combined_status = pd.concat(statuses, ignore_index=True)
     return HealthSuiteResults(
         model_inputs=combined_inputs,
@@ -336,6 +348,8 @@ def write_health_outputs(
     suite: HealthSuiteResults,
     run_manifest: dict[str, Any],
     output_dir: Path,
+    *,
+    reference_scenario: str = "no_nzk",
 ) -> Path:
     """Write explicitly labeled exposure, mortality, comparison, and audit files."""
     fixed_iterations = int(run_manifest["num_iterations"]) > 0
@@ -381,11 +395,12 @@ def write_health_outputs(
         ),
         "partial_results": partial,
         "included_scenarios": sorted(exposures["scenario"].astype(str).unique()),
+        "reference_scenario": reference_scenario,
         "included_years": sorted(
             pd.to_numeric(exposures["year"], errors="raise").astype(int).unique().tolist()
         ),
         "incomplete_jobs": run_manifest.get("incomplete_jobs", []),
-        "exposure_scope": EXPOSURE_SCOPE,
+        "exposure_scope": _exposure_scope(run_manifest),
         "primary_crf_id": PRIMARY_CRF_ID,
         "scenario_mortality_definition": (
             "Annual deaths attributable to the modeled Korean power and non-power "
@@ -420,6 +435,7 @@ def run_health_postprocess(
     allow_nonconverged_diagnostic: bool = False,
     allow_partial_complete: bool = False,
     partial_policy_scenarios: list[str] | None = None,
+    reference_scenario: str = "no_nzk",
 ) -> Path:
     """Run exposure extraction and the existing health suite across all jobs."""
     config = load_config(config_path)
@@ -437,10 +453,22 @@ def run_health_postprocess(
     if allow_partial_complete and run_manifest["partial_results"]:
         exposures = select_balanced_partial_exposures(
             exposures,
+            reference_scenario=reference_scenario,
             policy_scenarios=partial_policy_scenarios,
         )
-    suite = evaluate_all_scenario_mortality(exposures, config, run_manifest)
-    return write_health_outputs(exposures, suite, run_manifest, output_dir)
+    suite = evaluate_all_scenario_mortality(
+        exposures,
+        config,
+        run_manifest,
+        reference_scenario=reference_scenario,
+    )
+    return write_health_outputs(
+        exposures,
+        suite,
+        run_manifest,
+        output_dir,
+        reference_scenario=reference_scenario,
+    )
 
 
 def main() -> None:
@@ -451,6 +479,7 @@ def main() -> None:
     parser.add_argument("--allow-nonconverged-diagnostic", action="store_true")
     parser.add_argument("--allow-partial-complete", action="store_true")
     parser.add_argument("--partial-policy-scenario", action="append")
+    parser.add_argument("--reference-scenario", default="no_nzk")
     args = parser.parse_args()
     output_dir = (
         args.output_dir.resolve()
@@ -464,6 +493,7 @@ def main() -> None:
         allow_nonconverged_diagnostic=args.allow_nonconverged_diagnostic,
         allow_partial_complete=args.allow_partial_complete,
         partial_policy_scenarios=args.partial_policy_scenario,
+        reference_scenario=args.reference_scenario,
     )
     print(f"Wrote combined InMAP health post-processing outputs to {manifest.parent}")
 

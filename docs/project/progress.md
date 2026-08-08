@@ -1,6 +1,79 @@
 # Research Progress
 
-_As of 27 July 2026_
+_As of 29 July 2026_
+
+## 0. Repository organization
+
+The project now has one documented placement policy in
+[`docs/project/data_layout.md`](data_layout.md). Raw source responses are
+provider-oriented, normalized source tables are interim data, reusable
+downstream inputs are processed data, and simulation state lives under
+`results/runs/`. KOSIS normalized tables and Midland generation snapshots were
+migrated to match that policy. Paused annual-panel data and superseded Midland
+concentration files now live under `data/archive/`.
+
+Mutable MACRO and GCAM-KAIST handoffs are now treated as inter-model interfaces,
+not data. Named bundles live under `model_inputs/scenarios/`, with team-shaped
+files in `upstream/` and reproducible APHIAM schemas in `aphiam/`.
+The team-supplied GCAM-KAIST reference and NZK XML archives have been received,
+separated by scenario under the `team_handoff` bundle, and placed under DVC
+control. The NZK archive contains a complete 2.38 GB XML member with South
+Korea results and is now the active non-power baseline. The reference member is
+truncated before South Korea and is paused.
+
+The streaming NZK extractor reads directly from ZIP and produced 20,387 native
+activity rows and 23,301 native-emissions rows for seven model years through
+2050. The native crosswalk maps 199 canonical annual activity rows across 12 of
+50 P1 inventory IDs; 11 activity selectors are factor-lane ready and the
+provisional hydrogen conversion remains blocked. Native pollutant mass is
+validation-only. The approved
+factor lane, CAPSS administrative spatial weights, reviewed point/grid geometry
+schema, mixed InMAP spatial ingestor, and the power-NZK on/off pairing are
+implemented. Production assembly fails closed because all non-power factors
+and links remain unapproved and all coordinate geometry remains missing. See
+[`docs/methods/gcam_kaist_native_nzk_interface.md`](../methods/gcam_kaist_native_nzk_interface.md).
+
+A separate non-analytical POC path now pairs that same native NZK non-power
+activity with all three simulated `no_nzk`, `nzk_low`, and `nzk_high` power
+paths. Its maximum-coverage lane enables all 42 listed native selectors as 25
+APHIAM activities, assigns VOCs, NOx, NH3, SOx, and primary PM2.5 through a
+four-tier EF ladder, and builds 18 fixed-iteration InMAP jobs from one command:
+`make inmap-gcam-nzk-poc`. Six of the 125 activity/pollutant mappings use
+denominator-compatible linked candidates, 90 use CAPSS base emissions divided
+by GCAM activity, and 29 use a deliberately suspicious global pollutant
+median. CAPSS administrative shares are placed at matching district, province,
+or national AirKorea monitor centroids, replacing the four-cell grid. This is
+an economy-wide plumbing demonstration, not an analytical emissions or
+exposure result.
+
+All 18 GCAM-NZK POC InMAP jobs have completed at 50 fixed iterations. The
+downstream Korea exposure and BenMAP-equivalent health stage now accepts the
+full native scenario names while reporting concise `no_nzk`, `nzk_low`, and
+`nzk_high` labels. The completed run produced 18 exposure rows and 48 valid
+same-year health comparisons; 24 additional endpoint specifications remain
+blocked because matching KOSIS NCD+LRI or non-accidental baseline mortality is
+unavailable. In 2050 the low and high power pathways reduce population-weighted
+modeled PM2.5 by 0.005% and 0.022%, corresponding to 0.253 and 1.196 avoided
+attributable deaths in the primary all-cause specification. A presentation
+package now contains scenario maps, difference maps, component maps,
+trajectories, a two-panel air-quality/health summary, and clearly labeled GIF
+and MP4 animations. These remain maximum-coverage, fixed-iteration diagnostics
+and are not suitable for inference.
+
+A separate two-job 2050 power-only diagnostic now excludes the GCAM non-power
+COARDS inventory at InMAP configuration time and compares the current thermal
+pathway with the zero-thermal high pathway. Its run and health manifests label
+the concentration scope as thermal power only. This isolates whether the small
+incremental health result comes from the encoded power inventory or from
+interactions with the provisional non-power inventory; it does not fill the
+omitted power-sector primary PM2.5, NH3, or VOC fields.
+
+The KEPCO annual emission-factor handoff is now a canonical processed input at
+`data/processed/kepco/emission_factors/`; the copy under `results/tables/` is
+presentation-only. Python, R, and Stata workflows use their shared path helpers,
+and tracked provenance no longer contains machine-specific absolute paths.
+DVC owns only regenerable snapshot directories, while Git continues to own the
+small immutable Midland provider responses.
 
 ## 0a. Temporary KEPCO-only scenario fixtures
 
@@ -94,7 +167,7 @@ air-quality/health summary. The report manifest preserves the diagnostic status
 and source health manifest; reporting does not promote fixed-iteration results
 to analytical estimates.
 
-## 0. Korean thermal-power replication MVP
+## 1. Korean thermal-power replication MVP
 
 An executable screening-level chain now links the local observed EPSIS 2021
 thermal generation handoff to the single available 2030 MACRO pathway, allocates
@@ -114,7 +187,7 @@ comparison is labeled `historical_to_scenario`; no reference pathway was invente
 Primary PM2.5, NH3, and VOC are omitted from the central inventory rather than
 assigned undocumented factors. Global InMAP v1.9.6 and official model data v1.1.0
 are pinned in the workflow; run-specific execution state and any external blocker
-are recorded under ignored `results/mvp/peng_replication/`.
+are recorded under ignored `results/runs/peng_replication/`.
 
 The team has selected Global InMAP's annual-resolution pathway, including its
 packaged global meteorology and built-in bias correction. The separate hourly KMA
@@ -169,8 +242,14 @@ Structure is a cookiecutter-data-science layout with Python (77%), R (19%), a bi
 - **KEPCO thermal scrapers/cleaners** for all five subsidiaries (East-West, Western, Southern, South-East, and Midland); Midland now uses KOMIPO's checksum-verified direct 2024--2025 monthly mass workbook joined to its existing public monthly generation, with the superseded concentration/flow estimator archived; plus KHNP generation, combiner, auditor, explicit pollutant-month EF eligibility, on-demand cohort EF queries, operational/low-load/conservative annual sensitivities, and handoff workbook export
 - **CAPSS scraper + processor + power export** (`data/process/capss/processor.py`, `data/process/capss_power_fuel_technology.py`) — tidy long emissions, taxonomy-period flags, pollutant coverage metadata, 2016--2023 public/private power fuel × official CAPSS technology tables
 - **Non-power inventory and EF evidence** (`data/process/nonpower_sector_inventory.py`, `data/process/nonpower_emission_factors.py`, `data/scrape/capss/nonpower_emission_factors.py`, `docs/references/nonpower_emissions/`) — inventory v0.2.0 contains 89 substantive activities, 181 native-CAPSS crosswalk rows, 608 pollutant-specific denominators, and separate supplemental boundaries for commercial cooking aerosol, charcoal kilns, and road tire/brake wear. The tracked collection retains 912 imported candidates mapped into 2,067 links over 41 activities. The verified official Handbook VII scrape covers 327 PDF pages and 86 direct-emission activities, indexes 123 true factor/speciation tables, reconstructs 129 table occurrences, and emits 3,250 standard-column factor candidates. Of those, 2,994 have aligned labels, 3,144 have resolved units, and 2,720 map conservatively into 4,196 candidate links over 54 activities. All imported and scraped rows remain `production_ready=false`; formula-heavy table parsers, row review, VI-to-VII diffing, and annual weighting remain
-- **MACRO/GCAM integrator** (`data/process/macro/integrator.py`) — exactly the EF-derivation logic (CAPSS emissions ÷ GCAM activity → EF → × projected activity); the separate 2021 KEPCO-EF × MACRO-generation validation module is implemented but still requires the external MACRO generation file
-- **AirKorea hourly QC pipeline** (2001–2025 finalized archives, station crosswalk, anomaly model, spatial validation)
+- **Native GCAM NZK interface** (`model_inputs/gcam_xml.py`, `data/process/nonpower_native.py`, `air_quality/inmap/nonpower_spatial.py`) — streams the complete `CORE_9_NZ` XML from ZIP, extracts South Korea activity and native-emissions validation tables, maps 12/50 P1 activities in the fail-closed production lane, and maps all 42 listed selectors into 25 POC activities through an explicit assumption registry. The maximum-coverage POC assigns every activity all five InMAP pollutants using ranked candidate/CAPSS/global fallbacks and allocates them with CAPSS 2021 administrative shares anchored to real AirKorea monitor centroids. One NZK non-power path expands into the three simulated power comparisons. The reference XML is paused; production output remains blocked by zero approved non-power factors and zero reviewed emitting-source coordinate rows
+- **MACRO/GCAM integrator** (`data/process/macro/integrator.py`) — exactly the EF-derivation logic (CAPSS emissions ÷ GCAM activity → EF → × projected activity); the separate 2021 KEPCO-EF × MACRO-generation validation module is implemented and reads the current team handoff from `model_inputs/`
+- **AirKorea monitor workflow** — resumable row-preserving canonical Parquet
+  merge, deterministic and time-blocked random-forest QC, monitor-year
+  attributes, spatial anomaly confirmation, EPA-style daily/quarterly/annual
+  PM completeness, and optional observed-minus-InMAP residual interpolation
+  are implemented. Full-history execution remains pending; the annual PM2.5
+  handoff begins in 2014 and excludes provisional partial years
 - **KOSIS health/demographic panel** (monthly deaths by 시군구, cause deaths, population, age structure, projections, ~20 SDOH covariates)
 - **Crosswalks**: plant location/dates, retirement dates, stack properties, technology mapping — all with evidence files
 - **KEPCO external EF validation** permits percent-error statistics only for
@@ -205,9 +284,10 @@ Structure is a cookiecutter-data-science layout with Python (77%), R (19%), a bi
   Handbook VII candidate table and inventory-link table now exist, but
   formula-heavy road/aviation/nonstandard tables, human row review, and annual
   technology/fleet/control shares still need implementation.
-- **No team-supplied production scenario definitions.** KEPCO-only proportional
-  and whole-unit-retirement proof-of-concept fixtures exist for pipeline testing,
-  but both must be replaced by the paired MACRO reference and policy pathways.
+- **No team-supplied production power scenario definitions.** The GCAM-KAIST
+  `CORE_9_NZ` non-power pathway is active, but the power-NZK on/off comparison
+  temporarily uses the KEPCO `nzk_high` and `no_nzk` fixtures. Those power
+  pathways must still be replaced by team-supplied definitions.
 - **No `METHODOLOGY.md`** — it's not in the tree.
 
 **Drift worth flagging:** a large empirical branch has grown — `analysis/gwr/`
@@ -246,16 +326,16 @@ Also: `stack_properties.csv` is sourced from **CREA's 2021 South Korea HIA Appen
 | # | Step | Peng et al. (US) | Korean equivalent required | In repo? |
 |---|---|---|---|---|
 | 0 | Scenario design | 3 scenarios (Baseline / Existing / All-In), 2015→2030 | Net Zero Korea MACRO pathway pairs + a no-policy baseline; **must define an explicit baseline** — the marginal estimand requires it | **POC only.** Separate proportional and whole-unit-retirement KEPCO fixture families exist; paired production MACRO pathways are still pending |
-| 1 | Energy/activity model | GCAM-USA-CGS, state-level | MACRO (MacroEnergy.jl) + gcam-kaist7 | Integrator and populated non-power conceptual taxonomy exist; **the native activity CSV itself is an external input, not in repo**, so model labels remain provisional |
+| 1 | Energy/activity model | GCAM-USA-CGS, state-level | MACRO (MacroEnergy.jl) + GCAM-KAIST | **NZK native interface implemented.** The complete `CORE_9_NZ` XML is streamed from ZIP; South Korea activity is extracted for 2021--2050 and 12/50 P1 inventory IDs currently have reviewed native selectors |
 | 2 | Criteria pollutant emissions | **Native GCAM-USA output** | **Not native** — technology/fuel/process EF × annual GCAM activity, with aggregate CAPSS intensity retained only as fallback/validation | **Framework partial.** The 89-row inventory, 608 legal pollutant-denominator joins, 181 CAPSS links, 912 imported provisional EF rows, and 3,250 official-VII machine-normalized candidates are implemented; nonstandard formula parsing, row approval, and annual weighting remain |
 | 3 | Base-year emissions inventory | NEI 2017 (12 km gridded, point sources w/ stack params) | CAPSS | Scraper + tidy processor **yes**; **but no facility coordinates** — CAPSS board exposes no point-source download (flagged in docs as a separate SEMS task) |
-| 4 | Spatial downscaling factors | Grid share of state total from NEI, held constant | 시군구 share of national/sido total from CAPSS, held constant | **No.** Blocked: `sub_district_code` is null; needs an admin-code crosswalk |
+| 4 | Spatial downscaling factors | Grid share of state total from NEI, held constant | 시군구 share of national/sido total from CAPSS, held constant | **POC connected; production partial.** Pollutant-specific 2021 CAPSS administrative shares exist for 68 inventory IDs. The maximum-coverage POC places them at matching AirKorea district/province monitor centroids and fills absent sectors from the national pollutant pattern. These are not emitting-source coordinates; the reviewed coordinate/stack interface remains empty |
 | 5 | Fire/land-use emissions | FINN 2017, held at baseline | Korean equivalent, or explicit exclusion | **No** — and worth documenting as a scope exclusion |
 | 6 | Transboundary/exogenous emissions | Canada+Mexico frozen at NEI 2017 | **China/NE Asia** — far more consequential for Korea than CA/MX are for the US | **No.** This is a real gap, not a formality |
 | 7 | Point-source stack parameters | NEI vertical profile | Height, diameter, exit temp, velocity per stack | **Partial.** Coal from CREA 2021 App. 2 (not KEPCO); ≥1 unmatched; **zero LNG/CCGT rows** |
 | 8 | Meteorology preprocessing | WRF-Chem 2005 field, prebaked into InMAP | Global InMAP's packaged global meteorology and built-in bias correction; no separate hourly Korean preprocessing in the active design | **Selected and integrated.** The superseded KMA hourly pipeline is archived and is not an InMAP input |
-| 9 | Air quality model | InMAP (primary + secondary PM2.5) | **Same** — InMAP / Global InMAP | **MVP integrated; real-binary POC complete.** Pinned installer, mixed point/polygon/COARDS-grid input writer, scenario scoping, all-input cache, output validation, and differencing work end to end. No real non-power spatial file is connected yet. The fixed-iteration POC is diagnostic; strict converged runs remain pending |
-| 10 | AQ model evaluation | InMAP vs WRF-Chem vs 2017 obs (Fig. S13) | InMAP vs AirKorea monitors — **this is your stated core contribution** | **Infrastructure yes, evaluation no.** AirKorea QC + crosswalk are built and are the right inputs |
+| 9 | Air quality model | InMAP (primary + secondary PM2.5) | **Same** — InMAP / Global InMAP | **MVP integrated; real-binary POC complete.** Pinned installer, mixed point/polygon/COARDS-grid input writer, scenario scoping, all-input cache, output validation, and differencing work end to end. The maximum-coverage non-power POC is connected through CAPSS-weighted real-monitor centroid proxies, not real source locations. Fixed-iteration runs are diagnostic; strict converged production runs remain pending |
+| 10 | AQ model evaluation | InMAP vs WRF-Chem vs 2017 obs (Fig. S13) | InMAP vs AirKorea monitors — **this is your stated core contribution** | **Workflow yes, evaluation no.** Canonical ingestion, forest/spatial QC, annual PM completeness, monitor-to-grid sampling, and residual IDW are implemented; full-history outputs and a real historical InMAP-grid comparison still must be run |
 | 11 | Exposure aggregation | Pop-weighted grid→county | Pop-weighted grid→시군구 | **National MVP integrated and exercised.** The POC selected 1,104 Korean cells and Global InMAP `TotalPop` represented 49.76 million people; the resulting concentrations remain diagnostic until strict convergence. District exposure still needs compatible boundaries/allocation |
 | 12 | Health impact function | BenMAP-CE 1.5.8, `ΔY=(1−e^(−β·ΔPM))·Y₀·Pop` | Hand-implemented equivalent (BenMAP has no Korea config) | **Yes.** Verified core plus a multi-specification InMAP adapter. The historical 28.74-death POC was produced by the superseded single-CRF adapter and remains a non-converged sign diagnostic; analytical health output requires converged, correctly scoped exposure |
 | 13 | CRF (β) | Krewski 2009 ACS log-linear | Same, or a Korea/Asia cohort; GEMM as sensitivity | **Full suite implemented and tested.** Huang–Peng/Krewski primary, age-specific GEMM, Byun, Kim, Korean GUIDE/Hoek, and Lim elderly are evidence-linked and prespecified |
@@ -268,8 +348,8 @@ Also: `stack_properties.csv` is sourced from **CREA's 2021 South Korea HIA Appen
 | 20 | Cross-boundary transport test | VA held at baseline, 5 neighbors decarbonized | Sido-level analogue + the China question | **No** |
 
 **The short version:** the thermal-power MVP now bridges the former middle gap at
-national scale, with explicit existing-site allocation and Global InMAP. A proper
-paired reference-policy MACRO deliverable, exhaustive national plant/stack evidence,
-district exposure, non-power factor normalization/emissions, foreign emissions, and the broader sensitivity
-framework remain substantive gaps; the CAPSS 시군구 code gap still blocks economy-wide
-district downscaling.
+national scale, with explicit existing-site allocation and Global InMAP. The
+native NZK non-power baseline and power-toggle plumbing now exist. Team-supplied
+power definitions, approved non-power factors, exhaustive national
+plant/stack and diffuse-grid coordinates, district exposure, foreign
+emissions, and the broader sensitivity framework remain substantive gaps.

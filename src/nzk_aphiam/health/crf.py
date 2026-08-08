@@ -17,7 +17,9 @@ from typing import Protocol, runtime_checkable
 import numpy as np
 import pandas as pd
 
-_REFERENCE_DIR = Path(__file__).resolve().parents[3] / "docs" / "references" / "health"
+from nzk_aphiam.config.paths import PROJECT_ROOT
+
+_REFERENCE_DIR = PROJECT_ROOT / "docs" / "references" / "health"
 DEFAULT_CRF_PARAMETERS_PATH = _REFERENCE_DIR / "crf_parameters.csv"
 DEFAULT_GEMM_PARAMETERS_PATH = _REFERENCE_DIR / "gemm_ncd_lri_parameters.csv"
 DEFAULT_CRF_ID = "peng_krewski_2009_all_cause"

@@ -12,13 +12,13 @@ from typing import Any
 import pandas as pd
 import yaml
 
-from nzk_aphiam.config.paths import MACRO_PROCESSED_DIR, PROJECT_ROOT
+from nzk_aphiam.config.paths import NONPOWER_PROXY_MODEL_INPUTS_DIR, PROJECT_ROOT
 from nzk_aphiam.data.process.capss.processor import normalize_label
 
 DEFAULT_CONFIG_PATH = (
     PROJECT_ROOT / "configs" / "scenarios" / "gcam_kaist_nonpower_proxy_2025_2050.yaml"
 )
-DEFAULT_OUTPUT_DIR = MACRO_PROCESSED_DIR / "scenarios" / "nonpower_proxy_2025_2050"
+DEFAULT_OUTPUT_DIR = NONPOWER_PROXY_MODEL_INPUTS_DIR
 DETAILED_COLUMNS = [
     "fixture_status",
     "scenario",

@@ -12,9 +12,13 @@ from scipy.io import netcdf_file
 from nzk_aphiam.air_quality.inmap.combined_inventory import (
     audit_nonpower_factor_catalog,
     build_harmonized_ledger,
+    build_nonpower_point_inventory,
     build_power_emissions,
     prepare_nonpower_emissions,
+    spatialize_nonpower_with_geometry,
+    spatialize_nonpower_with_monitor_surrogates,
     write_coards_inventory,
+    write_coordinate_coards_inventory,
 )
 from nzk_aphiam.air_quality.inmap.combined_runner import (
     load_run_jobs,
@@ -59,6 +63,12 @@ def test_nonpower_factor_catalog_blocks_unapproved_production_mode() -> None:
         emissions_mode="capss_base_intensity_screening",
     )
     assert audit["production_ready_factor_rows"] == 0
+    candidate_audit = audit_nonpower_factor_catalog(
+        factors,
+        links,
+        emissions_mode="candidate_factor_screening",
+    )
+    assert candidate_audit["production_ready_factor_rows"] == 0
     with pytest.raises(ValueError, match="requires production-ready"):
         audit_nonpower_factor_catalog(
             factors,
@@ -241,6 +251,189 @@ def test_grid_writer_and_harmonized_ledger_preserve_mass(tmp_path: Path) -> None
     assert process.startswith("downgraded_to_proxy_grid")
 
 
+def test_one_nonpower_nzk_path_can_pair_with_two_power_cases() -> None:
+    factors, links = _factor_tables()
+    factor_audit = audit_nonpower_factor_catalog(
+        factors,
+        links,
+        emissions_mode="capss_base_intensity_screening",
+    )
+    config = _nonpower_config()
+    config["scenario_pairs"] = {
+        "nzk_with_power_plant_nzk": {
+            "power": "power_nzk",
+            "nonpower": "gcam_policy",
+        },
+        "nzk_without_power_plant_nzk": {
+            "power": "power_no_nzk",
+            "nonpower": "gcam_policy",
+        },
+    }
+    selected = prepare_nonpower_emissions(
+        _projected_nonpower(),
+        config,
+        factor_audit=factor_audit,
+    )
+    assert set(selected["scenario"]) == {
+        "nzk_with_power_plant_nzk",
+        "nzk_without_power_plant_nzk",
+    }
+    assert selected["source_scenario"].eq("gcam_policy").all()
+    assert len(selected) == 2 * len(_projected_nonpower())
+
+
+def test_reviewed_nonpower_geometry_writes_point_and_grid_inputs(
+    tmp_path: Path,
+) -> None:
+    emissions = pd.DataFrame(
+        [
+            {
+                "scenario": "nzk",
+                "year": 2030,
+                "inventory_id": "industry",
+                "sector": "industry",
+                "fuel": "coal",
+                "pollutant": "NOx",
+                "activity": 10.0,
+                "projected_emissions_kg": 100.0,
+                "inmap_field": "NOx",
+                "geometry_type": "Pending",
+                "preferred_geometry": "Pending",
+                "spatialization_status": "pending_reviewed_coordinate_join",
+                "activity_unit": "tonne product",
+                "emission_factor_kg_per_activity": 10.0,
+                "emission_factor_unit": "kg/ton-product",
+                "factor_method": "approved_nonpower_factor_inventory",
+            },
+            {
+                "scenario": "nzk",
+                "year": 2030,
+                "inventory_id": "agriculture",
+                "sector": "agriculture",
+                "fuel": "none",
+                "pollutant": "NH3",
+                "activity": 20.0,
+                "projected_emissions_kg": 200.0,
+                "inmap_field": "NH3",
+                "geometry_type": "Pending",
+                "preferred_geometry": "Pending",
+                "spatialization_status": "pending_reviewed_coordinate_join",
+                "activity_unit": "kg nitrogen applied",
+                "emission_factor_kg_per_activity": 10.0,
+                "emission_factor_unit": "kg/kg-N",
+                "factor_method": "approved_nonpower_factor_inventory",
+            },
+        ]
+    )
+    geometry = pd.DataFrame(
+        [
+            {
+                "spatial_id": "facility-1",
+                "inventory_id": "industry",
+                "geometry_type": "Point",
+                "latitude": 36.0,
+                "longitude": 127.0,
+                "weight": 1.0,
+                "stack_height_m": 100.0,
+                "stack_diameter_m": 5.0,
+                "stack_temperature_k": 373.15,
+                "stack_velocity_m_s": 20.0,
+                "status": "production_ready",
+                "source_id": "facility_source",
+            },
+            {
+                "spatial_id": "grid-1",
+                "inventory_id": "agriculture",
+                "geometry_type": "Grid",
+                "latitude": 35.0,
+                "longitude": 126.0,
+                "weight": 0.25,
+                "stack_height_m": "",
+                "stack_diameter_m": "",
+                "stack_temperature_k": "",
+                "stack_velocity_m_s": "",
+                "status": "production_ready",
+                "source_id": "grid_source",
+            },
+            {
+                "spatial_id": "grid-2",
+                "inventory_id": "agriculture",
+                "geometry_type": "Grid",
+                "latitude": 37.0,
+                "longitude": 128.0,
+                "weight": 0.75,
+                "stack_height_m": "",
+                "stack_diameter_m": "",
+                "stack_temperature_k": "",
+                "stack_velocity_m_s": "",
+                "status": "production_ready",
+                "source_id": "grid_source",
+            },
+        ]
+    )
+    allocated = spatialize_nonpower_with_geometry(emissions, geometry)
+    totals = allocated.groupby("pollutant")["projected_emissions_kg"].sum()
+    assert totals["NOx"] == pytest.approx(100.0)
+    assert totals["NH3"] == pytest.approx(200.0)
+
+    point = build_nonpower_point_inventory(
+        allocated.loc[allocated["geometry_type"].eq("Point")]
+    )
+    assert point.loc[0, "nox_kg"] == pytest.approx(100.0)
+    assert point.loc[0, "nh3_kg"] == pytest.approx(0.0)
+
+    grid_path = tmp_path / "reviewed.nc"
+    details = write_coordinate_coards_inventory(
+        allocated.loc[allocated["geometry_type"].eq("Grid")],
+        grid_path,
+    )
+    assert details["totals_kg"]["NH3"] == pytest.approx(200.0)
+
+
+def test_monitor_surrogate_spatialization_preserves_mass() -> None:
+    emissions = pd.DataFrame(
+        [
+            {
+                "scenario": "nzk",
+                "year": 2030,
+                "inventory_id": "industry",
+                "sector": "industry",
+                "fuel": "aggregate",
+                "pollutant": "NOx",
+                "activity": 10.0,
+                "projected_emissions_kg": 100.0,
+                "inmap_field": "NOx",
+                "preferred_geometry": "Pending",
+                "spatialization_status": "pending",
+            }
+        ]
+    )
+    surrogates = pd.DataFrame(
+        [
+            {
+                "inventory_id": "industry",
+                "pollutant": "NOx",
+                "latitude": latitude,
+                "longitude": longitude,
+                "weight": weight,
+                "coordinate_method": "test_monitor_centroid",
+                "spatialization_status": "maximum_coverage_poc_monitor_proxy",
+            }
+            for latitude, longitude, weight in [
+                (35.0, 126.0, 0.25),
+                (37.0, 128.0, 0.75),
+            ]
+        ]
+    )
+    allocated = spatialize_nonpower_with_monitor_surrogates(emissions, surrogates)
+    assert allocated["projected_emissions_kg"].sum() == pytest.approx(100.0)
+    assert sorted(allocated["projected_emissions_kg"]) == pytest.approx([25.0, 75.0])
+    assert set(allocated["geometry_type"]) == {"Grid"}
+    assert set(allocated["spatialization_status"]) == {
+        "maximum_coverage_poc_monitor_proxy"
+    }
+
+
 def test_prepare_combined_run_instructions_writes_runnable_toml(tmp_path: Path) -> None:
     bundle = tmp_path / "bundle"
     job_dir = bundle / "policy" / "2030"
@@ -339,6 +532,29 @@ def test_prepare_combined_run_instructions_writes_runnable_toml(tmp_path: Path) 
         grid_path.resolve(),
     ]
     assert not jobs[0]["analytical_use_permitted"]
+
+    power_only_dir = tmp_path / "power_only_run"
+    power_only_jobs_path = prepare_run_instructions(
+        bundle,
+        installation_path,
+        power_only_dir,
+        num_iterations=50,
+        power_only=True,
+        scenarios=["policy"],
+        years=[2030],
+    )
+    power_only_manifest = json.loads(power_only_jobs_path.read_text())
+    assert power_only_manifest["job_count"] == 1
+    assert power_only_manifest["emissions_scope"] == "thermal_power_only"
+    assert power_only_manifest["selected_scenarios"] == ["policy"]
+    assert power_only_manifest["selected_years"] == [2030]
+    power_only_config = (power_only_dir / "configs" / "policy_2030.toml").read_text()
+    assert "NumIterations = 50" in power_only_config
+    assert "[aep.InventoryConfig.COARDSFiles]" not in power_only_config
+    _, power_only_jobs, _ = load_run_jobs(power_only_jobs_path)
+    assert power_only_jobs[0]["emission_files"] == [
+        point_files["shapefile"].resolve()
+    ]
 
 
 def test_strict_solver_does_not_override_screening_input_status(

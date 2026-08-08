@@ -23,6 +23,7 @@ class ModelConfig:
     n_folds: int = 5
     mad_threshold: float = 6.0
     minimum_training_rows: int = 200
+    max_training_rows: int | None = None
 
 
 def _estimator(numeric: list[str], categorical: list[str], config: ModelConfig) -> Pipeline:
@@ -83,22 +84,41 @@ def add_oof_predictions(
         eligible = frame.index[~invalid.loc[frame.index] & frame["value_raw"].notna()]
         if len(eligible) < config.minimum_training_rows:
             continue
-        for validation_times in _time_blocks(result.loc[eligible, "datetime"], config.n_folds):
+        for fold, validation_times in enumerate(
+            _time_blocks(result.loc[eligible, "datetime"], config.n_folds)
+        ):
             validation = eligible[result.loc[eligible, "datetime"].isin(validation_times)]
             training = eligible.difference(validation, sort=False)
             if len(training) < config.minimum_training_rows or validation.empty:
                 continue
+            if config.max_training_rows and len(training) > config.max_training_rows:
+                training = (
+                    pd.Series(training, index=training)
+                    .sample(
+                        n=config.max_training_rows,
+                        random_state=config.random_state + fold,
+                    )
+                    .index
+                )
             estimator = _estimator(numeric_features, categorical_features, config)
             estimator.fit(result.loc[training], result.loc[training, "value_raw"])
             result.loc[validation, "value_expected"] = estimator.predict(result.loc[validation])
 
         indices = frame.index
         residual = result.loc[indices, "value_raw"] - result.loc[indices, "value_expected"]
+        residual = pd.Series(
+            residual.to_numpy(dtype=float, na_value=np.nan),
+            index=residual.index,
+            dtype=float,
+        )
+        result.loc[indices, "model_residual"] = residual.to_numpy()
         center = residual.median()
         mad = (residual - center).abs().median()
         scale = 1.4826 * mad
         if pd.notna(scale) and scale > 0:
             robust_z = (residual - center) / scale
-            result.loc[indices, "residual_robust_z"] = robust_z
-            result.loc[indices, "flag_ml"] = robust_z.abs().gt(config.mad_threshold)
+            result.loc[indices, "residual_robust_z"] = robust_z.to_numpy()
+            result.loc[indices, "flag_ml"] = (
+                robust_z.abs().gt(config.mad_threshold).fillna(False).to_numpy()
+            )
     return result

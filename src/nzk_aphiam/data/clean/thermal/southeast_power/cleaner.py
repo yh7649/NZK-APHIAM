@@ -25,11 +25,11 @@ import re
 
 import pandas as pd
 
+from nzk_aphiam.config.paths import PROJECT_ROOT
 from nzk_aphiam.data.clean.thermal.location_crosswalk import apply_location_crosswalk
 from nzk_aphiam.data.clean.thermal.schema import THERMAL_OUTPUT_COLUMNS
 from nzk_aphiam.data.clean.thermal.technology import apply_technology_mapping
 
-PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_INPUT_PATH = (
     PROJECT_ROOT
     / "data"

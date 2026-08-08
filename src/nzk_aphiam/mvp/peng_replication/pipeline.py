@@ -23,7 +23,7 @@ from nzk_aphiam.air_quality.inmap.inventory import generate_scenario_inputs
 from nzk_aphiam.air_quality.inmap.outputs import difference_outputs, read_output
 from nzk_aphiam.air_quality.inmap.runner import run_scenario
 from nzk_aphiam.air_quality.inmap.validation import validate_global_domain
-from nzk_aphiam.config.paths import PROJECT_ROOT
+from nzk_aphiam.config.paths import PROJECT_ROOT, RESULTS_RUNS_DIR
 from nzk_aphiam.fleet.scenario_allocator import allocate_generation
 from nzk_aphiam.mvp.peng_replication.audit import build_input_audit, write_input_audit
 from nzk_aphiam.mvp.peng_replication.config import (
@@ -48,7 +48,7 @@ from nzk_aphiam.mvp.peng_replication.scenarios import (
 )
 from nzk_aphiam.mvp.peng_replication.stacks import impute_stack_parameters
 
-RESULT_ROOT = PROJECT_ROOT / "results" / "mvp" / "peng_replication"
+RESULT_ROOT = RESULTS_RUNS_DIR / "peng_replication"
 
 
 def _json_default(value: object) -> str:
@@ -367,21 +367,27 @@ def _write_report(
     installation_path = run_dir / "inmap" / "installation_manifest.json"
     if installation_path.exists():
         installation = json.loads(installation_path.read_text(encoding="utf-8"))
+
+        def installation_value(key: str) -> object:
+            return installation.get(key, "not recorded")
+
         lines.extend(
             [
                 "",
                 "## Global InMAP provenance",
                 "",
-                f"- Requested release: `{installation['source_release']}`",
-                f"- Requested version and source commit: `{installation['requested_version']}` / "
-                f"`{installation['source_commit']}`",
-                f"- Executable asset: `{installation['executable_asset']}`",
-                f"- Executable version output: `{installation['executable_version_output']}`",
-                f"- Executable SHA-256: `{installation['executable_sha256']}`",
-                f"- Version-output note: {installation['version_output_note']}",
-                f"- Model dataset: `{installation['model_data_version']}` "
-                f"({installation['model_data_record']})",
-                f"- Model archive MD5: `{installation['model_data_archive_md5']}`",
+                f"- Requested release: `{installation_value('source_release')}`",
+                "- Requested version and source commit: "
+                f"`{installation_value('requested_version')}` / "
+                f"`{installation_value('source_commit')}`",
+                f"- Executable asset: `{installation_value('executable_asset')}`",
+                "- Executable version output: "
+                f"`{installation_value('executable_version_output')}`",
+                f"- Executable SHA-256: `{installation_value('executable_sha256')}`",
+                f"- Version-output note: {installation_value('version_output_note')}",
+                f"- Model dataset: `{installation_value('model_data_version')}` "
+                f"({installation_value('model_data_record')})",
+                f"- Model archive MD5: `{installation_value('model_data_archive_md5')}`",
             ]
         )
     exposure_path = run_dir / "national_exposure.csv"

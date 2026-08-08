@@ -1,0 +1,14 @@
+mapping_id,native_to_poc_multiplier,poc_activity_unit,poc_fuel,assumption_type,assumption_detail,analytical_use_permitted
+gap_road_hybrid,666666666.6666667,vehicle-km,gasoline_and_electricity,occupancy_proxy,"Convert billion passenger-km to vehicle-km using 1.5 passengers per light-duty vehicle.",false
+gap_road_bus,50000000,vehicle-km,diesel_CNG_and_electric,occupancy_proxy,"Convert billion passenger-km to vehicle-km using 20 passengers per bus.",false
+gap_road_freight_mdv,125000000,vehicle-km,diesel,payload_proxy,"Convert billion tonne-km to vehicle-km using an 8 tonne average payload.",false
+gap_passenger_rail,11627.9069767442,tonne diesel,diesel,fuel_intensity_proxy,"Use 0.5 MJ per passenger-km and 43 GJ per tonne of diesel.",false
+gap_freight_rail,3488.37209302326,tonne diesel,diesel,fuel_intensity_proxy,"Use 0.15 MJ per tonne-km and 43 GJ per tonne of diesel.",false
+gap_domestic_aviation,13333.3333333333,LTO cycle,jet_fuel,lto_proxy,"Convert billion passenger-km using 150 passengers and 500 km per representative domestic flight.",false
+gap_domestic_shipping,3000,tonne marine fuel,marine_fuel_specific,fuel_intensity_proxy,"Use 0.12 MJ per tonne-km and 40 GJ per tonne of marine fuel.",false
+gap_ag_machinery,27777777777.7778,litre fuel,diesel_and_gasoline,fuel_density_proxy,"Convert EJ to litres using 36 MJ per litre as a screening-average liquid-fuel energy density.",false
+gap_refinery_throughput,23809523.8095238,tonne crude oil,crude_oil,crude_energy_proxy,"Convert EJ to tonnes of crude using 42 GJ per tonne.",false
+gap_waste_incineration,1,GCAM native activity index,municipal_waste,index_fallback,"GCAM reports unit NA; retain the native numeric value as an index and calibrate an effective EF from CAPSS.",false
+gap_landfill,1,GCAM native activity index,waste,index_fallback,"GCAM reports unit NA; retain the native numeric value as an index and calibrate an effective EF from CAPSS.",false
+gap_wastewater,1,GCAM native activity index,wastewater,index_fallback,"GCAM reports unit NA; retain the native numeric value as an index and calibrate an effective EF from CAPSS.",false
+gap_solvents,1,GCAM native activity index,product_specific,index_fallback,"GCAM reports unit NA; retain the native numeric value as an index and calibrate an effective EF from CAPSS.",false

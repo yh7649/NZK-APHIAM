@@ -26,6 +26,7 @@ from dotenv import load_dotenv
 import pandas as pd
 import requests
 
+from nzk_aphiam.config.paths import PROJECT_ROOT
 from nzk_aphiam.data.scrape.common.period_snapshot import save_period_snapshots
 
 DATASET_NAME = "한국서부발전(주)_대기오염물질 배출현황 및 발전량"
@@ -67,7 +68,6 @@ FUEL_MAPPING_SOURCES = [
     },
 ]
 
-PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "kepco_subsidiaries" / "western_power"
 
 SECRET_QUERY_KEYS = {"servicekey", "service_key", "apikey", "api_key", "key"}

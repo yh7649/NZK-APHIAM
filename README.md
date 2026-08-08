@@ -218,11 +218,14 @@ recent, provisional real-time API.
 Run the QC pipeline over the downloaded archives with:
 
 ```bash
-python -m nzk_aphiam.air_quality --years 2021 2022
+make airkorea-monitor-workflow PYTHON_INTERPRETER=.venv/bin/python
 ```
 
 See [`docs/datasets/airkorea_hourly_qc.md`](docs/datasets/airkorea_hourly_qc.md)
-for the QC methodology, station-crosswalk logic, coverage, and output schema.
+for the dataset schema and
+[`docs/methods/airkorea_monitor_workflow.md`](docs/methods/airkorea_monitor_workflow.md)
+for the staged commands, QC logic, EPA-style annual PM aggregation, and
+optional InMAP bias-correction grid.
 
 ## CAPSS Emissions Inventory
 
@@ -282,25 +285,87 @@ aggregate MACRO/CAPSS base-year intensity method.
 
 ## MACRO/GCAM-KAIST Activity Integration
 
-GCAM-KAIST/MACRO activity and generation tables are third-party model
-deliverables, not something this repo scrapes, so they are placed under
-`data/external/macro/` (tracked directly in Git, unlike gitignored
-`data/raw/`) rather than copied in by hand:
+MACRO and GCAM-KAIST files are mutable inter-model scenario inputs, not
+datasets. They live in named bundles under `model_inputs/scenarios/`.
+Add a team handoff through the schema-checking ingestion command:
 
 ```bash
-make ingest-macro-external \
-  MACRO_INGEST_SOURCE=~/Downloads/gcam_kaist_sector_fuel_activity.csv \
-  MACRO_INGEST_KIND=activity
+make ingest-model-input \
+  MODEL_INPUT_SOURCE=~/Downloads/gcam_kaist_sector_fuel_activity.csv \
+  MODEL_INPUT_KIND=activity \
+  MODEL_INPUT_SOURCE_MODEL=gcam_kaist \
+  MODEL_INPUT_SCENARIO=team_handoff
 ```
 
 This validates the file has the columns the downstream step needs, copies it
-into `data/external/macro/`, and writes a metadata sidecar recording who
-supplied it and its checksum. Use `MACRO_INGEST_KIND=generation` for the
-validation workflow's generation file.
+under `model_inputs/scenarios/<bundle>/upstream/<model>/`, and writes a metadata
+sidecar recording who supplied it and its checksum. Use
+`MODEL_INPUT_KIND=generation` and `MODEL_INPUT_SOURCE_MODEL=macro` for a MACRO
+generation handoff.
 
-While the team-supplied non-power activity file is pending, build the explicitly
-synthetic 2023--2050 activity-index fixture and smoke-test its five-column view
-through the CAPSS integrator with:
+The active team-supplied `CORE_9_NZ` XML is preserved as a DVC-tracked ZIP.
+Build its South Korea activity, native-emissions validation, approved-factor,
+and spatial-readiness interfaces directly from the compressed XML with:
+
+```bash
+make build-gcam-nzk-interface PYTHON_INTERPRETER=.venv/bin/python
+```
+
+The paired scenario configuration holds the NZK non-power pathway fixed and
+compares `nzk_with_power_plant_nzk` with
+`nzk_without_power_plant_nzk`. The final InMAP assembly is deliberately blocked
+until denominator-compatible Korean non-power factors and reviewed
+point/grid coordinates are production-ready. See
+[`docs/methods/gcam_kaist_native_nzk_interface.md`](docs/methods/gcam_kaist_native_nzk_interface.md).
+
+To run the explicitly non-analytical maximum-coverage proof of concept with
+native NZK non-power activity and all three simulated power pathways:
+
+```bash
+make inmap-gcam-nzk-poc PYTHON_INTERPRETER=.venv/bin/python
+```
+
+This builds and runs 18 fixed-iteration jobs: three power pathways for six
+years. The POC retains all 42 listed native non-power selectors as 25 APHIAM
+activities, assigns all five InMAP pollutants through a documented ranked EF
+fallback, and allocates emissions with 2021 CAPSS administrative shares placed
+at matching AirKorea monitor centroids. It never changes factor approval flags.
+The assumed activity conversions, CAPSS-calibrated and global fallback EFs, and
+proxy coordinates make it unsuitable for policy, exposure, or health
+inference.
+
+After the jobs finish, run the Korea exposure, BenMAP-equivalent health, and
+presentation stages with:
+
+```bash
+make inmap-gcam-nzk-poc-health PYTHON_INTERPRETER=.venv/bin/python
+```
+
+This produces slide-ready maps and charts under
+`results/figures/inmap/gcam_nzk_three_power_poc_2025_2050/`, GIF and MP4
+animations under `results/videos/inmap/gcam_nzk_three_power_poc_2025_2050/`,
+and health/component tables under
+`results/tables/inmap/gcam_nzk_three_power_poc_2025_2050/`. The animations show
+annual steady-state fields and an illustrative PM2.5 component build-up, not a
+time-resolved plume. For a future clean run, use
+`make inmap-gcam-nzk-poc-with-health` to execute InMAP and these downstream
+stages in one command.
+
+To isolate the thermal-power signal from the shared GCAM non-power inventory,
+run the 2050 current-thermal-versus-complete-shutdown diagnostic with:
+
+```bash
+make inmap-gcam-nzk-power-only-poc-with-health \
+  PYTHON_INTERPRETER=.venv/bin/python
+```
+
+This prepares only two jobs, excludes the non-power COARDS file from both
+InMAP configurations, and then writes explicitly power-only exposure,
+mortality, figures, and tables. It remains a 50-iteration proof of concept and
+does not repair the omitted power-sector primary PM2.5, NH3, or VOC emissions.
+
+The explicitly synthetic 2023--2050 activity-index fixture remains available
+only for software smoke tests:
 
 ```bash
 make build-macro-nonpower-proxy PYTHON_INTERPRETER=.venv/bin/python
@@ -425,18 +490,20 @@ Teammates who prefer not to use the terminal can build
 `make build-macro-generation-dropper`, then just drag a MACRO generation file
 onto it. See [`tools/macos/README.md`](tools/macos/README.md).
 
-GCAM-KAIST supplies sector-by-fuel activity rather than pollutant emissions.
-Combine it with CAPSS base-year sector-by-fuel pollutant intensities with:
+The legacy five-column workflow combines sector-by-fuel activity with CAPSS
+base-year pollutant intensities. It remains a screening/compatibility path,
+separate from the native XML interface:
 
 ```bash
 make integrate-macro-inputs \
-  MACRO_ACTIVITY=data/external/macro/gcam_kaist_sector_fuel_activity.csv \
+  MODEL_INPUT_SCENARIO=team_handoff \
+  MACRO_ACTIVITY=model_inputs/scenarios/team_handoff/upstream/gcam_kaist/gcam_kaist_sector_fuel_activity.csv \
   MACRO_MAPPING=docs/references/macro/gcam_capss_sector_fuel_mapping.csv \
   MACRO_BASE_YEAR=2023
 ```
 
 Projected emissions, emission factors, diagnostics, and metadata are written
-under `data/processed/macro/`. See
+to the bundle's `aphiam/` interface. See
 [`docs/datasets/macro_input_integration.md`](docs/datasets/macro_input_integration.md).
 
 For the separate 2021 historical validation of MACRO generation multiplied by
@@ -444,10 +511,10 @@ KEPCO-derived EFs against CAPSS actual power-sector emissions, run:
 
 ```bash
 make validate-macro-2021-kepco-ef \
-  MACRO_GENERATION=data/external/macro/<team-supplied-generation-file>.csv
+  MACRO_GENERATION=model_inputs/scenarios/<bundle>/upstream/macro/<generation-file>.csv
 ```
 
-This workflow requires the externally supplied MACRO generation file; it does
+This workflow requires the team-supplied MACRO generation file; it does
 not substitute CAPSS-derived EFs when that file is absent.
 
 ## Atmospheric Dispersion
@@ -495,10 +562,14 @@ make scrape-health PYTHON_INTERPRETER=.venv/bin/python
 ```
 
 Override `HEALTH_START_YEAR` and `HEALTH_END_YEAR` for a narrower panel. Raw
-annual JSON responses, normalized CSVs, checksums, and provenance metadata are
-written under `data/raw/health/kosis/`. Aggregate national and provincial rows
+annual JSON responses and provenance metadata are written under
+`data/raw/health/kosis/`; deterministic normalized CSVs are written under
+`data/interim/health/kosis/`. Aggregate national and provincial rows
 are retained and labeled so boundary harmonization can be handled explicitly
 before the DiD/GWR panel is constructed.
+
+See [`docs/datasets/kosis_health.md`](docs/datasets/kosis_health.md) for the
+table inventory, schemas, and source-specific limitations.
 
 To refresh only the demographic covariates, run:
 
@@ -536,7 +607,15 @@ South-East, and Midland Power, along with the shared schema and combined
 dataset rules, lives in
 [`src/nzk_aphiam/data/README.md`](src/nzk_aphiam/data/README.md).
 
+The empirical synthetic-control branch is documented in
+[`docs/methods/synthetic_control.md`](docs/methods/synthetic_control.md).
+Current implementation status and the Huang & Peng replication gap analysis
+are maintained in [`docs/project/progress.md`](docs/project/progress.md).
+
 ## Project Organization
+
+The authoritative placement rules are in
+[`docs/project/data_layout.md`](docs/project/data_layout.md).
 
 ```
 ├── CITATION.cff       <- Machine-readable software citation
@@ -552,14 +631,21 @@ dataset rules, lives in
 ├── requirements       <- Python and R dependency lists
 ├── configs            <- Event and pipeline YAML configuration files
 ├── analysis           <- Main R analysis workspace and shared R helpers
+├── model_inputs       <- Mutable inter-model handoffs and APHIAM scenario interfaces
 ├── data               <- Local data; mostly ignored, with documented tracked exceptions
-│   └── external       <- Team-supplied third-party data deliverables; tracked directly in Git
+│   ├── raw            <- Preserved provider responses and source snapshots
+│   ├── external       <- Non-model third-party primary datasets; tracked directly in Git
+│   ├── interim        <- Source-specific normalized and cleaned products
+│   ├── processed      <- Canonical analysis-ready data and reusable parameters
+│   └── archive        <- Raw/interim/processed data for archived pipelines
 ├── .dvc               <- Local DVC cache/config for versioning raw-data snapshots
 ├── results
 │   ├── figures        <- Saved plots and graphics
 │   ├── tables         <- Saved analysis tables
 │   ├── objects        <- Serialized analysis objects
-│   └── models         <- Trained and serialized models
+│   ├── models         <- Trained and serialized statistical models
+│   ├── runs           <- Simulation configs, logs, manifests, and outputs
+│   └── diagnostics    <- Validation and machine-readable QC reports
 ├── src/nzk_aphiam     <- Python package for scraping, cleaning, and processing
 ├── tools              <- Non-terminal helper tools (e.g. macOS drag-and-drop apps)
 └── tests              <- Python test suite

@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from nzk_aphiam.config.paths import DATA_DIR, THERMAL_PROCESSED_DIR
+from nzk_aphiam.config.paths import RESULTS_DIAGNOSTICS_DIR, THERMAL_PROCESSED_DIR
 from nzk_aphiam.data.clean.thermal.schema import COMBINED_THERMAL_OUTPUT_COLUMNS
 
 KEY = ["date", "plant_name", "plant_number", "original_korean_unit_name"]
@@ -40,7 +40,7 @@ SUBSIDIARY_NAMES = [
     "midland_power",
 ]
 SUBSIDIARY_OUTPUT_DIR = THERMAL_PROCESSED_DIR / "subsidiaries"
-RESULTS_DIR = DATA_DIR.parent / "results" / "tables"
+RESULTS_DIR = RESULTS_DIAGNOSTICS_DIR / "kepco_subsidiaries"
 COMBINED_OUTPUT_PATH = THERMAL_PROCESSED_DIR / "kepco_monthly_generation_emissions.csv"
 METADATA_PATH = THERMAL_PROCESSED_DIR / "kepco_monthly_generation_emissions_metadata.csv"
 AUDIT_COLUMNS = ["audit_severity", "audit_issue_codes"]

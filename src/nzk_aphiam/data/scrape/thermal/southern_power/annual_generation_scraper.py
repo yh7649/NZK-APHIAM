@@ -10,13 +10,14 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+from nzk_aphiam.config.paths import PROJECT_ROOT
+
 DATASET_URL = "https://www.data.go.kr/data/15127550/fileData.do"
 DEFAULT_DOWNLOAD_URL = (
     "https://www.data.go.kr/cmm/cmm/fileDownload.do?"
     "atchFileId=FILE_000000003623726&fileDetailSn=1&insertDataPrcus=N"
 )
 EXPECTED_COLUMNS = ["년도", "발전원", "플랜트", "호기", "용량", "발전량"]
-PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "kepco_subsidiaries" / "southern_power"
 
 

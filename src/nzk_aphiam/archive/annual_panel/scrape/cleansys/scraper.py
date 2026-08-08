@@ -24,16 +24,15 @@ from requests.adapters import HTTPAdapter
 from urllib3.exceptions import InsecureRequestWarning
 from urllib3.util.retry import Retry
 
+from nzk_aphiam.config.paths import ANNUAL_PANEL_ARCHIVE_RAW_DIR
+
 BASE_URL = "https://cleansys.or.kr"
 SOURCE_PAGE_URL = f"{BASE_URL}/statAnnual.do"
 DATA_URL = f"{BASE_URL}/apiService/selectAnnualResult.do"
 FIRST_YEAR = 2015
 LAST_CONFIRMED_YEAR = 2024
 
-PROJECT_ROOT = Path(__file__).resolve().parents[6]
-DEFAULT_OUTPUT_DIR = (
-    PROJECT_ROOT / "data" / "interim" / "supporting" / "emissions" / "cleansys" / "raw"
-)
+DEFAULT_OUTPUT_DIR = ANNUAL_PANEL_ARCHIVE_RAW_DIR / "emissions" / "cleansys"
 
 SOURCE_COLUMNS = [
     "examin_year",

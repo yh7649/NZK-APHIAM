@@ -18,6 +18,11 @@ import matplotlib.pyplot as plt  # noqa: E402
 from nzk_aphiam.health.combined_inmap import PRIMARY_CRF_ID
 
 SCENARIO_ORDER = ("no_nzk", "nzk_low", "nzk_high")
+SCENARIO_ALIASES = {
+    "nzk_nonpower_no_nzk_power": "no_nzk",
+    "nzk_nonpower_low_nzk_power": "nzk_low",
+    "nzk_nonpower_high_nzk_power": "nzk_high",
+}
 SCENARIO_LABELS = {
     "no_nzk": "No NZK",
     "nzk_low": "NZK low",
@@ -29,6 +34,14 @@ SCENARIO_COLORS = {
     "nzk_high": "#0F9D8A",
 }
 PM25_COLUMN = "population_weighted_pm25_ugm3"
+
+
+def _normalize_scenario_names(data: pd.DataFrame) -> pd.DataFrame:
+    normalized = data.copy()
+    for column in ("scenario", "reference_scenario", "policy_scenario"):
+        if column in normalized:
+            normalized[column] = normalized[column].replace(SCENARIO_ALIASES)
+    return normalized
 
 
 def _read_health_outputs(
@@ -46,9 +59,13 @@ def _read_health_outputs(
     if missing:
         raise ValueError(f"Health manifest is missing report inputs: {missing}")
     frames = {
-        name: pd.read_csv(health_dir / output_names[name])
+        name: _normalize_scenario_names(pd.read_csv(health_dir / output_names[name]))
         for name in ("exposures", "primary_totals", "comparisons")
     }
+    manifest["reference_scenario"] = SCENARIO_ALIASES.get(
+        str(manifest.get("reference_scenario", "no_nzk")),
+        str(manifest.get("reference_scenario", "no_nzk")),
+    )
     return (
         frames["exposures"],
         frames["primary_totals"],
@@ -200,11 +217,15 @@ def _style_axis(axis: plt.Axes, *, grid_axis: str = "y") -> None:
 def _subtitle(manifest: dict[str, Any]) -> str:
     iterations = int(manifest["inmap_num_iterations"])
     partial = "partial run · " if manifest.get("partial_results", False) else ""
+    source_scope = (
+        "thermal-power source contribution"
+        if "thermal_power" in str(manifest.get("exposure_scope", ""))
+        else "included Korean source contribution"
+    )
     return (
-        f"Global InMAP · {partial}{iterations}-iteration non-converged diagnostic · "
-        "included Korean source contribution"
+        f"Global InMAP · {partial}{iterations}-iteration non-converged diagnostic · {source_scope}"
         if iterations > 0
-        else "Global InMAP · automatic-convergence screening result"
+        else f"Global InMAP · automatic-convergence screening result · {source_scope}"
     )
 
 
@@ -213,9 +234,10 @@ def plot_inmap_results(
     manifest: dict[str, Any],
     path: Path,
 ) -> None:
-    """Plot PM2.5 contribution levels and reductions relative to No NZK."""
+    """Plot PM2.5 contribution levels and reductions relative to the reference scenario."""
+    reference_scenario = str(manifest.get("reference_scenario", "no_nzk"))
     scenarios = _scenario_sequence(exposure["scenario"])
-    policies = [scenario for scenario in scenarios if scenario != "no_nzk"]
+    policies = [scenario for scenario in scenarios if scenario != reference_scenario]
     figure, (levels_axis, reduction_axis) = plt.subplots(
         1,
         2,
@@ -268,7 +290,7 @@ def plot_inmap_results(
         )
         endpoint = frame.iloc[-1]
         reduction_axis.annotate(
-            f"{endpoint['pm25_reduction_vs_no_nzk_percent']:.1f}%",
+            f"{endpoint['pm25_reduction_vs_no_nzk_percent']:.3f}%",
             (endpoint["year"], endpoint["pm25_reduction_vs_no_nzk_percent"]),
             xytext=(-4, 9),
             textcoords="offset points",
@@ -286,7 +308,7 @@ def plot_inmap_results(
     _style_axis(reduction_axis)
 
     figure.suptitle(
-        "Modeled PM₂.₅ contribution declines under the NZK pathways",
+        "Modeled PM₂.₅ contribution across the NZK pathways",
         x=0.075,
         y=0.95,
         ha="left",
@@ -333,7 +355,7 @@ def plot_avoided_mortality(
             label=SCENARIO_LABELS.get(scenario, scenario),
         )
         axis.annotate(
-            f"{central[-1]:,.0f}",
+            f"{central[-1]:,.2f}",
             (years[-1], central[-1]),
             xytext=(-4, 9),
             textcoords="offset points",
@@ -349,7 +371,7 @@ def plot_avoided_mortality(
     axis.legend(frameon=False, loc="upper left")
     _style_axis(axis)
     figure.suptitle(
-        "Estimated mortality burden falls as modeled PM₂.₅ declines",
+        "Estimated avoided mortality from the power pathways",
         x=0.105,
         y=0.95,
         ha="left",
@@ -364,10 +386,12 @@ def plot_avoided_mortality(
         color="#667085",
         fontsize=11,
     )
+    reference_scenario = str(manifest.get("reference_scenario", "no_nzk"))
+    reference_label = SCENARIO_LABELS.get(reference_scenario, reference_scenario)
     figure.text(
         0.105,
         0.055,
-        "No NZK minus policy; positive values are avoided deaths. "
+        f"{reference_label} minus policy; positive values are avoided deaths. "
         "Diagnostic screening result—not total national mortality.",
         color="#667085",
         fontsize=9.5,
@@ -394,11 +418,11 @@ def plot_headline_summary(
     positions = np.arange(len(frame))
     pm_values = frame["pm25_reduction_vs_no_nzk_percent"].to_numpy(dtype=float)
     pm_bars = pm_axis.bar(positions, pm_values, color=colors, width=0.62)
-    pm_axis.bar_label(pm_bars, labels=[f"{value:.1f}%" for value in pm_values], padding=4)
+    pm_axis.bar_label(pm_bars, labels=[f"{value:.3f}%" for value in pm_values], padding=4)
     pm_axis.set_xticks(positions, labels)
     pm_axis.set_ylabel("PM₂.₅ reduction from No NZK (%)")
     pm_axis.set_title("A. Population-weighted PM₂.₅", loc="left", pad=13)
-    pm_axis.set_ylim(0, max(10, float(np.nanmax(pm_values)) * 1.22))
+    pm_axis.set_ylim(0, max(0.001, float(np.nanmax(pm_values)) * 1.28))
     _style_axis(pm_axis)
 
     death_values = frame["avoided_deaths"].to_numpy(dtype=float)
@@ -416,7 +440,7 @@ def plot_headline_summary(
     )
     death_axis.bar_label(
         death_bars,
-        labels=[f"{value:,.0f}" for value in death_values],
+        labels=[f"{value:,.2f}" for value in death_values],
         padding=8,
     )
     death_axis.set_xticks(positions, labels)
@@ -455,7 +479,12 @@ def write_combined_report(
 ) -> Path:
     """Read health results and write all report tables, figures, and a manifest."""
     exposures, primary, comparisons, health_manifest = _read_health_outputs(health_dir)
-    tables = build_report_tables(exposures, primary, comparisons)
+    tables = build_report_tables(
+        exposures,
+        primary,
+        comparisons,
+        reference_scenario=str(health_manifest.get("reference_scenario", "no_nzk")),
+    )
     table_dir.mkdir(parents=True, exist_ok=True)
     table_paths: dict[str, Path] = {}
     for name, frame in tables.items():

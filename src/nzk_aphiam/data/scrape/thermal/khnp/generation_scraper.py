@@ -24,6 +24,7 @@ from dotenv import load_dotenv
 import pandas as pd
 import requests
 
+from nzk_aphiam.config.paths import PROJECT_ROOT
 from nzk_aphiam.data.scrape.common.period_snapshot import save_period_snapshots
 
 DATASET_NAME = "한국수력원자력(주)_한수원 전원 별 송전량 정보"
@@ -34,7 +35,6 @@ DEFAULT_API_URL = "https://apis.data.go.kr/B552041/scrap/getscrap"
 DATE_COLUMN = "tradeDt"
 DATE_FORMAT = "%Y%m%d"
 
-PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "khnp"
 OUTPUT_STEM = "khnp_daily_generation"
 SECRET_QUERY_KEYS = {"servicekey", "service_key", "apikey", "api_key", "key"}

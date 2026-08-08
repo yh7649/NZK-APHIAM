@@ -11,7 +11,8 @@ from pathlib import Path
 
 import pandas as pd
 
-PROJECT_ROOT = Path(__file__).resolve().parents[5]
+from nzk_aphiam.config.paths import PROJECT_ROOT
+
 DEFAULT_RETIREMENT_PATH = (
     PROJECT_ROOT / "docs" / "references" / "crosswalk" / "plant_retirement_dates.csv"
 )

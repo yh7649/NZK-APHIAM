@@ -4,12 +4,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from nzk_aphiam.config.paths import DATA_DIR, PROJECT_ROOT
+from nzk_aphiam.config.paths import (
+    DATA_DIR,
+    PROJECT_ROOT,
+    RESULTS_FIGURES_DIR,
+    RESULTS_TABLES_DIR,
+)
 
 INPUT_PATH = DATA_DIR / "processed" / "kepco" / "kepco_monthly_generation_emissions.csv"
 REFERENCE_DIR = PROJECT_ROOT / "docs" / "references" / "emission_factor_validation"
-TABLE_OUTPUT_DIR = PROJECT_ROOT / "results" / "tables" / "kepco" / "emission_factor_validation"
-FIGURE_OUTPUT_DIR = PROJECT_ROOT / "results" / "figures" / "kepco" / "emission_factor_validation"
+TABLE_OUTPUT_DIR = RESULTS_TABLES_DIR / "kepco" / "emission_factor_validation"
+FIGURE_OUTPUT_DIR = RESULTS_FIGURES_DIR / "kepco" / "emission_factor_validation"
 
 POLLUTANT_COLUMNS = {"NOx": "nox", "SOx": "sox", "TSP": "dust_tsp"}
 COMBINED_POLLUTANT = "combined"

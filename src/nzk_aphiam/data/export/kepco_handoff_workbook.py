@@ -9,9 +9,9 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from nzk_aphiam.config.paths import PROJECT_ROOT
+from nzk_aphiam.config.paths import RESULTS_TABLES_DIR
 
-TABLE_DIR = PROJECT_ROOT / "results" / "tables" / "kepco" / "annual_handoff"
+TABLE_DIR = RESULTS_TABLES_DIR / "kepco" / "annual_handoff"
 OUTPUT_PATH = TABLE_DIR / "kepco_annual_ef_editable_handoff.xlsx"
 
 INPUTS = {

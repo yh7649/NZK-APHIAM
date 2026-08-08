@@ -10,11 +10,17 @@ from typing import Iterable
 
 import pandas as pd
 
-from nzk_aphiam.config.paths import CAPSS_INTERIM_DIR, MACRO_EXTERNAL_DIR, MACRO_PROCESSED_DIR
+from nzk_aphiam.config.paths import CAPSS_INTERIM_DIR, TEAM_HANDOFF_MODEL_INPUTS_DIR
 from nzk_aphiam.data.process.capss.processor import normalize_label
 
 DEFAULT_CAPSS_PATH = CAPSS_INTERIM_DIR / "emissions_statistics" / "capss_emissions_tidy.parquet"
-DEFAULT_GCAM_PATH = MACRO_EXTERNAL_DIR / "gcam_kaist_sector_fuel_activity.csv"
+DEFAULT_GCAM_PATH = (
+    TEAM_HANDOFF_MODEL_INPUTS_DIR
+    / "upstream"
+    / "gcam_kaist"
+    / "gcam_kaist_sector_fuel_activity.csv"
+)
+DEFAULT_OUTPUT_DIR = TEAM_HANDOFF_MODEL_INPUTS_DIR / "aphiam"
 DEFAULT_POLLUTANTS = ("SOx", "NOx", "NH3", "VOCs", "PM2.5")
 MAPPING_COLUMNS = ("gcam_sector", "gcam_fuel", "capss_sector", "capss_fuel")
 
@@ -347,7 +353,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--gcam-activity", type=Path, default=DEFAULT_GCAM_PATH)
     parser.add_argument("--capss-emissions", type=Path, default=DEFAULT_CAPSS_PATH)
     parser.add_argument("--mapping", type=Path)
-    parser.add_argument("--output-dir", type=Path, default=MACRO_PROCESSED_DIR)
+    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--base-year", type=int)
     parser.add_argument("--year-column", default="year")
     parser.add_argument("--sector-column", default="sector")

@@ -24,8 +24,8 @@ on ingestOneFile(projectRoot, filePosixPath)
 	set pythonBin to projectRoot & "/.venv/bin/python"
 	set cmd to "cd " & quoted form of projectRoot & ¬
 		" && PYTHONPATH=src " & quoted form of pythonBin & ¬
-		" -m nzk_aphiam.data.external.ingest_macro --source " & quoted form of filePosixPath & ¬
-		" --kind generation 2>&1"
+		" -m nzk_aphiam.model_inputs.ingest_macro --source " & quoted form of filePosixPath & ¬
+		" --kind generation --scenario-bundle peng_replication_mvp --source-model macro 2>&1"
 	return do shell script cmd
 end ingestOneFile
 

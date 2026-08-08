@@ -17,6 +17,7 @@ import warnings
 import requests
 from urllib3.exceptions import InsecureRequestWarning
 
+from nzk_aphiam.config.paths import PROJECT_ROOT
 from nzk_aphiam.data.scrape.thermal.southeast_power.scraper import (
     FormFieldsParser,
     save_json,
@@ -42,7 +43,6 @@ EXPECTED_COLUMNS = [
     "발전원",
 ]
 
-PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "kepco_subsidiaries" / "southeast_power"
 
 

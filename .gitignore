@@ -11,6 +11,7 @@
 !/data/raw/kepco_subsidiaries/*.dvc
 !/data/raw/kepco_subsidiaries/midland_power/
 /data/raw/kepco_subsidiaries/midland_power/*
+!/data/raw/kepco_subsidiaries/midland_power/*.dvc
 !/data/raw/kepco_subsidiaries/midland_power/provider_responses/
 /data/raw/kepco_subsidiaries/midland_power/provider_responses/*
 !/data/raw/kepco_subsidiaries/midland_power/provider_responses/README.md
@@ -231,9 +232,22 @@ stata.log
 # Generated analysis figures
 results/figures/
 
+# Generated presentation animations and videos
+results/videos/
+
 # Generated analysis model objects
 results/models/*
 !results/models/.gitkeep
+
+# Generated serialized analysis objects
+results/objects/*
+!results/objects/.gitkeep
+
+# Generated model and workflow execution bundles
+results/runs/
+
+# Reproducible APHIAM interfaces built from mutable upstream model handoffs
+/model_inputs/scenarios/*/aphiam/
 
 # Generated analysis tables
 results/tables/
@@ -241,8 +255,8 @@ results/tables/
 # Generated analysis diagnostics
 results/diagnostics/
 
-# Generated Korean thermal-power replication runs and downloaded model inputs
-results/mvp/
+# Local Codex visualization workspace
+.codex/
 
 # PyPI configuration file
 .pypirc

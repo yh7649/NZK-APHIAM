@@ -22,10 +22,17 @@ metadata_csv <- kepco_processed_path(
 
 figures_dir <- results_path("figures")
 tables_dir <- results_path("tables", "kepco")
-objects_dir <- results_path("objects")
-models_dir <- results_path("models")
+objects_dir <- results_path("objects", "kepco")
+models_dir <- results_path("models", "kepco")
+processed_ef_dir <- kepco_processed_path("emission_factors")
 
-for (directory in c(figures_dir, tables_dir, objects_dir, models_dir)) {
+for (directory in c(
+  figures_dir,
+  tables_dir,
+  objects_dir,
+  models_dir,
+  processed_ef_dir
+)) {
   dir.create(directory, recursive = TRUE, showWarnings = FALSE)
 }
 
@@ -34,6 +41,14 @@ save_table <- function(data, filename, row.names = FALSE, ...) {
   dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
   write.csv(data, output_path, row.names = row.names, na = "", ...)
   message("Saved table: ", output_path)
+  invisible(output_path)
+}
+
+save_processed_ef <- function(data, filename, row.names = FALSE, ...) {
+  output_path <- file.path(processed_ef_dir, filename)
+  dir.create(dirname(output_path), recursive = TRUE, showWarnings = FALSE)
+  write.csv(data, output_path, row.names = row.names, na = "", ...)
+  message("Saved canonical processed EF data: ", output_path)
   invisible(output_path)
 }
 
@@ -883,6 +898,109 @@ for (i in seq_len(nrow(pollutants))) {
   )
   dev.off()
   message("Saved figure: ", output_path)
+}
+
+# ---- Delete superseded fuel type x technology overlay figures ----------------
+
+# A prior version overlaid every fuel type's technology cohorts (faint lines)
+# on one combined fuel-level chart; it was too visually noisy across six fuel
+# types at once. Superseded by the one-figure-per-fuel-type breakdown below.
+superseded_fuel_technology_figures <- file.path(
+  figures_dir, "kepco", "fuel_type_averages", "ma6",
+  paste0("kepco_fuel_type_technology_average_", pollutants$pollutant, "_ef_ma6.png")
+)
+for (superseded_figure in superseded_fuel_technology_figures[
+  file.exists(superseded_fuel_technology_figures)
+]) {
+  unlink(superseded_figure)
+  message("Deleted superseded figure: ", superseded_figure)
+}
+
+# ---- Fuel type technology emission factor figures (one figure per fuel) ------
+
+# One figure per fuel type (e.g. "Coal EFs"): three pollutant colors, each
+# with one line per technology cohort observed for that fuel (e.g. coal has
+# conventional steam turbine and IGCC). Pollutant EF magnitudes differ by
+# roughly two orders of magnitude (TSP << NOx/SOx), so each pollutant gets
+# its own free-scaled panel within the figure rather than sharing one axis.
+pollutant_colors <- setNames(
+  c("#1F77B4", "#D81B60", "#009E73"),
+  pollutants$label
+)
+
+fuel_technology_by_pollutant <- list()
+for (i in seq_len(nrow(pollutants))) {
+  technology_data <- aggregate_ef(
+    analysis_kepco,
+    c("fuel_type_clean", "technology", "date"),
+    pollutants$pollutant[[i]]
+  )
+  save_table(
+    technology_data,
+    file.path(
+      "monthly", "fuel_type_technology",
+      paste0(
+        "kepco_fuel_type_technology_monthly_", pollutants$pollutant[[i]], "_ef.csv"
+      )
+    )
+  )
+  if (nrow(technology_data) == 0) {
+    next
+  }
+  technology_data$pollutant_label <- factor(
+    pollutants$label[[i]],
+    levels = pollutants$label
+  )
+  fuel_technology_by_pollutant[[pollutants$pollutant[[i]]]] <- technology_data
+}
+fuel_technology_ef <- do.call(rbind, fuel_technology_by_pollutant)
+
+for (fuel in sort(unique(fuel_technology_ef$fuel_type_clean))) {
+  fuel_figure_data <- fuel_technology_ef[
+    fuel_technology_ef$fuel_type_clean == fuel &
+      !is.na(fuel_technology_ef$ef_ma_kg_per_mwh),
+  ]
+  if (nrow(fuel_figure_data) == 0) {
+    next
+  }
+  fuel_figure_data$technology_label <- gsub("_", " ", fuel_figure_data$technology)
+
+  fuel_plot <- ggplot(
+    fuel_figure_data,
+    aes(
+      x = date,
+      y = ef_ma_kg_per_mwh,
+      color = pollutant_label,
+      linetype = technology_label,
+      group = interaction(pollutant_label, technology_label)
+    )
+  ) +
+    geom_line(linewidth = 0.8, na.rm = TRUE) +
+    facet_wrap(~pollutant_label, scales = "free_y", ncol = 1) +
+    scale_color_manual(values = pollutant_colors, guide = "none") +
+    labs(
+      title = paste0(tools::toTitleCase(gsub("_", " ", fuel)), " EFs by technology"),
+      subtitle = "6-month moving average; color = pollutant, line type = technology",
+      x = NULL,
+      y = "EF, kg/MWh",
+      linetype = "Technology"
+    ) +
+    theme_minimal(base_size = 11) +
+    theme(
+      legend.position = "bottom",
+      strip.text = element_text(face = "bold"),
+      plot.title = element_text(face = "bold", size = 14)
+    )
+
+  save_figure(
+    file.path(
+      "kepco", "fuel_type_technology", "ma6",
+      paste0("kepco_", clean_filename(fuel), "_technology_ef_ma6.png")
+    ),
+    fuel_plot,
+    width = 8,
+    height = 9
+  )
 }
 
 # ---- Province-level figures --------------------------------------------------
@@ -1784,6 +1902,10 @@ save_table(
   annual_fuel_technology_ef,
   file.path("annual_handoff", "kepco_annual_ef_distribution_long_by_fuel_technology.csv")
 )
+save_processed_ef(
+  annual_fuel_technology_ef,
+  "kepco_annual_ef_distribution_long_by_fuel_technology.csv"
+)
 save_table(
   annual_province_fuel_technology_ef,
   file.path(
@@ -2388,6 +2510,12 @@ fit_exponential_projection <- function(
   )
 }
 
+projection_models_dir <- file.path(models_dir, "projections")
+if (dir.exists(projection_models_dir)) {
+  unlink(projection_models_dir, recursive = TRUE)
+  message("Deleted superseded KEPCO projection models: ", projection_models_dir)
+}
+
 exponential_projection_summaries <- list()
 for (i in seq_len(nrow(pollutants))) {
   pollutant <- pollutants$pollutant[[i]]
@@ -2408,7 +2536,10 @@ for (i in seq_len(nrow(pollutants))) {
 
     stub <- paste0(clean_filename(fuel), "_", pollutant)
     save_table(result$projection, paste0("projections/kepco_exponential_", stub, ".csv"))
-    save_model(result$model, file.path("kepco", "projections", paste0("kepco_exponential_", stub, ".rds")))
+    save_model(
+      result$model,
+      file.path("projections", paste0("kepco_exponential_", stub, ".rds"))
+    )
     exponential_projection_summaries[[length(exponential_projection_summaries) + 1]] <-
       result$summary
   }

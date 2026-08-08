@@ -1,51 +1,60 @@
 # MACRO input integration
 
-This pipeline combines externally supplied GCAM-KAIST/MACRO activity with
+This pipeline combines team-supplied GCAM-KAIST/MACRO activity with
 historical CAPSS emissions to create projected non-power emissions inputs.
 GCAM-KAIST is treated as an activity model, not an emissions model: it supplies
 sector-by-fuel activity, while CAPSS supplies the base-year pollutant intensity.
 
 ## Placing the team-supplied file
 
-GCAM-KAIST/MACRO activity and generation tables are third-party model outputs:
-this repo has no scraper for them, so they cannot be regenerated the way
-`data/raw/` contents can. They live under `data/external/macro/`, which is
-tracked directly in Git (unlike `data/raw/`, `data/interim/`, and
-`data/processed/`, which are gitignored).
+GCAM-KAIST/MACRO activity and generation tables are mutable inter-model
+scenario inputs, not datasets. They live in named bundles under
+`model_inputs/scenarios/`. The upstream files can change when the team supplies
+a revision; APHIAM-ready interfaces are rebuilt under the same bundle's
+`aphiam/` directory.
 
 Rather than copying the file in by hand, ingest it so the correct location,
 schema check, and provenance record all happen in one step:
 
 ```bash
-make ingest-macro-external \
-  MACRO_INGEST_SOURCE=~/Downloads/gcam_kaist_sector_fuel_activity.csv \
-  MACRO_INGEST_KIND=activity \
-  MACRO_INGEST_CONTRIBUTOR="GCAM-KAIST team" \
-  MACRO_INGEST_NOTE="2026-07 baseline scenario"
+make ingest-model-input \
+  MODEL_INPUT_SOURCE=~/Downloads/gcam_kaist_sector_fuel_activity.csv \
+  MODEL_INPUT_KIND=activity \
+  MODEL_INPUT_SOURCE_MODEL=gcam_kaist \
+  MODEL_INPUT_SCENARIO=team_handoff \
+  MODEL_INPUT_CONTRIBUTOR="GCAM-KAIST team" \
+  MODEL_INPUT_NOTE="2026-07 baseline scenario"
 ```
 
-Use `MACRO_INGEST_KIND=generation` for the 2021 KEPCO EF validation's
+Use `MODEL_INPUT_KIND=generation` and `MODEL_INPUT_SOURCE_MODEL=macro` for the
+2021 KEPCO EF validation's
 generation file instead. The command validates that the file has the columns
 the downstream step needs (failing fast with the actual column names
-otherwise), copies it into `data/external/macro/`, and writes a
-`<name>.metadata.json` sidecar recording the original filename/path, ingestion
-timestamp, contributor, note, SHA-256, and detected columns. It then prints
-the exact follow-up `make` command to run. See
-[`src/nzk_aphiam/data/external/ingest_macro.py`](../../src/nzk_aphiam/data/external/ingest_macro.py).
+otherwise), copies it into
+`model_inputs/scenarios/<bundle>/upstream/<model>/`, and writes a
+`<name>.metadata.json` sidecar recording the original filename, ingestion
+timestamp, contributor, note, bundle, source model, SHA-256, and detected
+columns. It then prints the exact follow-up `make` command to run. See
+[`src/nzk_aphiam/model_inputs/ingest_macro.py`](../../src/nzk_aphiam/model_inputs/ingest_macro.py).
+
+If the team revises a handoff without changing its filename, rerun the command
+with `MODEL_INPUT_FORCE=1`. This makes the mutable update explicit; review the
+Git diff and rebuild the bundle's `aphiam/` interface afterward.
 
 ## Synthetic non-power pipeline fixture
 
-When the native non-power activity deliverable is unavailable, generate the
-explicitly synthetic activity-index fixture:
+The native NZK activity deliverable is now available through the separate
+native XML interface. Retain this explicitly synthetic activity-index fixture
+only for legacy integrator and software smoke tests:
 
 ```bash
 make build-macro-nonpower-proxy PYTHON_INTERPRETER=.venv/bin/python
 make validate-macro-nonpower-proxy PYTHON_INTERPRETER=.venv/bin/python
 ```
 
-The primary five-column input is written to:
+The primary five-column APHIAM input is written to:
 
-- `data/processed/macro/scenarios/nonpower_proxy_2025_2050/gcam_kaist_sector_fuel_activity_proxy_2023_2050.csv`
+- `model_inputs/scenarios/nonpower_proxy_2025_2050/aphiam/gcam_kaist_sector_fuel_activity_proxy_2023_2050.csv`
 
 It is CAPSS-category aligned for smoke testing, uses `2023 = 100` and `2025 = 100`
 normalized activity indices, and supplies the existing `no_nzk`, `nzk_low`, and
@@ -54,9 +63,9 @@ inventory activities, conceptual technology labels, reference physical units,
 profile assignments, endpoint assumptions, double-counting flags, and model-use
 status.
 
-This fixture is not placed under `data/external/macro/` because it is reproducible
-local output, not a third-party GCAM-KAIST deliverable. It must never be described
-as a model run or forecast. Method, files, assumptions, and safeguards are in
+This fixture is a reproducible APHIAM interface, not a team GCAM-KAIST
+handoff. It must never be described as a model run or forecast. Method, files,
+assumptions, and safeguards are in
 [`gcam_kaist_nonpower_proxy.md`](../methods/gcam_kaist_nonpower_proxy.md).
 
 To combine the resulting screening emissions with the matching MACRO-shaped
@@ -70,14 +79,15 @@ Run:
 
 ```bash
 make integrate-macro-inputs \
-  MACRO_ACTIVITY=data/external/macro/gcam_kaist_sector_fuel_activity.csv \
+  MODEL_INPUT_SCENARIO=team_handoff \
+  MACRO_ACTIVITY=model_inputs/scenarios/team_handoff/upstream/gcam_kaist/gcam_kaist_sector_fuel_activity.csv \
   MACRO_MAPPING=docs/references/macro/gcam_capss_sector_fuel_mapping.csv \
   MACRO_BASE_YEAR=2023
 ```
 
 The default GCAM activity file is:
 
-- `data/external/macro/gcam_kaist_sector_fuel_activity.csv`
+- `model_inputs/scenarios/team_handoff/upstream/gcam_kaist/gcam_kaist_sector_fuel_activity.csv`
 
 Expected activity columns are:
 
@@ -117,12 +127,12 @@ denominators are documented in
 will eventually augment or replace the aggregate intensity method below, but
 does not change this integrator in inventory version `0.2.0`.
 
-Outputs are written under:
+APHIAM-ready outputs are written under:
 
-- `data/processed/macro/macro_projected_emissions.csv`
-- `data/processed/macro/macro_capss_emission_factors.csv`
-- `data/processed/macro/macro_input_diagnostics.csv`
-- `data/processed/macro/macro_input_integration.metadata.json`
+- `model_inputs/scenarios/team_handoff/aphiam/macro_projected_emissions.csv`
+- `model_inputs/scenarios/team_handoff/aphiam/macro_capss_emission_factors.csv`
+- `model_inputs/scenarios/team_handoff/aphiam/macro_input_diagnostics.csv`
+- `model_inputs/scenarios/team_handoff/aphiam/macro_input_integration.metadata.json`
 
 The method is:
 
@@ -164,7 +174,7 @@ file" above):
 
 ```bash
 make validate-macro-2021-kepco-ef \
-  MACRO_GENERATION=data/external/macro/<team-supplied-generation-file>.csv
+  MACRO_GENERATION=model_inputs/scenarios/<bundle>/upstream/macro/<generation-file>.csv
 ```
 
 or directly:
@@ -172,8 +182,8 @@ or directly:
 ```bash
 PYTHONPATH=src python -m nzk_aphiam.integration.macro_kepco_validation \
   --year 2021 \
-  --kepco-ef results/tables/kepco/annual_handoff/kepco_annual_ef_distribution_long_by_fuel_technology.csv \
-  --macro-generation data/raw/macro/<team-supplied-generation-file>.csv \
+  --kepco-ef data/processed/kepco/emission_factors/kepco_annual_ef_distribution_long_by_fuel_technology.csv \
+  --macro-generation model_inputs/scenarios/<bundle>/upstream/macro/<generation-file>.csv \
   --capss-actual data/processed/capss/power_fuel_technology_2016_2023.parquet \
   --crosswalk docs/references/macro/macro_kepco_capss_power_crosswalk.csv
 ```
