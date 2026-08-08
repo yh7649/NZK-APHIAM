@@ -7,10 +7,12 @@ tracked (they're machine-specific build output, like a `.pyc` file).
 
 ## Add MACRO Generation File.app
 
-Adds a team-supplied MACRO generation file to `data/external/macro/`,
+Adds a team-supplied MACRO generation file to
+`model_inputs/scenarios/peng_replication_mvp/upstream/macro/`,
 checking that it has the columns the validation pipeline needs and recording
-where it came from -- the same thing `make ingest-macro-external
-MACRO_INGEST_KIND=generation` does from the terminal.
+where it came from—the same thing `make ingest-model-input
+MODEL_INPUT_KIND=generation MODEL_INPUT_SOURCE_MODEL=macro
+MODEL_INPUT_SCENARIO=peng_replication_mvp` does from the terminal.
 
 Build it once:
 

@@ -27,6 +27,7 @@ from dotenv import load_dotenv
 import pandas as pd
 import requests
 
+from nzk_aphiam.config.paths import DATA_DIR
 from nzk_aphiam.data.scrape.common.period_snapshot import save_period_snapshots
 
 DATASET_NAME = "한국중부발전(주)_발전실적조회 서비스"
@@ -39,8 +40,7 @@ DATE_FORMAT = "%Y%m"
 DEFAULT_START_MONTH = "201201"
 DEFAULT_PER_PAGE = 1000
 
-PROJECT_ROOT = Path(__file__).resolve().parents[6]
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "kepco_subsidiaries" / "midland_power"
+DEFAULT_OUTPUT_DIR = DATA_DIR / "raw" / "kepco_subsidiaries" / "midland_power" / "generation"
 
 SECRET_QUERY_KEYS = {"servicekey", "service_key", "apikey", "api_key", "key"}
 

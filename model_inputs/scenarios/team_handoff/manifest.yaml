@@ -1,0 +1,27 @@
+bundle_id: team_handoff
+status: gcam_nzk_active_reference_paused
+source_models:
+  - macro
+  - gcam_kaist
+upstream_files:
+  gcam_kaist_reference_archive: upstream/gcam_kaist/reference/gcam9_ref.xml.zip
+  gcam_kaist_nzk_archive: upstream/gcam_kaist/nzk/CORE_9_NZ_2026-8-7T12_32_50+09_00.xml.zip
+archive_members:
+  gcam_kaist_reference_archive: gcam9_ref.xml
+  gcam_kaist_nzk_archive: CORE_9_NZ_2026-8-7T12_32_50+09_00.xml
+aphiam_builder:
+  command: make build-gcam-nzk-interface
+active_scenario:
+  source_scenario: CORE_9_NZ
+  canonical_label: nzk
+  region: South Korea
+  years: [2021, 2025, 2030, 2035, 2040, 2045, 2050]
+reference_scenario:
+  status: paused
+  reason: The XML member is truncated before the South Korea region.
+  validation_error: XML parse failure at line 24436192 inside India LandLeaf.
+notes:
+  - The original ZIP archives are preserved unchanged and tracked with DVC.
+  - The NZK extractor streams the XML member from ZIP without materializing it.
+  - Native GCAM emissions are validation-only; production emissions require approved Korean factors.
+  - Generated APHIAM interfaces are ignored and rebuilt from the archive and tracked mappings.

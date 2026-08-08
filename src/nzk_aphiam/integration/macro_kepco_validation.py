@@ -13,15 +13,19 @@ import sys
 
 import pandas as pd
 
-from nzk_aphiam.config.paths import MACRO_PROCESSED_DIR, PROJECT_ROOT
+from nzk_aphiam.config.paths import (
+    KEPCO_EMISSION_FACTORS_DIR,
+    MACRO_PROCESSED_DIR,
+    MODEL_SCENARIO_INPUTS_DIR,
+    PENG_REPLICATION_MACRO_INPUTS_DIR,
+    PROJECT_ROOT,
+    RESULTS_DIAGNOSTICS_DIR,
+    RESULTS_FIGURES_DIR,
+    RESULTS_TABLES_DIR,
+)
 
 DEFAULT_KEPCO_EF = (
-    PROJECT_ROOT
-    / "results"
-    / "tables"
-    / "kepco"
-    / "annual_handoff"
-    / "kepco_annual_ef_distribution_long_by_fuel_technology.csv"
+    KEPCO_EMISSION_FACTORS_DIR / "kepco_annual_ef_distribution_long_by_fuel_technology.csv"
 )
 DEFAULT_CAPSS_ACTUAL = (
     PROJECT_ROOT / "data" / "processed" / "capss" / "power_fuel_technology_2016_2023.parquet"
@@ -29,9 +33,9 @@ DEFAULT_CAPSS_ACTUAL = (
 DEFAULT_CROSSWALK = (
     PROJECT_ROOT / "docs" / "references" / "macro" / "macro_kepco_capss_power_crosswalk.csv"
 )
-DEFAULT_RESULT_DIR = PROJECT_ROOT / "results" / "tables" / "macro"
-DEFAULT_DIAGNOSTIC_DIR = PROJECT_ROOT / "results" / "diagnostics" / "macro"
-DEFAULT_FIGURE_DIR = PROJECT_ROOT / "results" / "figures" / "macro" / "validation_2021"
+DEFAULT_RESULT_DIR = RESULTS_TABLES_DIR / "macro"
+DEFAULT_DIAGNOSTIC_DIR = RESULTS_DIAGNOSTICS_DIR / "macro"
+DEFAULT_FIGURE_DIR = RESULTS_FIGURES_DIR / "macro" / "validation_2021"
 
 POLLUTANT_LABELS = {"nox": "NOx", "sox": "SOx", "dust_tsp": "TSP", "tsp": "TSP"}
 ACCEPTED_MAPPING_STATUSES = {"exact", "documented_proxy"}
@@ -103,18 +107,17 @@ def split_macro_type(value: object) -> tuple[str, str]:
 
 
 def discover_macro_generation() -> Path:
-    roots = [
-        PROJECT_ROOT / "data" / stage / "macro"
-        for stage in ("external", "raw", "interim", "processed")
-    ]
+    preferred = PENG_REPLICATION_MACRO_INPUTS_DIR / "generation_by_province_long.csv"
+    if preferred.exists():
+        return preferred
+
     candidates: list[Path] = []
-    for root in roots:
-        if root.exists():
-            candidates.extend(
-                path
-                for path in root.rglob("*")
-                if path.suffix.lower() in {".csv", ".parquet", ".xlsx", ".xls"}
-            )
+    if MODEL_SCENARIO_INPUTS_DIR.exists():
+        candidates.extend(
+            path
+            for path in MODEL_SCENARIO_INPUTS_DIR.glob("*/upstream/macro/*")
+            if path.suffix.lower() in {".csv", ".parquet", ".xlsx", ".xls"}
+        )
     for path in sorted(candidates):
         try:
             data = _read_table(path).head(20)
@@ -126,10 +129,9 @@ def discover_macro_generation() -> Path:
         has_fuel = _find_column(columns, ("fuel", "type"))
         if has_generation and has_year and has_fuel:
             return path
-    searched = ", ".join(str(root) for root in roots)
     raise FileNotFoundError(
         "Could not find a local MACRO generation table with year/fuel/generation columns. "
-        f"Searched: {searched}. Supply --macro-generation explicitly."
+        f"Searched: {MODEL_SCENARIO_INPUTS_DIR}. Supply --macro-generation explicitly."
     )
 
 

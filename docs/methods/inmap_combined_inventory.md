@@ -168,7 +168,7 @@ make inmap-combined-prepare PYTHON_INTERPRETER=.venv/bin/python
 This writes portable job metadata and machine-local TOMLs under:
 
 ```text
-results/models/inmap/combined_proxy_2025_2050/strict/
+results/runs/inmap/combined_proxy_2025_2050/strict/
 ```
 
 Run every scenario-year sequentially with one command:
@@ -282,7 +282,7 @@ formula.
 POC health outputs are written under:
 
 ```text
-results/models/inmap/combined_proxy_2025_2050/
+results/runs/inmap/combined_proxy_2025_2050/
   poc_200_iterations/health/
 ```
 

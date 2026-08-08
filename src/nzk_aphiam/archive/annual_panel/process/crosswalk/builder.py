@@ -14,20 +14,23 @@ from pathlib import Path
 import re
 from typing import Any, Iterable
 
-PROJECT_ROOT = Path(__file__).resolve().parents[6]
-SUPPORTING_DATA_DIR = PROJECT_ROOT / "data" / "interim" / "supporting"
-DEFAULT_EPSIS_DIR = SUPPORTING_DATA_DIR / "plant_rosters" / "epsis" / "raw" / "annual"
+from nzk_aphiam.config.paths import (
+    ANNUAL_PANEL_ARCHIVE_INTERIM_DIR,
+    ANNUAL_PANEL_ARCHIVE_RAW_DIR,
+    PROJECT_ROOT,
+)
+
+DEFAULT_EPSIS_DIR = ANNUAL_PANEL_ARCHIVE_RAW_DIR / "plant_rosters" / "epsis" / "annual"
 DEFAULT_ENV_INFO_PATH = (
-    SUPPORTING_DATA_DIR
+    ANNUAL_PANEL_ARCHIVE_RAW_DIR
     / "emissions"
     / "env_info"
-    / "raw"
     / "env_info_power_emissions_2015_2024.csv"
 )
 DEFAULT_CLEANSYS_PATH = (
-    SUPPORTING_DATA_DIR / "emissions" / "cleansys" / "raw" / "cleansys_annual_emissions_panel.csv"
+    ANNUAL_PANEL_ARCHIVE_RAW_DIR / "emissions" / "cleansys" / "cleansys_annual_emissions_panel.csv"
 )
-DEFAULT_OUTPUT_DIR = SUPPORTING_DATA_DIR / "crosswalks" / "thermal"
+DEFAULT_OUTPUT_DIR = ANNUAL_PANEL_ARCHIVE_INTERIM_DIR / "crosswalks" / "thermal"
 DEFAULT_NAME_ALIASES_PATH = PROJECT_ROOT / "docs" / "references" / "crosswalk" / "name_aliases.csv"
 DEFAULT_MANUAL_LINKS_PATH = (
     PROJECT_ROOT / "docs" / "references" / "crosswalk" / "manual_facility_links.csv"

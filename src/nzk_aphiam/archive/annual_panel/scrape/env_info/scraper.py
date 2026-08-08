@@ -20,16 +20,15 @@ from typing import Any
 
 import requests
 
+from nzk_aphiam.config.paths import ANNUAL_PANEL_ARCHIVE_RAW_DIR
+
 BASE_URL = "https://www.env-info.kr"
 SEARCH_PAGE_URL = f"{BASE_URL}/member/open/companyTotalInfoSearch.do"
 SEARCH_DATA_URL = f"{BASE_URL}/member/open/retrieveDoc.do"
 DETAIL_URL = f"{BASE_URL}/user/register/viewUserSearch2.do"
 POWER_INDUSTRY = "전기, 가스, 증기 및 수도사업"
 
-PROJECT_ROOT = Path(__file__).resolve().parents[6]
-DEFAULT_OUTPUT_DIR = (
-    PROJECT_ROOT / "data" / "interim" / "supporting" / "emissions" / "env_info" / "raw"
-)
+DEFAULT_OUTPUT_DIR = ANNUAL_PANEL_ARCHIVE_RAW_DIR / "emissions" / "env_info"
 
 OUTPUT_COLUMNS = [
     "year",

@@ -13,7 +13,11 @@ import re
 import pandas as pd
 import requests
 
-from nzk_aphiam.config.paths import PROCESSED_DIR, PROJECT_ROOT
+from nzk_aphiam.config.paths import (
+    PROCESSED_DIR,
+    RESULTS_DIAGNOSTICS_DIR,
+    RESULTS_TABLES_DIR,
+)
 from nzk_aphiam.integration.macro_kepco_validation import (
     DEFAULT_CAPSS_ACTUAL,
     DEFAULT_KEPCO_EF,
@@ -23,8 +27,8 @@ from nzk_aphiam.integration.macro_kepco_validation import (
 
 EPSIS_GENERATION_URL = "https://epsis.kpx.or.kr/epsisnew/selectEkgeGepGesGrid.do?menuId=060102"
 DEFAULT_OUTPUT_DIR = PROCESSED_DIR / "epsis"
-DEFAULT_RESULT_DIR = PROJECT_ROOT / "results" / "tables" / "epsis"
-DEFAULT_DIAGNOSTIC_DIR = PROJECT_ROOT / "results" / "diagnostics" / "epsis"
+DEFAULT_RESULT_DIR = RESULTS_TABLES_DIR / "epsis"
+DEFAULT_DIAGNOSTIC_DIR = RESULTS_DIAGNOSTICS_DIR / "epsis"
 
 EPSIS_VALUE_COLUMNS = {
     "c5": ("기력", "무연탄"),

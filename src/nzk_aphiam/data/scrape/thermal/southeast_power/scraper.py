@@ -29,6 +29,8 @@ import warnings
 import requests
 from urllib3.exceptions import InsecureRequestWarning
 
+from nzk_aphiam.config.paths import PROJECT_ROOT
+
 DATASET_NAME = "한국남동발전㈜_일자별 대기오염물질 배출 실적 현황"
 DATASET_URL = "https://www.data.go.kr/data/15131510/fileData.do"
 SOURCE_URL = "https://www.koenergy.kr/kosep/gv/nf/dt/nfdt16/main.do?menuCd=FN0912020205"
@@ -46,7 +48,6 @@ PLANT_CODES = {
     "BD": "분당",
 }
 
-PROJECT_ROOT = Path(__file__).resolve().parents[6]
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "kepco_subsidiaries" / "southeast_power"
 
 

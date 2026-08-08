@@ -36,8 +36,8 @@ subsidiary_csv <- kepco_processed_path(
 
 figures_dir <- results_path("figures", "kepco_subsidiaries")
 tables_dir  <- results_path("tables", "kepco_subsidiaries", subsidiary_name)
-objects_dir <- results_path("objects")
-models_dir  <- results_path("models")
+objects_dir <- results_path("objects", "kepco_subsidiaries", subsidiary_name)
+models_dir  <- results_path("models", "kepco_subsidiaries", subsidiary_name)
 
 for (directory in c(figures_dir, tables_dir, objects_dir, models_dir)) {
   dir.create(directory, recursive = TRUE, showWarnings = FALSE)

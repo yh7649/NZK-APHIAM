@@ -2,10 +2,10 @@
 
 ## Purpose and status
 
-This fixture supplies deterministic non-power activity paths while the native
-GCAM-KAIST/MACRO activity deliverable is unavailable. It is designed for input
+This fixture supplies deterministic non-power activity paths for input
 validation, scenario plumbing, CAPSS-intensity smoke tests, and downstream
-APHIAM development.
+APHIAM development. The native `CORE_9_NZ` deliverable is now available, so
+this fixture is retained only as a software-test path.
 
 It is **not** a GCAM-KAIST model run, forecast, official scenario, or substitute
 for the team-supplied file. Every detailed row and the metadata sidecar carry
@@ -59,7 +59,7 @@ make build-macro-nonpower-proxy PYTHON_INTERPRETER=.venv/bin/python
 ```
 
 Generated, Git-ignored files are written under
-`data/processed/macro/scenarios/nonpower_proxy_2025_2050/`:
+`model_inputs/scenarios/nonpower_proxy_2025_2050/aphiam/`:
 
 - `gcam_kaist_nonpower_activity_proxy_2023_2050.csv` and `.parquet`: rich
   inventory-ID table for 50 P1 activities, three scenarios, and seven years;
@@ -150,9 +150,10 @@ Inappropriate:
 - calibration of physical activity quantities;
 - replacing a future native GCAM-KAIST/MACRO delivery.
 
-When a native model output arrives, ingest it through the documented external
-input workflow and replace this fixture without changing the stable
-`inventory_id` taxonomy.
+Production-oriented NZK work uses the
+[native GCAM-KAIST interface](gcam_kaist_native_nzk_interface.md) without
+changing the stable `inventory_id` taxonomy. Do not substitute this proxy when
+the native pipeline blocks on a missing factor, conversion, or location.
 
 ## Structural references
 

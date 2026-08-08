@@ -1,0 +1,11 @@
+bundle_id: nonpower_proxy_2025_2050
+status: synthetic_pipeline_fixture_not_team_model_output
+source_models: []
+aphiam_builder:
+  command: make build-macro-nonpower-proxy
+  config: configs/scenarios/gcam_kaist_nonpower_proxy_2025_2050.yaml
+consumers:
+  - configs/scenarios/inmap_combined_proxy_2025_2050.yaml
+notes:
+  - The activity paths are deterministic test inputs, not GCAM-KAIST results.
+  - Generated APHIAM interface files under aphiam/ are ignored and reproducible.

@@ -11,6 +11,24 @@ repository's scrapers, cleaners, and processing commands. Narrow exceptions
 are tracked when a provider deliverable cannot be regenerated publicly; each
 exception has an explicit `.gitignore` allow-list and local provenance record.
 
+## Model Input Handoffs
+
+MACRO and GCAM-KAIST outputs used as APHIAM scenarios are mutable inter-model
+interfaces rather than datasets. They live under `model_inputs/scenarios/`,
+where each named bundle separates team-shaped `upstream/` files from
+reproducible `aphiam/` interfaces.
+
+Small upstream handoffs are tracked with portable metadata sidecars so team
+revisions are reviewable. Large handoffs are preserved as received and tracked
+with DVC. The current GCAM-KAIST reference and NZK deliveries are compressed XML
+archives under the `team_handoff` bundle, separated into `reference/` and
+`nzk/`. The active NZK extractor reads directly from the ZIP, records the
+archive SHA-256 and embedded scenario metadata, and generates ignored APHIAM
+interfaces. The reference XML is truncated before South Korea and is paused
+rather than silently repaired or substituted. Run manifests preserve exact
+input checksums, so later handoff updates do not erase the provenance of
+completed runs.
+
 ## Source Data
 
 Current sources include data.go.kr datasets, official power subsidiary
@@ -73,7 +91,9 @@ or generated weather products are committed to Git.
 
 The public-health baseline preserves annual KOSIS API responses for monthly
 all-cause mortality, annual cause-specific mortality, and monthly resident
-population. Mortality geography follows the deceased person's residence.
+population under `data/raw/health/kosis/`. Deterministic normalized CSVs are
+kept separately under `data/interim/health/kosis/`. Mortality geography follows
+the deceased person's residence.
 National and province aggregates remain in the normalized files with explicit
 geography-level labels. District codes and boundaries can change over time and
 must be harmonized before longitudinal spatial analysis. Death counts should
@@ -212,7 +232,10 @@ the entire historic record. Track a fresh pull with:
 make track-kepco-snapshots
 ```
 
-This runs `dvc add` over each subsidiary's raw directory and stages the
+This runs `dvc add` over each subsidiary's scraper-owned raw directory and
+over Midland's dedicated `midland_power/generation/` directory. The adjacent
+`midland_power/provider_responses/` directory is owned by Git and deliberately
+excluded from DVC. The command stages the
 resulting small pointer files for git; it does not push anywhere; no DVC
 remote is configured yet. `git status` shows what changed before you commit,
 and `dvc push` becomes available once a remote (Google Drive, S3-compatible

@@ -20,6 +20,10 @@ the same because both units express grams per kilowatt-hour.
 - `results/tables/kepco/annual_handoff/kepco_annual_ef_editable_handoff.xlsx`
 - `results/figures/kepco/fuel_technology_year/year=YYYY/`
 
+The downstream pipeline consumes the canonical processed copy at
+`data/processed/kepco/emission_factors/kepco_annual_ef_distribution_long_by_fuel_technology.csv`,
+not the presentation copy under `results/`.
+
 The handoff tables keep only observed fuel x technology cohorts. They include:
 
 - generation-weighted annual EF;

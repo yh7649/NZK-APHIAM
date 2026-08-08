@@ -29,6 +29,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from nzk_aphiam.config.paths import PROJECT_ROOT
 from nzk_aphiam.data.clean.thermal.eastwest_power.cleaner import (
     load_and_clean as _ew_load_and_clean,
 )
@@ -41,8 +42,6 @@ from nzk_aphiam.data.clean.thermal.southern_power.cleaner import (
 from nzk_aphiam.data.clean.thermal.western_power.cleaner import (
     load_and_clean as _wp_load_and_clean,
 )
-
-PROJECT_ROOT = Path(__file__).resolve().parents[6]
 
 GENERATION_PANEL_COLUMNS = [
     "date",
@@ -98,6 +97,7 @@ DEFAULT_MP_GENERATION_INPUT = (
     / "raw"
     / "kepco_subsidiaries"
     / "midland_power"
+    / "generation"
     / "midland_power_monthly_generation.csv"
 )
 DEFAULT_KHNP_GENERATION_INPUT = (

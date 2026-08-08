@@ -5,13 +5,13 @@ near-term analysis. This annual plant panel is retained for reference and is
 not the active analysis path.
 
 This is the version-controlled documentation for the generated annual plant
-dataset in `data/archive/annual_plant/`. The `data/` directory is
+dataset in `data/archive/processed/annual_panel/`. The `data/` directory is
 ignored by git, so the README stored beside the CSVs is useful locally but this
 file is the copy intended to be committed.
 
 The main analysis file is:
 
-- `data/archive/annual_plant/annual_plant_generation_emissions.csv`
+- `data/archive/processed/annual_panel/annual_plant_generation_emissions.csv`
 
 Related audit and validation files in the same generated folder explain how
 the panel was constructed and where records need review.
@@ -101,7 +101,7 @@ from static fuel labels.
 
 Fuel classifications are externally checked in:
 
-- `data/archive/annual_plant/annual_fuel_validation.csv`
+- `data/archive/processed/annual_panel/annual_fuel_validation.csv`
 
 The validation compares the final panel fuel label against the KPX EPSIS annual
 generator roster, which is separate from the EPSIS annual generation extract
@@ -208,13 +208,13 @@ import csv
 import json
 from collections import Counter
 
-with open("data/archive/annual_plant/metadata.json", encoding="utf-8") as f:
+with open("data/archive/processed/annual_panel/metadata.json", encoding="utf-8") as f:
     metadata = json.load(f)
 print(metadata["counts"])
 print(metadata["coverage"].get("fuel_validation_by_status", {}))
 
 with open(
-    "data/archive/annual_plant/annual_plant_generation_emissions.csv",
+    "data/archive/processed/annual_panel/annual_plant_generation_emissions.csv",
     newline="",
     encoding="utf-8-sig",
 ) as f:

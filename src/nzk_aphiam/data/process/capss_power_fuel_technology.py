@@ -9,15 +9,21 @@ from pathlib import Path
 
 import pandas as pd
 
-from nzk_aphiam.config.paths import CAPSS_INTERIM_DIR, PROCESSED_DIR, PROJECT_ROOT
+from nzk_aphiam.config.paths import (
+    CAPSS_INTERIM_DIR,
+    PROCESSED_DIR,
+    PROJECT_ROOT,
+    RESULTS_DIAGNOSTICS_DIR,
+    RESULTS_TABLES_DIR,
+)
 
 DEFAULT_INPUT = CAPSS_INTERIM_DIR / "emissions_statistics" / "capss_emissions_tidy.parquet"
 DEFAULT_RAW_METADATA = (
     PROJECT_ROOT / "data" / "raw" / "capss" / "emissions_statistics" / "metadata.json"
 )
 DEFAULT_OUTPUT_DIR = PROCESSED_DIR / "capss"
-DEFAULT_TABLE_DIR = PROJECT_ROOT / "results" / "tables" / "capss"
-DEFAULT_DIAGNOSTIC_DIR = PROJECT_ROOT / "results" / "diagnostics" / "capss"
+DEFAULT_TABLE_DIR = RESULTS_TABLES_DIR / "capss"
+DEFAULT_DIAGNOSTIC_DIR = RESULTS_DIAGNOSTICS_DIR / "capss"
 
 POWER_SOURCE_CATEGORY = "에너지산업 연소"
 POWER_MIDCATEGORIES = ("공공발전시설", "민간발전시설")

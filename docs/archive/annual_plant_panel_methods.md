@@ -19,7 +19,7 @@ Run the complete preserved-raw workflow with:
 make reproduce-annual-plant-panel-offline PYTHON_INTERPRETER=.venv/bin/python
 ```
 
-Outputs are written under `data/archive/annual_plant/`.
+Outputs are written under `data/archive/processed/annual_panel/`.
 
 ## Generation
 

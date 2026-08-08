@@ -1,3 +1,8 @@
 # Add patterns of files dvc should ignore, which could improve
 # the performance. Learn more at
 # https://dvc.org/doc/user-guide/dvcignore
+
+# This immutable direct provider response is tracked by Git, not DVC. Keeping it
+# outside the Midland scraper snapshot prevents overlapping ownership and a
+# permanently dirty DVC workspace.
+/data/raw/kepco_subsidiaries/midland_power/provider_responses/

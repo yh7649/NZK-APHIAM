@@ -30,7 +30,7 @@ The workflow reuses, without recalculating:
 - `data/processed/epsis/epsis_observed_generation_for_validation_2021.csv` for
   observed national 2021 thermal generation;
 - the generation-weighted `ef_kg_per_mwh` field in
-  `results/tables/kepco/annual_handoff/kepco_annual_ef_distribution_long_by_fuel_technology.csv`;
+  `data/processed/kepco/emission_factors/kepco_annual_ef_distribution_long_by_fuel_technology.csv`;
 - the existing location, retirement, technology, and stack crosswalks;
 - KOSIS age-specific population projections and mortality rates; and
 - `health.crf` and `health.impact`, including the Huang–Peng Krewski primary,
@@ -97,7 +97,7 @@ official asset to print `InMAP v1.9.0` and records the release tag, asset filena
 commit, and local executable SHA-256 together; any other version output is rejected.
 
 Binaries, archives, model data, and raw model outputs are cached under `.cache/inmap/`
-or generated under ignored `results/mvp/`; none are committed. A US-only InMAP
+or generated under ignored `results/runs/`; none are committed. A US-only InMAP
 domain or US source-receptor matrix is rejected.
 
 Runs explicitly use static-grid mode (`static = true` and `--static`) so the
@@ -292,5 +292,5 @@ Completed InMAP runs are keyed by inventory, configuration, and
 executable version and are not rerun when that key is unchanged.
 
 Run-specific artifacts and `MVP_REPORT.md` are under
-`results/mvp/peng_replication/<run_id>/`. The fixed input audit is also written to
-`results/mvp/peng_replication/input_audit.json`.
+`results/runs/peng_replication/<run_id>/`. The fixed input audit is also written to
+`results/runs/peng_replication/input_audit.json`.

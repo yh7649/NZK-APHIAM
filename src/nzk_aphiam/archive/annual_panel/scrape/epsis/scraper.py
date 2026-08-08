@@ -25,6 +25,8 @@ from urllib.parse import urljoin
 
 import requests
 
+from nzk_aphiam.config.paths import ANNUAL_PANEL_ARCHIVE_RAW_DIR
+
 BASE_URL = "https://epsis.kpx.or.kr"
 ANNUAL_PAGE_URL = f"{BASE_URL}/epsisnew/selectEkfaFclDtlChart.do?menuId=020600"
 ANNUAL_DATA_URL = f"{BASE_URL}/epsisnew/selectEkfaFclDtlGrid.do"
@@ -37,10 +39,7 @@ FIRST_ANNUAL_YEAR = 2012
 LAST_ANNUAL_YEAR = 2024
 FIRST_GENERATION_YEAR = 2002
 
-PROJECT_ROOT = Path(__file__).resolve().parents[6]
-DEFAULT_OUTPUT_DIR = (
-    PROJECT_ROOT / "data" / "interim" / "supporting" / "plant_rosters" / "epsis" / "raw"
-)
+DEFAULT_OUTPUT_DIR = ANNUAL_PANEL_ARCHIVE_RAW_DIR / "plant_rosters" / "epsis"
 
 ANNUAL_COLUMNS = [
     "year",
